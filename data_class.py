@@ -1,12 +1,18 @@
 """
 created on Jan 29, 2014
 
-@author: Nikola Jajcay
+@author: Nikola Jajcay, based on script by Martin Vejmelka> -- https://github.com/vejmelkam/ndw-climate --
 """
 
 import numpy as np
 from netCDF4 import Dataset
 from datetime import date
+import csv
+import os
+
+
+DATA_FOLDER = '../data/'
+
 
 class DataField:
     """
@@ -24,12 +30,12 @@ class DataField:
         self.time = time
         
         
-    def load(self, filename, variable_name, dataset = 'ECA-D'):
+    def load(self, filename, variable_name, dataset = 'ECA-reanalysis'):
         """
         Load geophysical data from netCDF file for reanalysis or from text file for station data.
         """
-        if dataset == 'ECA-D':
-            d = Dataset(filename, 'r')
+        if dataset == 'ECA-reanalysis':
+            d = Dataset(DATA_FOLDER + filename, 'r')
             v = d.variables[variable_name]
             
             self.data = v[:] # masked array - only land data, not ocean/sea
@@ -42,6 +48,14 @@ class DataField:
             print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
             
             d.close()
+            
+        if dataset == 'ECA-station':
+            stations = {}
+            for _, _, files in os.walk(DATA_FOLDER): # walk through the entire folder, omit root and dirs
+                for name in files: # iterate through all files in DATA_FOLDER
+                    if name == 'stations.txt':
+                        pass
+                
             
             
     def select_date(self, date_from, date_to):
@@ -98,21 +112,3 @@ class DataField:
         self.lats = self.lats[lat_ndx]
         self.lons = self.lons[lon_ndx]
         
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-        
-            
