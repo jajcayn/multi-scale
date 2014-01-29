@@ -51,7 +51,15 @@ class DataField:
             
         if dataset == 'ECA-station':
             stations = {}
-            for _, _, files in os.walk(DATA_FOLDER): # walk through the entire folder, omit root and dirs
+            countries = []
+            for _, dirs, files in os.walk(DATA_FOLDER): # walk through the entire folder, omit root
+                for name in dirs:
+                    if name not in countries:
+                        countries.append(name)
+                    with open(DATA_FOLDER + name + 'stations.txt', 'rb') as f:
+                        reader = csv.reader(f, delimiter = ' ', skipinitialspace = True)
+                        for row in reader:
+                            pass
                 for name in files: # iterate through all files in DATA_FOLDER
                     if name == 'stations.txt':
                         pass
