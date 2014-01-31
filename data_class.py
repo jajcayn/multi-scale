@@ -92,7 +92,7 @@ class DataField:
         
         
         
-    def find_date_ndx(self, d):
+    def find_date_ndx(self, date):
         """
         Returns index which corresponds to the date. Returns None is the date is not contained in the data.
         """
@@ -147,7 +147,7 @@ class DataField:
         months = np.zeros((n_days,))
         years = np.zeros((n_days,))
         
-        for i,d in zip(range(n_days), self.tm):
+        for i,d in zip(range(n_days), self.time):
             dt = date.fromordinal(int(d))
             days[i] = dt.day
             months[i] = dt.month
@@ -174,9 +174,13 @@ class DataField:
                     self.data[sel, ...] -= avg
         elif abs(delta - 30) < 3.0:
             # monthly data
-            for i in range(12):
-                avg = np.mean(self.data[i::12, ...], axis = 0)
-                self.data[i::12, ...] -= avg
+            _, mon, _ = self.extract_day_month_year()
+            for mi in range(1,13):
+                sel = (mon == mi)
+                if np.sum(sel) == 0:
+                    continue
+                avg = np.mean(self.data[sel, ...], axis = 0)
+                self.data[sel, ...] -= avg
         else:
             raise 'Unknown temporal sampling in the field.'
             
@@ -207,13 +211,15 @@ class DataField:
                     self.data[sel, ...] /= seasonal_var[sel, ...]
         elif abs(delta - 30) < 3.0:
             # monthly data
-            seasonal_mean = np.zeros([12] + list(self.data.shape[1:]))
-            seasonal_var = np.zeros([12] + list(self.data.shape[1:]))
-            for i in range(12):
-                seasonal_mean[i, ...] = np.mean(self.data[i::12, ...], axis = 0)
-                self.data[i::12, ...] -= seasonal_mean[i, ...]
-                seasonal_var[i, ...] = np.std(self.data[i::12, ...], axis = 0)
-                self.data[i::12, ...] /= seasonal_var[i, ...]
+            seasonal_mean = np.zeros_like(self.data)
+            seasonal_var = np.zeros_like(self.data)
+            _, mon, _ = self.extract_day_month_year()
+            for mi in range(1,13):
+                sel = (mon == mi)
+                seasonal_mean[sel, ...] = np.mean(self.data[sel, ...], axis = 0)
+                self.data[sel, ...] -= seasonal_mean[sel, ...]
+                seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0)
+                self.data[sel, ...] /= seasonal_var[sel, ...]
         else:
             raise 'Unknown temporal sampling in the field.'
             
