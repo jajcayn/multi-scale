@@ -7,8 +7,6 @@ created on Jan 29, 2014
 import numpy as np
 from netCDF4 import Dataset
 from datetime import date
-import csv
-import os
 
 
 DATA_FOLDER = '../data/'
