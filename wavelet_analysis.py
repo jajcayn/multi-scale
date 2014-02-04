@@ -34,7 +34,7 @@ def morlet(k, scale, k0 = 6.):
     
     
     
-def continous_wavelet(X, dt, pad = False, dj = 0.25, k0 = 6., **kwargs):
+def continous_wavelet(X, dt, pad = False, **kwargs):
     """
     Computes the wavelet transform of the vector X, with sampling rate dt.
     
@@ -49,6 +49,10 @@ def continous_wavelet(X, dt, pad = False, dj = 0.25, k0 = 6., **kwargs):
     k0 - Morlet wavelet parameter, wavenumber
     """
     # map arguments
+    if 'dj' in kwargs:
+        dj = kwargs['dj']
+    else:
+        dj = 0.25
     if 's0' in kwargs:
         s0 = kwargs['s0']
     else:
@@ -57,6 +61,10 @@ def continous_wavelet(X, dt, pad = False, dj = 0.25, k0 = 6., **kwargs):
         j1 = kwargs['j1']
     else:
         j1 = np.fix(np.log(len(X)*dt/s0) / np.log(2)) / dj
+    if 'k0' in kwargs:
+        k0 = kwargs['k0']
+    else:
+        k0 = 6.
     
     n1 = len(X)
     
