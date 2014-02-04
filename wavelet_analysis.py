@@ -84,17 +84,11 @@ def continous_wavelet(X, dt, pad = False, dj = 0.25, k0 = 6., **kwargs):
     
     # loop through scales and compute tranform
     for i in range(j1+1):
-        daughter, fourier_factor, coi = morlet(k, scale[i], k0)
+        daughter, fourier_factor, _ = morlet(k, scale[i], k0)
         wave[i, :] = ifft(f * daughter)
         
     period = fourier_factor * scale
-    #coi *= dt * 
     wave = wave[:, :n1]
     
     return wave, period, scale
-    
-    
-    
-    
-    
     

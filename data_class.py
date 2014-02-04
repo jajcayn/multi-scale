@@ -6,7 +6,7 @@ created on Jan 29, 2014
 
 import numpy as np
 from netCDF4 import Dataset
-from datetime import date
+from datetime import date, timedelta
 
 
 DATA_FOLDER = '../data/'
@@ -26,6 +26,7 @@ class DataField:
         self.lons = lons
         self.lats = lats
         self.time = time
+        self.location = None
         
         
         
@@ -79,6 +80,29 @@ class DataField:
             
             
             
+    def load_station_data(self, filename, dataset = 'Klem_day'):
+        """
+        Loads station data, usually from text file. Uses numpy.loadtxt reader.
+        """
+        if dataset == 'Klem_day':
+            raw_data = np.loadtxt(DATA_FOLDER + filename) # first column is continous year and second is actual data
+            self.data = np.array(raw_data[:, 1])
+            time = []
+            
+            # use time iterator to go through the dates
+            y = int(np.modf(raw_data[0, 0])[1]) 
+            if np.modf(raw_data[0, 0])[0] == 0:
+                start_date = date(y, 1, 1)
+            delta = timedelta(days = 1)
+            d = start_date
+            while len(time) < raw_data.shape[0]:
+                time.append(d.toordinal())
+                d += delta
+            self.time = np.array(time)
+            self.location = 'Prague - Klementinum'
+            
+                
+                    
     def select_date(self, date_from, date_to):
         """
         Selects the date range - date_from is inclusive, date_to is exclusive. Input is date(year, month, day).
