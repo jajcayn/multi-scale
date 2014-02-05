@@ -9,19 +9,18 @@ from netCDF4 import Dataset
 from datetime import date, timedelta
 
 
-DATA_FOLDER = '../data/'
-
-
 class DataField:
     """
     Class holds the time series of a geophysical field. The fields for reanalysis data are
-    3-dimensional - two spatial and one temporal dimension.
+    3-dimensional - two spatial and one temporal dimension. The fields for station data contains
+    temporal dimension and location specification.
     """
     
-    def __init__(self, data = None, lons = None, lats = None, time = None):
+    def __init__(self, data_folder = '../data/', data = None, lons = None, lats = None, time = None):
         """
         Initializes either an empty data set or with given values.
         """
+        self.data_folder = data_folder
         self.data = data
         self.lons = lons
         self.lats = lats
@@ -35,7 +34,7 @@ class DataField:
         Loads geophysical data from netCDF file for reanalysis or from text file for station data.
         """
         if dataset == 'ECA-reanalysis':
-            d = Dataset(DATA_FOLDER + filename, 'r')
+            d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
             
             self.data = v[:] # masked array - only land data, not ocean/sea
@@ -50,7 +49,7 @@ class DataField:
             d.close()     
                     
         if dataset == 'ERA-40':
-            d = Dataset(DATA_FOLDER + filename, 'r')
+            d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
             
             self.data = v[:]
@@ -65,7 +64,7 @@ class DataField:
             d.close()
             
         if dataset == 'NCEP':
-            d = Dataset(DATA_FOLDER + filename, 'r')
+            d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
             
             self.data = v[:]
@@ -85,7 +84,7 @@ class DataField:
         Loads station data, usually from text file. Uses numpy.loadtxt reader.
         """
         if dataset == 'Klem_day':
-            raw_data = np.loadtxt(DATA_FOLDER + filename) # first column is continous year and second is actual data
+            raw_data = np.loadtxt(self.data_folder + filename) # first column is continous year and second is actual data
             self.data = np.array(raw_data[:, 1])
             time = []
             
