@@ -228,7 +228,7 @@ class DataField:
                         continue
                     seasonal_mean[sel, ...] = np.mean(self.data[sel, ...], axis = 0)
                     self.data[sel, ...] -= seasonal_mean[sel, ...]
-                    seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0)
+                    seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0, ddof = 1)
                     if np.any(seasonal_var[sel, ...] == 0.0):
                         print('**WARNING: some zero standard deviations found for date %d.%d' % (di, mi))
                         seasonal_var[seasonal_var == 0.0] = 1.0
@@ -242,7 +242,7 @@ class DataField:
                 sel = (mon == mi)
                 seasonal_mean[sel, ...] = np.mean(self.data[sel, ...], axis = 0)
                 self.data[sel, ...] -= seasonal_mean[sel, ...]
-                seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0)
+                seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0, ddof = 1)
                 self.data[sel, ...] /= seasonal_var[sel, ...]
         else:
             raise 'Unknown temporal sampling in the field.'

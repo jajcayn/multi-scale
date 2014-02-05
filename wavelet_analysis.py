@@ -68,12 +68,13 @@ def continous_wavelet(X, dt, pad = False, **kwargs):
     
     n1 = len(X)
     
-    Y = X - np.mean(X)
+    #Y = X - np.mean(X)
+    Y = X
     
     # padding, if needed
     if pad:
-        base2 = np.fix(np.log(n1)/np.log(2) + 0.4999999) # power of 2 nearest to len(X)
-        Y = np.concatenate((Y, np.zeros(np.power(2, (base2+1) - n1))))
+        base2 = int(np.fix(np.log(n1)/np.log(2) + 0.4999999)) # power of 2 nearest to len(X)
+        Y = np.concatenate( (Y, np.zeros((np.power(2, (base2+1))-n1))) )
     n = len(Y)
     
     # wavenumber array
