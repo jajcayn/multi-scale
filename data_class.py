@@ -7,6 +7,7 @@ created on Jan 29, 2014
 import numpy as np
 from netCDF4 import Dataset
 from datetime import date, timedelta
+import csv
 
 
 class DataField:
@@ -32,6 +33,10 @@ class DataField:
     def load(self, filename = None, variable_name = None, dataset = 'ECA-reanalysis'):
         """
         Loads geophysical data from netCDF file for reanalysis or from text file for station data.
+        Now supports following datasets: (dataset - keyword passed to function)
+            ECA&D E-OBS gridded dataset reanalysis - 'ECA-reanalysis'
+            ECMWF ERA-40 gridded reanalysis - 'ERA-40'
+            NCEP/NCAR Reanalysis 1 - 'NCEP'
         """
         if dataset == 'ECA-reanalysis':
             d = Dataset(self.data_folder + filename, 'r')
@@ -98,9 +103,33 @@ class DataField:
                 time.append(d.toordinal())
                 d += delta
             self.time = np.array(time)
-            self.location = 'Prague - Klementinum'
+            self.location = 'Praha-Klementinum, Czech Republic'
             
-                
+        if dataset == 'ECA-station':
+            with open(self.data_folder + filename, 'rb') as f:
+                time = []
+                data = []
+                i = 0 # line-counter
+                reader = csv.reader(f)
+                for row in reader:
+                    i += 1
+                    if i == 16: # line with location
+                        country = row[0][38:].lower()
+                        if row[1][-5] == ' ':
+                            station = row[1][1:-13].lower()
+                        elif row[1][-6] == ' ':
+                            station = row[1][1:-14].lower()
+                        self.location = station.title() + ', ' + country.title()
+                    if i > 20: # actual data - len(row) = 4 as SOUID, DATE, TG, Q_TG
+                        year = int(row[1][:4])
+                        month = int(row[1][4:6])
+                        day = int(row[1][6:])
+                        time.append(date(year, month, day).toordinal())
+                        data.append(float(row[2])/10.)
+            self.data = np.array(data)
+            self.time = np.array(time)
+                        
+                                            
                     
     def select_date(self, date_from, date_to):
         """
@@ -166,9 +195,9 @@ class DataField:
         Extracts the self.time field into three fields containg days, months and years.
         """
         n_days = len(self.time)
-        days = np.zeros((n_days,))
-        months = np.zeros((n_days,))
-        years = np.zeros((n_days,))
+        days = np.zeros((n_days,), dtype = np.int)
+        months = np.zeros((n_days,), dtype = np.int)
+        years = np.zeros((n_days,), dtype = np.int)
         
         for i,d in zip(range(n_days), self.time):
             dt = date.fromordinal(int(d))
