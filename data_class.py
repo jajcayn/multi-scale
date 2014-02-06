@@ -21,6 +21,7 @@ class DataField:
         """
         Initializes either an empty data set or with given values.
         """
+        
         self.data_folder = data_folder
         self.data = data
         self.lons = lons
@@ -38,6 +39,7 @@ class DataField:
             ECMWF ERA-40 gridded reanalysis - 'ERA-40'
             NCEP/NCAR Reanalysis 1 - 'NCEP'
         """
+        
         if dataset == 'ECA-reanalysis':
             d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
@@ -88,6 +90,7 @@ class DataField:
         """
         Loads station data, usually from text file. Uses numpy.loadtxt reader.
         """
+        
         if dataset == 'Klem_day':
             raw_data = np.loadtxt(self.data_folder + filename) # first column is continous year and second is actual data
             self.data = np.array(raw_data[:, 1])
@@ -135,6 +138,7 @@ class DataField:
         """
         Selects the date range - date_from is inclusive, date_to is exclusive. Input is date(year, month, day).
         """
+        
         d_start = date_from.toordinal()
         d_to = date_to.toordinal()
         
@@ -148,6 +152,7 @@ class DataField:
         """
         Returns index which corresponds to the date. Returns None is the date is not contained in the data.
         """
+        
         d = date.toordinal()
         pos = np.nonzero(self.time == d)
         if len(pos) == 1:
@@ -161,6 +166,7 @@ class DataField:
         """
         Subselects only certain months. Input as a list of months number.
         """
+        
         ndx = filter(lambda i: date.fromordinal(int(self.time[i])).month in months, range(len(self.time)))
         
         self.time = self.time[ndx]
@@ -172,21 +178,37 @@ class DataField:
         """
         Selects region in lat/lon. Input is for both [from, to], both are inclusive. If None, the dimension is not modified.
         """
-        if lats != None:
-            lat_ndx = np.nonzero(np.logical_and(self.lats >= lats[0], self.lats <= lats[1]))[0]
+        
+        if self.lats != None and self.lons != None:
+            if lats != None:
+                lat_ndx = np.nonzero(np.logical_and(self.lats >= lats[0], self.lats <= lats[1]))[0]
+            else:
+                lat_ndx = np.arange(len(self.lats))
+                
+            if lons != None:
+                lon_ndx = np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= lons[1]))[0]
+            else:
+                lon_ndx = np.arange(len(self.lons))
+                
+            d = self.data
+            d = d[..., lat_ndx, :]
+            self.data = d[..., lon_ndx]
+            self.lats = self.lats[lat_ndx]
+            self.lons = self.lons[lon_ndx]
         else:
-            lat_ndx = np.arange(len(self.lats))
+            raise Exception('Slicing data with no spatial dimensions, probably station data.')
             
-        if lons != None:
-            lon_ndx = np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= lons[1]))[0]
+            
+            
+    def select_level(self, level):
+        """
+        Selects the proper level from the data. Input should be integer >= 0.
+        """
+        
+        if self.data.ndim > 3:
+            self.data = self.data[:, level, ...]
         else:
-            lon_ndx = np.arange(len(self.lons))
-            
-        d = self.data
-        d = d[..., lat_ndx, :]
-        self.data = d[..., lon_ndx]
-        self.lats = self.lats[lat_ndx]
-        self.lons = self.lons[lon_ndx]
+            raise Exception('Slicing level in single-level data.')
         
         
         
@@ -194,6 +216,7 @@ class DataField:
         """
         Extracts the self.time field into three fields containg days, months and years.
         """
+        
         n_days = len(self.time)
         days = np.zeros((n_days,), dtype = np.int)
         months = np.zeros((n_days,), dtype = np.int)
@@ -212,6 +235,7 @@ class DataField:
         """
         Removes the seasonal/yearly cycle from the data
         """
+        
         delta = self.time[1] - self.time[0]
         if delta == 1:
             # daily data
@@ -234,7 +258,7 @@ class DataField:
                 avg = np.mean(self.data[sel, ...], axis = 0)
                 self.data[sel, ...] -= avg
         else:
-            raise 'Unknown temporal sampling in the field.'
+            raise Exception('Unknown temporal sampling in the field.')
             
             
             
@@ -242,6 +266,7 @@ class DataField:
         """
         Removes the seasonality in both mean and variance and returns the seasonal mean and variance arrays.
         """
+        
         delta = self.time[1] - self.time[0]
         if delta == 1:
             # daily data
@@ -273,7 +298,7 @@ class DataField:
                 seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0, ddof = 1)
                 self.data[sel, ...] /= seasonal_var[sel, ...]
         else:
-            raise 'Unknown temporal sampling in the field.'
+            raise Exception('Unknown temporal sampling in the field.')
             
         return seasonal_mean, seasonal_var
                 
