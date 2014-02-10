@@ -4,9 +4,8 @@ created on Feb 4, 2014
 @author: Nikola Jajcay
 """
 
-import data_class
+from src import data_class, wavelet_analysis
 import numpy as np
-import wavelet_analysis
 from datetime import datetime, date
 import matplotlib.pyplot as plt
 

@@ -51,11 +51,12 @@ def days_in_years(s, e, shift):
     pass
 
 phase_temp = np.zeros((WINDOW_LENGTH * y))
-start_ndx = g.find_date_ndx(start_date)
-idx = start_ndx
-for i in range(phase.shape[1] - WINDOW_LENGTH + 1):
-    phase_temp = phase[idx:idx+(WINDOW_LENGTH*y)]
-    idx += days_in_years(start, end, WINDOW_SHIFT)
+start_idx = g.find_date_ndx(start_date)
+curr_year = start_date.year
+for i in range(phase.shape[1] - (WINDOW_LENGTH * y) + 1):
+    end_idx = g.find_date_ndx(date(curr_year + WINDOW_SHIFT, start_date.month, start_date.day))
+    phase_temp = phase[start_idx:end_idx]
+    
 
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))[0]
