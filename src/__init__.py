@@ -5,6 +5,6 @@ created on Feb 7, 2014
 """
 
 """
-Initialization file. 
+Initialization file for source functions and classes.
 """
 

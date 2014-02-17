@@ -156,7 +156,7 @@ class DataField:
         d = date.toordinal()
         pos = np.nonzero(self.time == d)
         if len(pos) == 1:
-            return pos[0]
+            return int(pos[0])
         else:
             return None
             

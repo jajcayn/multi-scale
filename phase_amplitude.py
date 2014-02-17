@@ -38,11 +38,13 @@ amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
 phase_bins = np.linspace(-np.pi, np.pi, 9)
 cond_means = np.zeros((len(phase_bins) - 1,))
 
+
 # conditional means
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))[0]
     cond_means[i] = np.mean(g.data[ndx])
     print phase_bins[i], phase_bins[i+1], cond_means[i]
+print("difference between highest and lowest is %s degrees" % str(cond_means.max() - cond_means.min()))
 print("[%s] Analysis complete. Plotting..." % (str(datetime.now())))
  
 # plot as bar
@@ -52,8 +54,8 @@ if PLOT:
     plt.bar(phase_bins[:-1]+diff*0.05, cond_means, width = diff*0.9, bottom = None, fc = '#403A37', figure = fig)
     plt.xlabel('phase [rad]')
     plt.ylabel('cond mean temperature [$^{\circ}$C]')
-    plt.axis([-np.pi, np.pi, -2, 2])
-    plt.title('SATA, padding, mean, %d years' % (p/y))
+    plt.axis([-np.pi, np.pi, 9, 12])
+    plt.title('SAT, no padding, mean, %d years' % (p/y))
     plt.show()
     
 
