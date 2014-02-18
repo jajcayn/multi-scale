@@ -53,6 +53,19 @@ def render_geo_field(data, lats, lons, u = None, v = None, symm = False,
         
 g = DataField()
 g.load('tg_0.25deg_reg_v9.0.nc', 'tg')
+means = True
+daily = False
 
-for i in range(59):
-    render_geo_field(g.data[i, ...], g.lats, g.lons, None, None, False, 'Temperature %s' % str(date.fromordinal(g.time[i])), 		              'temperature [$^{\circ}C$]', 'imgs/temp%s.png' % str(i+1))
+if means:
+    idx = 0
+    y = 1950
+    while idx < g.data.shape[0]:
+        idx2 = g.find_date_ndx(date(y,1,1))
+        render_geo_field(g.data[idx:idx2, ...], g.lats, g.lons, None, None, False, 'Yearly mean temperature %s' % str(y), 'temperature [$^{\circ}C$]', 'imgs/temp_mean%s.png' % str(y))
+        y += 1
+        idx = idx2
+
+if daily:
+    idx = g.find_date_ndx(date(2012,1,1))
+    for i in range(idx,idx+59):
+        render_geo_field(g.data[i, ...], g.lats, g.lons, None, None, False, 'Temperature %s' % str(date.fromordinal(g.time[i])), 'temperature [$^{\circ}C$]', 'imgs/temp%s.png' % str(i+1))
