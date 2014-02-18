@@ -35,7 +35,7 @@ def morlet(k, scale, k0 = 6.):
     
     
     
-def paul(k, scale, m = 4.):
+def paul(k, scale, k0 = 4.):
     """
     Returns the Paul wavelet function as a function of Fourier frequency,
     used for the wavelet transform in Fourier space.
@@ -45,21 +45,21 @@ def paul(k, scale, m = 4.):
     inputs:
     k - numpy array with Fourier frequencies at which to calculate the wavelet
     scale - the wavelet scale
-    m - order
+    k0 - order
     """
     
     exponent = - np.power((scale * k),2) * (k > 0.)
-    norm = np.sqrt(scale * k[1]) * (np.power(2,m) / np.sqrt(m * np.prod(np.arange(2,2*m)))) * np.sqrt(len(k))
-    output = norm * np.power((scale * k),m) * np.exp(exponent)
+    norm = np.sqrt(scale * k[1]) * (np.power(2,k0) / np.sqrt(k0 * np.prod(np.arange(2,2*k0)))) * np.sqrt(len(k))
+    output = norm * np.power((scale * k),k0) * np.exp(exponent)
     output *= (k > 0.)
-    fourier_factor = (4 * np.pi) / (2 * m + 1)
+    fourier_factor = (4 * np.pi) / (2 * k0 + 1)
     coi = fourier_factor * np.sqrt(2.)
     
     return output, fourier_factor, coi
     
     
     
-def DOG(k, scale, m = 2.):
+def DOG(k, scale, k0 = 2.):
     """
     Returns the Derivative of Gaussian wavelet function as a function of Fourier frequency,
     used for the wavelet transform in Fourier space. For m = 2 this wavelet is the Marr or
@@ -70,13 +70,13 @@ def DOG(k, scale, m = 2.):
     inputs:
     k - numpy array with Fourier frequencies at which to calculate the wavelet
     scale - the wavelet scale
-    m - derivative
+    k0 - derivative
     """
     
     exponent = - np.power((scale * k),2) / 2.
-    norm = np.sqrt(scale * k[1] / gamma(m + 0.5)) * np.sqrt(len(k))
-    output = - norm * np.power(1j,m) * np.power((scale * k),m) * np.exp(exponent)
-    fourier_factor = 2 * np.pi * np.sqrt(2 / (2 * m + 1))
+    norm = np.sqrt(scale * k[1] / gamma(k0 + 0.5)) * np.sqrt(len(k))
+    output = - norm * np.power(1j,k0) * np.power((scale * k),k0) * np.exp(exponent)
+    fourier_factor = 2 * np.pi * np.sqrt(2 / (2 * k0 + 1))
     coi = fourier_factor / np.sqrt(2.)
     
     return output, fourier_factor, coi
