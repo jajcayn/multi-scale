@@ -45,7 +45,7 @@ class DataField:
             v = d.variables[variable_name]
             
             self.data = v[:] # masked array - only land data, not ocean/sea
-            print("Data saved to structure. Shape of the data is %s and info from netCDF file is %s" % (str(self.data.shape), str(v)))
+            print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
             self.lons = d.variables['longitude'][:]
             self.lats = d.variables['latitude'][:]
             print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
@@ -60,7 +60,7 @@ class DataField:
             v = d.variables[variable_name]
             
             self.data = v[:]
-            print("Data saved to structure. Shape of the data is %s and info from netCDF file is %s" % (str(self.data.shape), str(v)))
+            print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
             self.lons = d.variables['longitude'][:]
             self.lats = d.variables['latitude'][:]
             print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
@@ -75,7 +75,7 @@ class DataField:
             v = d.variables[variable_name]
             
             self.data = v[:]
-            print("Data saved to structure. Shape of the data is %s and info from netCDF file is %s" % (str(self.data.shape), str(v)))
+            print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
             self.lons = d.variables['lon'][:]
             self.lats = d.variables['lat'][:]
             self.time = d.variables['time'][:] # hours since 1-01-01 00:00
