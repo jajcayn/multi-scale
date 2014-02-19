@@ -69,10 +69,10 @@ while end_idx < g.data.shape[0]: # while still in the correct range
         ndx = ((phase_temp >= phase_bins[i]) & (phase_temp <= phase_bins[i+1]))
         bin_cnt.append(ndx[ndx == True].shape)
         cond_means[i] = np.mean(data_temp[ndx])
-    if (cond_means.max() > 0. and cond_means.min() > 0.):
-        difference.append(cond_means.max() - cond_means.min()) # append difference to list
-    else:
-        difference.append(0)
+    #if (cond_means.max() > 0. and cond_means.min() > 0.):
+    difference.append(cond_means.max() - cond_means.min()) # append difference to list
+    #else:
+    #    difference.append(0)
     if debug_plot:
         fig = plt.figure(figsize=(7,14), dpi = 300)
         plt.subplot(211)
@@ -92,7 +92,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
            k += 1
         plt.xlabel('phase [rad]')
         plt.ylabel('cond mean temperature [$^{\circ}$C]')
-        plt.axis([-np.pi, np.pi, 0, 15])
+        plt.axis([-np.pi, np.pi, -5, 5])
         plt.title('Difference is %g' % (difference[-1]))
         plt.savefig('debug/plot%s' % str(cnt))
     start_idx = g.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
@@ -106,7 +106,7 @@ print cnt
 if PLOT:
     fig = plt.figure(figsize=(10,7))
     plt.plot(difference, color = '#403A37', linewidth = 2, figure = fig)
-    plt.axis([0, cnt-1, -0.5, 13])
+    plt.axis([0, cnt-1, -5, 5])
     plt.xlabel('start year of %d-year wide window' % WINDOW_LENGTH)
     plt.xticks(np.linspace(0, cnt-1, 7), [i for i in range(start_date.year, end_date.year, 6)], rotation = 30)
     plt.ylabel('difference in cond mean temperature [$^{\circ}$C]')
