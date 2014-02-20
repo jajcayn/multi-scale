@@ -11,13 +11,14 @@ from datetime import datetime, date
 import matplotlib.pyplot as plt
 
 
-ANOMALISE = False
+ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 8 # years, should be at least PERIOD of wavelet
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 debug_plot = True
+MEANS = False # if True, compute conditional means, if False, compute conditional variance
 
 
 ## loading data ##
@@ -49,8 +50,25 @@ wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analy
 phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
 
-phase_bins = np.linspace(-np.pi, np.pi, 9)
-cond_means = np.zeros((len(phase_bins) - 1,))
+cond_means = np.zeros((8,))
+
+# solution where all bins are edited
+def get_equiquantal_bins(phase_part):
+    # use iterative algorythm
+    volume = int(phase_part.shape[0] / 8.)
+    start = phase_part.min()
+    phase_bins = [start]
+    end = phase_part.max()
+    for i in range(7):
+        ndx = np.zeros_like(phase_part, dtype = np.bool)
+        idx = phase_bins[-1]
+        while (ndx[ndx == True].shape[0] < volume):
+            ndx = ((phase_part >= phase_bins[-1]) & (phase_temp <= idx))
+            idx += 0.001
+        phase_bins.append(idx)
+    phase_bins.append(end)
+        
+    return np.array(phase_bins)
 
 # time evolution of sliding window
 d, m, year = g.extract_day_month_year()
@@ -66,9 +84,13 @@ while end_idx < g.data.shape[0]: # while still in the correct range
     data_temp = g.data[start_idx : end_idx] # subselect data
     phase_temp = phase[0,start_idx : end_idx]
     for i in range(cond_means.shape[0]): # get conditional means for current phase range
+        phase_bins = get_equiquantal_bins(phase_temp)
         ndx = ((phase_temp >= phase_bins[i]) & (phase_temp <= phase_bins[i+1]))
         bin_cnt.append(ndx[ndx == True].shape)
-        cond_means[i] = np.mean(data_temp[ndx])
+        if MEANS:
+            cond_means[i] = np.mean(data_temp[ndx])
+        else:
+            cond_means[i] = np.var(data_temp[ndx], ddof = 1)
     #if (cond_means.max() > 0. and cond_means.min() > 0.):
     difference.append(cond_means.max() - cond_means.min()) # append difference to list
     #else:
@@ -80,10 +102,14 @@ while end_idx < g.data.shape[0]: # while still in the correct range
         for i in range(len(phase_bins)):
             plt.axhline(y = phase_bins[i], color = 'red')
         plt.axis([0, WINDOW_LENGTH*y, -np.pi, np.pi])
-        plt.title('%d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], m[end_idx], year[end_idx]), size = 20)
+        plt.xticks(np.linspace(0, len(phase[0,start_idx:end_idx]), 9), ['%d.' % (i+1) for i in range(8)])
+        plt.title('SATA cond vars \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
+                                              m[end_idx], year[end_idx]), size = 20)
+        plt.xlabel('years')
+        plt.ylabel('phase [rad]')
         plt.subplot(212)
-        diff = (phase_bins[1]-phase_bins[0])
-        rects = plt.bar(phase_bins[:-1]+diff*0.05, cond_means, width = diff*0.9, bottom = None, fc = '#403A37')
+        #diff = (phase_bins[1]-phase_bins[0])
+        rects = plt.bar(phase_bins[:-1], cond_means, width = 0.5, bottom = None, fc = '#403A37')
         k = 0
         for rect in rects: 
            height = rect.get_height()
@@ -91,8 +117,8 @@ while end_idx < g.data.shape[0]: # while still in the correct range
                plt.text(rect.get_x()+rect.get_width()/2., 1.05*height, '%g' % bin_cnt[k], ha = 'center', va = 'bottom')
            k += 1
         plt.xlabel('phase [rad]')
-        plt.ylabel('cond mean temperature [$^{\circ}$C]')
-        plt.axis([-np.pi, np.pi, -5, 5])
+        plt.ylabel('cond variance in temperature [$^{\circ}$C]')
+        plt.axis([-np.pi, np.pi, 0, 25])
         plt.title('Difference is %g' % (difference[-1]))
         plt.savefig('debug/plot%s' % str(cnt))
     start_idx = g.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
@@ -106,14 +132,14 @@ print cnt
 if PLOT:
     fig = plt.figure(figsize=(10,7))
     plt.plot(difference, color = '#403A37', linewidth = 2, figure = fig)
-    plt.axis([0, cnt-1, -5, 5])
+    plt.axis([0, cnt-1, 0, 15])
     plt.xlabel('start year of %d-year wide window' % WINDOW_LENGTH)
     plt.xticks(np.linspace(0, cnt-1, 7), [i for i in range(start_date.year, end_date.year, 6)], rotation = 30)
-    plt.ylabel('difference in cond mean temperature [$^{\circ}$C]')
+    plt.ylabel('difference in cond variance in temperature [$^{\circ}$C]')
     if not ANOMALISE:
-        plt.title('Evolution of difference in cond mean temp, SAT, %d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+        plt.title('Evolution of difference in cond var in temp, SAT, %d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     else:
-        plt.title('Evolution of difference in cond mean temp, SATA, %d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+        plt.title('Evolution of difference in cond var in temp, SATA, %d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     plt.savefig('debug/total.png')
   
 
