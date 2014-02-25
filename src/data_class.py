@@ -28,6 +28,7 @@ class DataField:
         self.lats = lats
         self.time = time
         self.location = None
+        self.missing = None # for station data where could be some missing values
         
         
         
@@ -107,11 +108,14 @@ class DataField:
                 d += delta
             self.time = np.array(time)
             self.location = 'Praha-Klementinum, Czech Republic'
+            print("Station data from %s saved to structure. Shape of the data is %s" % (self.location, str(self.data.shape)))
+            print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
             
         if dataset == 'ECA-station':
             with open(self.data_folder + filename, 'rb') as f:
                 time = []
                 data = []
+                missing = []
                 i = 0 # line-counter
                 reader = csv.reader(f)
                 for row in reader:
@@ -124,13 +128,23 @@ class DataField:
                             station = row[1][1:-14].lower()
                         self.location = station.title() + ', ' + country.title()
                     if i > 20: # actual data - len(row) = 4 as SOUID, DATE, TG, Q_TG
+                        value = float(row[2])
                         year = int(row[1][:4])
                         month = int(row[1][4:6])
                         day = int(row[1][6:])
                         time.append(date(year, month, day).toordinal())
-                        data.append(float(row[2])/10.)
+                        if value == -9999.:
+                            missing.append(date(year, month, day).toordinal())
+                            data.append(np.nan)
+                        else:
+                            data.append(value/10.)
             self.data = np.array(data)
             self.time = np.array(time)
+            self.missing = np.array(missing)
+            print("Station data from %s saved to structure. Shape of the data is %s" % (self.location, str(self.data.shape)))
+            print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+            if self.missing.shape[0] != 0:
+                print("** WARNING: There were some missing values! To be precise, %d missing values were found!" % (self.missing.shape[0]))
                         
                                             
                     
@@ -145,6 +159,9 @@ class DataField:
         ndx = np.logical_and(self.time >= d_start, self.time < d_to)
         self.time = self.time[ndx] # slice time stamp
         self.data = self.data[ndx, ...] # slice data
+        if self.missing != None:
+            missing_ndx = np.logical_and(self.missing >= d_start, self.missing < d_to)
+            self.missing = self.missing[missing_ndx] # slice missing if exists
         
         
         
@@ -229,6 +246,30 @@ class DataField:
             years[i] = dt.year
             
         return days, months, years
+        
+        
+        
+    def missing_day_month_year(self):
+        """
+        Extracts the self.missing field (if exists and is non-empty) into three fields containing days, months and years.
+        """
+        
+        if (self.missing != None) and (self.missing.shape[0] != 0):
+            n_days = len(self.missing)
+            days = np.zeros((n_days,), dtype = np.int)
+            months = np.zeros((n_days,), dtype = np.int)
+            years = np.zeros((n_days,), dtype = np.int)
+            
+            for i,d in zip(range(n_days), self.missing):
+                dt = date.fromordinal(int(d))
+                days[i] = dt.day
+                months[i] = dt.month
+                years[i] = dt.year
+                
+            return days, months, years
+            
+        else:
+            raise Exception('Luckily for you, there is no missing values!')
         
         
     def anomalise(self):
