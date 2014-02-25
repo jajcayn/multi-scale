@@ -8,7 +8,56 @@ import numpy as np
 from netCDF4 import Dataset
 from datetime import date, timedelta
 import csv
+from distutils.version import LooseVersion
 
+
+
+def nanmean(arr, axis = None):
+    """
+    Computes the mean along the axis, ignoring NaNs
+    """
+    a = arr.copy()
+    if LooseVersion(np.__version__) >= LooseVersion('1.8.0'): # if numpy version is higher than 1.8, use build-in function
+        return np.nanmean(arr, axis = axis)
+    else:
+        mask = np.isnan(a)
+        a[mask] = 0. # replace NaNs to 0.
+        total = np.sum(a, axis = axis)
+        avg = total / np.sum(~mask, axis = axis)
+
+        return avg
+        
+        
+        
+def nanvar(arr, axis = None, ddof = 0):
+    """
+    Computes the variance along the axis, ignoring NaNs
+    """  
+    a = arr.copy()      
+    if LooseVersion(np.__version__) >= LooseVersion('1.8.0'): # if numpy version is higher than 1.8, use build-in function
+        return np.nanvar(arr, axis = axis, ddof = ddof)
+    else:
+        # compute mean
+        mask = np.isnan(a)
+        a[mask] = 0. # replace NaNs to 0.
+        total = np.sum(a, axis = axis, keepdims = True)
+        cnt = np.sum(~mask, axis = axis, keepdims = True)
+        avg = total / cnt
+        
+        # compute squared deviation from mean
+        a -= avg
+        a[mask] = 0. 
+        sqr = np.multiply(a, a)
+
+        # compute variance
+        var = np.sum(sqr, axis = axis)
+        if var.ndim < cnt.ndim:
+            cnt = cnt.squeeze(axis)
+        dof = cnt - ddof
+        var /= dof
+        
+        return var
+        
 
 class DataField:
     """
@@ -287,7 +336,7 @@ class DataField:
                     sel = np.logical_and(mon_mask, day == di)
                     if np.sum(sel) == 0:
                         continue
-                    avg = np.mean(self.data[sel, ...], axis = 0)
+                    avg = nanmean(self.data[sel, ...], axis = 0)
                     self.data[sel, ...] -= avg
         elif abs(delta - 30) < 3.0:
             # monthly data
@@ -296,7 +345,7 @@ class DataField:
                 sel = (mon == mi)
                 if np.sum(sel) == 0:
                     continue
-                avg = np.mean(self.data[sel, ...], axis = 0)
+                avg = nanmean(self.data[sel, ...], axis = 0)
                 self.data[sel, ...] -= avg
         else:
             raise Exception('Unknown temporal sampling in the field.')
@@ -320,7 +369,7 @@ class DataField:
                     sel = np.logical_and(mon_mask, day == di)
                     if np.sum(sel) == 0:
                         continue
-                    seasonal_mean[sel, ...] = np.mean(self.data[sel, ...], axis = 0)
+                    seasonal_mean[sel, ...] = nanmean(self.data[sel, ...], axis = 0)
                     self.data[sel, ...] -= seasonal_mean[sel, ...]
                     seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0, ddof = 1)
                     if np.any(seasonal_var[sel, ...] == 0.0):
@@ -334,7 +383,7 @@ class DataField:
             _, mon, _ = self.extract_day_month_year()
             for mi in range(1,13):
                 sel = (mon == mi)
-                seasonal_mean[sel, ...] = np.mean(self.data[sel, ...], axis = 0)
+                seasonal_mean[sel, ...] = nanmean(self.data[sel, ...], axis = 0)
                 self.data[sel, ...] -= seasonal_mean[sel, ...]
                 seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0, ddof = 1)
                 self.data[sel, ...] /= seasonal_var[sel, ...]
