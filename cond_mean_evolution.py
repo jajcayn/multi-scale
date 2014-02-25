@@ -11,23 +11,23 @@ from datetime import datetime, date
 import matplotlib.pyplot as plt
 
 
-ANOMALISE = True
+ANOMALISE = False
 PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 8 # years, should be at least PERIOD of wavelet
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
-debug_plot = True
-MEANS = False # if True, compute conditional means, if False, compute conditional variance
+debug_plot = False
+MEANS = True # if True, compute conditional means, if False, compute conditional variance
 
 
 ## loading data ##
 print("[%s] Loading station data..." % (str(datetime.now())))
 g = DataField()
-g.load_station_data('Klemday07.raw')
+g.load_station_data('TG_STAID000027.txt', dataset = "ECA-station")
 print("** loaded")
-start_date = date(1958,1,1)
-end_date = date(2002, 11, 10)
+start_date = date(1775,1,1)
+end_date = date(1954, 6, 8) # length of the time series with date(1954,6,8) = 65536 - power of 2
 g.select_date(start_date, end_date)
 if ANOMALISE:
     print("** anomalising")
@@ -103,7 +103,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
             plt.axhline(y = phase_bins[i], color = 'red')
         plt.axis([0, WINDOW_LENGTH*y, -np.pi, np.pi])
         plt.xticks(np.linspace(0, len(phase[0,start_idx:end_idx]), 9), ['%d.' % (i+1) for i in range(8)])
-        plt.title('SATA cond vars \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
+        plt.title('SAT cond mean \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
                                               m[end_idx], year[end_idx]), size = 20)
         plt.xlabel('years')
         plt.ylabel('phase [rad]')
@@ -117,7 +117,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
                plt.text(rect.get_x()+rect.get_width()/2., 1.05*height, '%g' % bin_cnt[k], ha = 'center', va = 'bottom')
            k += 1
         plt.xlabel('phase [rad]')
-        plt.ylabel('cond variance in temperature [$^{\circ}$C]')
+        plt.ylabel('cond mean in temperature [$^{\circ}$C]')
         plt.axis([-np.pi, np.pi, 0, 25])
         plt.title('Difference is %g' % (difference[-1]))
         plt.savefig('debug/plot%s' % str(cnt))
@@ -126,20 +126,20 @@ while end_idx < g.data.shape[0]: # while still in the correct range
 print("[%s] Wavelet analysis done. Now plotting.." % (str(datetime.now())))
 print cnt
 #difference[difference == np.nan] = 0
-#print difference
+print len(difference)
     
 ## plotting ##
 if PLOT:
     fig = plt.figure(figsize=(10,7))
-    plt.plot(difference, color = '#403A37', linewidth = 2, figure = fig)
+    plt.plot(difference, color = '#403A37', linewidth = 2)#, figure = fig)
     plt.axis([0, cnt-1, 0, 15])
     plt.xlabel('start year of %d-year wide window' % WINDOW_LENGTH)
-    plt.xticks(np.linspace(0, cnt-1, 7), [i for i in range(start_date.year, end_date.year, 6)], rotation = 30)
-    plt.ylabel('difference in cond variance in temperature [$^{\circ}$C]')
+    plt.xticks(np.arange(0,cnt,20), np.arange(start_date.year, end_date.year, 20), rotation = 45)
+    plt.ylabel('difference in cond mean in temperature [$^{\circ}$C]')
     if not ANOMALISE:
-        plt.title('Evolution of difference in cond var in temp, SAT, %d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+        plt.title('Evolution of difference in cond mean in temp, SAT, %d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     else:
-        plt.title('Evolution of difference in cond var in temp, SATA, %d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+        plt.title('Evolution of difference in cond mean in temp, SATA, %d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     plt.savefig('debug/total.png')
   
 
