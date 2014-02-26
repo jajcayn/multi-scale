@@ -13,11 +13,12 @@ import matplotlib.pyplot as plt
 
 ANOMALISE = False
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 8 # years, should be at least PERIOD of wavelet
+#WINDOW_LENGTH = 48 # years, should be at least PERIOD of wavelet
+WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
-debug_plot = False
+debug_plot = True # partial
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 
 
@@ -26,8 +27,10 @@ print("[%s] Loading station data..." % (str(datetime.now())))
 g = DataField()
 g.load_station_data('TG_STAID000027.txt', dataset = "ECA-station")
 print("** loaded")
-start_date = date(1775,1,1)
-end_date = date(1954, 6, 8) # length of the time series with date(1954,6,8) = 65536 - power of 2
+start_date = date(1834,7,28)
+end_date = date(2014, 1, 1) # exclusive
+# length of the time series with date(1954,6,8) with start date(1775,1,1) = 65536 - power of 2
+# the same when end date(2014,1,1) than start date(1834,7,28)
 g.select_date(start_date, end_date)
 if ANOMALISE:
     print("** anomalising")
@@ -69,6 +72,9 @@ def get_equiquantal_bins(phase_part):
     phase_bins.append(end)
         
     return np.array(phase_bins)
+    
+def get_equidistant_bins():
+    return np.array(np.linspace(-np.pi, np.pi, 9))
 
 # time evolution of sliding window
 d, m, year = g.extract_day_month_year()
@@ -84,7 +90,8 @@ while end_idx < g.data.shape[0]: # while still in the correct range
     data_temp = g.data[start_idx : end_idx] # subselect data
     phase_temp = phase[0,start_idx : end_idx]
     for i in range(cond_means.shape[0]): # get conditional means for current phase range
-        phase_bins = get_equiquantal_bins(phase_temp)
+        #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
+        phase_bins = get_equidistant_bins() # equidistant bins
         ndx = ((phase_temp >= phase_bins[i]) & (phase_temp <= phase_bins[i+1]))
         bin_cnt.append(ndx[ndx == True].shape)
         if MEANS:
@@ -96,31 +103,32 @@ while end_idx < g.data.shape[0]: # while still in the correct range
     #else:
     #    difference.append(0)
     if debug_plot:
-        fig = plt.figure(figsize=(7,14), dpi = 300)
-        plt.subplot(211)
-        plt.plot(phase[0,start_idx:end_idx], linewidth = 1.5)
-        for i in range(len(phase_bins)):
-            plt.axhline(y = phase_bins[i], color = 'red')
-        plt.axis([0, WINDOW_LENGTH*y, -np.pi, np.pi])
-        plt.xticks(np.linspace(0, len(phase[0,start_idx:end_idx]), 9), ['%d.' % (i+1) for i in range(8)])
-        plt.title('SAT cond mean \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
-                                              m[end_idx], year[end_idx]), size = 20)
-        plt.xlabel('years')
-        plt.ylabel('phase [rad]')
-        plt.subplot(212)
-        #diff = (phase_bins[1]-phase_bins[0])
-        rects = plt.bar(phase_bins[:-1], cond_means, width = 0.5, bottom = None, fc = '#403A37')
-        k = 0
-        for rect in rects: 
-           height = rect.get_height()
-           if height > 0. and height < 20.:
-               plt.text(rect.get_x()+rect.get_width()/2., 1.05*height, '%g' % bin_cnt[k], ha = 'center', va = 'bottom')
-           k += 1
-        plt.xlabel('phase [rad]')
-        plt.ylabel('cond mean in temperature [$^{\circ}$C]')
-        plt.axis([-np.pi, np.pi, 0, 25])
-        plt.title('Difference is %g' % (difference[-1]))
-        plt.savefig('debug/plot%s' % str(cnt))
+        if (year[start_idx] > 1950 and year[end_idx] < 2014):
+            fig = plt.figure(figsize=(7,14), dpi = 300)
+            plt.subplot(211)
+            plt.plot(phase[0,start_idx:end_idx], linewidth = 1.5)
+            for i in range(len(phase_bins)):
+                plt.axhline(y = phase_bins[i], color = 'red')
+            plt.axis([0, WINDOW_LENGTH*y, -np.pi, np.pi])
+            plt.xticks(np.linspace(0, len(phase[0,start_idx:end_idx]), 9), year[start_idx:end_idx:int((end_idx-start_idx)/9)])
+            plt.title('SAT cond mean \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
+                                                  m[end_idx], year[end_idx]), size = 20)
+            plt.xlabel('years')
+            plt.ylabel('phase [rad]')
+            plt.subplot(212)
+            #diff = (phase_bins[1]-phase_bins[0])
+            rects = plt.bar(phase_bins[:-1], cond_means, width = 0.5, bottom = None, fc = '#403A37')
+            k = 0
+            for rect in rects: 
+               height = rect.get_height()
+               if height > 0. and height < 20.:
+                   plt.text(rect.get_x()+rect.get_width()/2., 1.05*height, '%g' % bin_cnt[k], ha = 'center', va = 'bottom')
+               k += 1
+            plt.xlabel('phase [rad]')
+            plt.ylabel('cond mean in temperature [$^{\circ}$C]')
+            plt.axis([-np.pi, np.pi, 0, 25])
+            plt.title('Difference is %g' % (difference[-1]))
+            plt.savefig('debug/plot%s' % str(cnt))
     start_idx = g.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
     end_idx = start_idx + data_temp.shape[0] # shift end index
 print("[%s] Wavelet analysis done. Now plotting.." % (str(datetime.now())))
@@ -132,7 +140,7 @@ print len(difference)
 if PLOT:
     fig = plt.figure(figsize=(10,7))
     plt.plot(difference, color = '#403A37', linewidth = 2)#, figure = fig)
-    plt.axis([0, cnt-1, 0, 15])
+    plt.axis([0, cnt-1, 0, 3])
     plt.xlabel('start year of %d-year wide window' % WINDOW_LENGTH)
     plt.xticks(np.arange(0,cnt,20), np.arange(start_date.year, end_date.year, 20), rotation = 45)
     plt.ylabel('difference in cond mean in temperature [$^{\circ}$C]')

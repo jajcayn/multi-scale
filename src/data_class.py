@@ -92,7 +92,7 @@ class DataField:
         self.lons = lons
         self.lats = lats
         self.time = time
-        self.location = None
+        self.location = None # for station data
         self.missing = None # for station data where could be some missing values
         
         
