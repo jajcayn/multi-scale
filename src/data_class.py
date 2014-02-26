@@ -58,6 +58,22 @@ def nanvar(arr, axis = None, ddof = 0):
         
         return var
         
+        
+        
+def nanstd(arr, axis = None, ddof = 0):
+    """
+    Computes the standard deviation along the axis, ignoring Nans
+    """
+    a = arr.copy()
+    if LooseVersion(np.__version__) >= LooseVersion('1.8.0'): # if numpy version is higher than 1.8, use build-in function
+        return np.nanstd(arr, axis = axis, ddof = ddof)
+    else:
+        var = nanvar(a, axis = axis, ddof = ddof)
+        std = np.sqrt(var)
+        
+        return std
+        
+        
 
 class DataField:
     """
@@ -371,7 +387,7 @@ class DataField:
                         continue
                     seasonal_mean[sel, ...] = nanmean(self.data[sel, ...], axis = 0)
                     self.data[sel, ...] -= seasonal_mean[sel, ...]
-                    seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0, ddof = 1)
+                    seasonal_var[sel, ...] = nanstd(self.data[sel, ...], axis = 0, ddof = 1)
                     if np.any(seasonal_var[sel, ...] == 0.0):
                         print('**WARNING: some zero standard deviations found for date %d.%d' % (di, mi))
                         seasonal_var[seasonal_var == 0.0] = 1.0
@@ -385,7 +401,7 @@ class DataField:
                 sel = (mon == mi)
                 seasonal_mean[sel, ...] = nanmean(self.data[sel, ...], axis = 0)
                 self.data[sel, ...] -= seasonal_mean[sel, ...]
-                seasonal_var[sel, ...] = np.std(self.data[sel, ...], axis = 0, ddof = 1)
+                seasonal_var[sel, ...] = nanstd(self.data[sel, ...], axis = 0, ddof = 1)
                 self.data[sel, ...] /= seasonal_var[sel, ...]
         else:
             raise Exception('Unknown temporal sampling in the field.')
