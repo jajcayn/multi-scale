@@ -11,14 +11,14 @@ from datetime import datetime, date
 import matplotlib.pyplot as plt
 
 
-ANOMALISE = False
+ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-#WINDOW_LENGTH = 48 # years, should be at least PERIOD of wavelet
-WINDOW_LENGTH = 16384 / 365.25
+WINDOW_LENGTH = 40 # years, should be at least PERIOD of wavelet
+#WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
-debug_plot = True # partial
+debug_plot = False # partial
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 
 
@@ -103,7 +103,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
     #else:
     #    difference.append(0)
     if debug_plot:
-        if (year[start_idx] > 1950 and year[end_idx] < 2014):
+        if (year[start_idx] > 1830 and year[end_idx] < 2014):
             fig = plt.figure(figsize=(7,14), dpi = 300)
             plt.subplot(211)
             plt.plot(phase[0,start_idx:end_idx], linewidth = 1.5)
@@ -111,7 +111,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
                 plt.axhline(y = phase_bins[i], color = 'red')
             plt.axis([0, WINDOW_LENGTH*y, -np.pi, np.pi])
             plt.xticks(np.linspace(0, len(phase[0,start_idx:end_idx]), 9), year[start_idx:end_idx:int((end_idx-start_idx)/9)])
-            plt.title('SAT cond mean \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
+            plt.title('SATA cond mean \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
                                                   m[end_idx], year[end_idx]), size = 20)
             plt.xlabel('years')
             plt.ylabel('phase [rad]')
