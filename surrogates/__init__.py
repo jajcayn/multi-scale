@@ -5,5 +5,5 @@ created on Mar 4, 2014
 """
 
 """
-Initialization file for surrogate testing.
+Initialization file for surrogate module.
 """
