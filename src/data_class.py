@@ -370,7 +370,7 @@ class DataField:
             
     def get_seasonality(self):
         """
-        Removes the seasonality in both mean and variance and returns the seasonal mean and variance arrays.
+        Removes the seasonality in both mean and std and returns the seasonal mean and std arrays.
         """
         
         delta = self.time[1] - self.time[0]
