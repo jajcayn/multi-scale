@@ -22,7 +22,7 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 debug_plot = True # partial
-MEANS = True # if True, compute conditional means, if False, compute conditional variance
+MEANS = False # if True, compute conditional means, if False, compute conditional variance
 
 
 ## loading data ##
@@ -144,7 +144,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
                 plt.ylabel('cond mean in temperature [$^{\circ}$C]')
             elif not MEANS:
                 plt.ylabel('cond variance in temperature [$^{\circ}$C$^2$]')
-            plt.axis([-np.pi, np.pi, -4, 4])
+            plt.axis([-np.pi, np.pi, 0, 25])
             plt.title('Difference is %g \n Mean is %g' % (difference[-1], mean_var[-1]))
             if not ANOMALISE:
                 fname = 'debug/SAT_'
@@ -191,7 +191,7 @@ if PLOT:
         ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
     elif not MEANS:
         ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-    #ax2.axis([0, cnt-1, 60, 75])
+    ax2.axis([0, cnt-1, 12.5, 15.5])
     for tl in ax2.get_yticklabels():
         tl.set_color('#CA4F17')
     tit = 'Evolution of difference in cond'
