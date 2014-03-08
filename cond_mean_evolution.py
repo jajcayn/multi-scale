@@ -9,9 +9,18 @@ from src.data_class import DataField
 import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
+<<<<<<< .merge_file_a03688
 
 
 ANOMALISE = False
+=======
+import matplotlib as mpl
+mpl.rcParams['figure.max_open_warning'] = 100
+
+
+
+ANOMALISE = True
+>>>>>>> .merge_file_a08888
 PERIOD = 8 # years, period of wavelet
 #WINDOW_LENGTH = 32 # years, should be at least PERIOD of wavelet
 WINDOW_LENGTH = 16384 / 365.25
@@ -19,7 +28,11 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 debug_plot = True # partial
+<<<<<<< .merge_file_a03688
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
+=======
+MEANS = False # if True, compute conditional means, if False, compute conditional variance
+>>>>>>> .merge_file_a08888
 
 
 ## loading data ##
@@ -105,7 +118,11 @@ while end_idx < g.data.shape[0]: # while still in the correct range
     #else:
     #    difference.append(0)
     if debug_plot:
+<<<<<<< .merge_file_a03688
         if (year[start_idx] > 1956 and year[end_idx] < 2014):
+=======
+        if (year[start_idx] > 1830 and year[end_idx] < 2014):
+>>>>>>> .merge_file_a08888
             fig = plt.figure(figsize=(7,14), dpi = 300)
             plt.subplot(211)
             plt.plot(phase[0,start_idx:end_idx], linewidth = 1.5)
@@ -133,7 +150,11 @@ while end_idx < g.data.shape[0]: # while still in the correct range
             k = 0
             for rect in rects: 
                height = rect.get_height()
+<<<<<<< .merge_file_a03688
                if height > 0. and height < 30.:
+=======
+               if height > 0. and height < 120.:
+>>>>>>> .merge_file_a08888
                    plt.text(rect.get_x()+rect.get_width()/2., 1.05*height, '%g' % bin_cnt[k], ha = 'center', va = 'bottom')
                k += 1
             plt.xlabel('phase [rad]')
@@ -141,7 +162,11 @@ while end_idx < g.data.shape[0]: # while still in the correct range
                 plt.ylabel('cond mean in temperature [$^{\circ}$C]')
             elif not MEANS:
                 plt.ylabel('cond variance in temperature [$^{\circ}$C$^2$]')
+<<<<<<< .merge_file_a03688
             plt.axis([-np.pi, np.pi, 5, 15])
+=======
+            plt.axis([-np.pi, np.pi, 0, 25])
+>>>>>>> .merge_file_a08888
             plt.title('Difference is %g \n Mean is %g' % (difference[-1], mean_var[-1]))
             if not ANOMALISE:
                 fname = 'debug/SAT_'
@@ -188,7 +213,11 @@ if PLOT:
         ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
     elif not MEANS:
         ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
+<<<<<<< .merge_file_a03688
     ax2.axis([0, cnt-1, 8.75, 11])
+=======
+    ax2.axis([0, cnt-1, 12.5, 15.5])
+>>>>>>> .merge_file_a08888
     for tl in ax2.get_yticklabels():
         tl.set_color('#CA4F17')
     tit = 'Evolution of difference in cond'
