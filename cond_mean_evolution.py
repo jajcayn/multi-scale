@@ -18,7 +18,7 @@ WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
-debug_plot = False # partial
+debug_plot = True # partial
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 
 
@@ -105,7 +105,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
     #else:
     #    difference.append(0)
     if debug_plot:
-        if (year[start_idx] > 1830 and year[end_idx] < 2014):
+        if (year[start_idx] > 1956 and year[end_idx] < 2014):
             fig = plt.figure(figsize=(7,14), dpi = 300)
             plt.subplot(211)
             plt.plot(phase[0,start_idx:end_idx], linewidth = 1.5)
