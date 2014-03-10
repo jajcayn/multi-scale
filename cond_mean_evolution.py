@@ -12,13 +12,13 @@ import matplotlib.pyplot as plt
 
 
 ANOMALISE = False
-PERIOD = 8 # years, period of wavelet
+PERIOD = 10 # years, period of wavelet
 #WINDOW_LENGTH = 32 # years, should be at least PERIOD of wavelet
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
-debug_plot = False # partial
+debug_plot = True # partial
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 
 
@@ -105,7 +105,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
     #else:
     #    difference.append(0)
     if debug_plot:
-        if (year[start_idx] > 1956 and year[end_idx] < 2014):
+        if (year[start_idx] > 1830 and year[end_idx] < 2014):
             fig = plt.figure(figsize=(7,14), dpi = 300)
             plt.subplot(211)
             plt.plot(phase[0,start_idx:end_idx], linewidth = 1.5)
@@ -151,7 +151,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
                 fname += 'means_'
             else:
                 fname += 'var_'
-            fname += ('%dyears/plot_%s-%s.png' % (WINDOW_LENGTH, str(date(year[start_idx], m[start_idx], d[start_idx])), 
+            fname += ('%dyears/%dperiod_plot_%s-%s.png' % (WINDOW_LENGTH, PERIOD, str(date(year[start_idx], m[start_idx], d[start_idx])), 
                                                str(date(year[end_idx], m[end_idx], d[end_idx]))))
             plt.savefig(fname)
     start_idx = g.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
@@ -166,9 +166,9 @@ if PLOT:
     #fig = plt.figure(figsize=(10,7))
     ax1.plot(difference, color = '#403A37', linewidth = 2, figure = fig)
     if not ANOMALISE and MEANS:
-        ax1.axis([0, cnt-1, 0, 3])
+        ax1.axis([0, cnt-1, 0, 3.5])
     if not ANOMALISE and not MEANS:
-        ax1.axis([0, cnt-1, 0, 30])
+        ax1.axis([0, cnt-1, 0, 35])
     if ANOMALISE and MEANS:
         ax1.axis([0, cnt-1, 0, 2])
     if ANOMALISE and not MEANS:
@@ -188,7 +188,7 @@ if PLOT:
         ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
     elif not MEANS:
         ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-    ax2.axis([0, cnt-1, 8.75, 11])
+    ax2.axis([0, cnt-1, 8.5, 11.5])
     for tl in ax2.get_yticklabels():
         tl.set_color('#CA4F17')
     tit = 'Evolution of difference in cond'
@@ -201,9 +201,9 @@ if PLOT:
     else:
         tit += 'SATA, '
     if np.int(WINDOW_LENGTH) == WINDOW_LENGTH:
-        tit += ('%d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+        tit += ('%d-year window, %d-year shift,\n %d-year wavelet' % (WINDOW_LENGTH, WINDOW_SHIFT, PERIOD))
     else:
-        tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+        tit += ('%.2f-year window, %d-year shift,\n %d-year wavelet' % (WINDOW_LENGTH, WINDOW_SHIFT, PERIOD))
     #plt.title(tit)
     plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
@@ -215,7 +215,7 @@ if PLOT:
         fname += 'means_'
     else:
         fname += 'var_'
-    fname += ('%dyears.png' % WINDOW_LENGTH)
+    fname += ('%dyears_%dperiod.png' % (WINDOW_LENGTH, PERIOD))
     plt.savefig('debug/' + fname)
   
 

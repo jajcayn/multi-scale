@@ -12,8 +12,8 @@ from datetime import datetime, date
 import matplotlib.pyplot as plt
 
 
-ANOMALISE = True
-PERIOD = 8 # years, period of wavelet
+ANOMALISE = False
+PERIOD = 6 # years, period of wavelet
 #WINDOW_LENGTH = 32 # years, should be at least PERIOD of wavelet
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
@@ -114,7 +114,7 @@ for iota in range(num_surr):
         ax1.plot(total_diffs[-1], color = '#403A37', linewidth = 2, figure = fig)
         #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
         if not ANOMALISE and MEANS:
-            ax1.axis([0, cnt-1, 0, 3])
+            ax1.axis([0, cnt-1, 0, 6])
         if not ANOMALISE and not MEANS:
             ax1.axis([0, cnt-1, 0, 30])
         if ANOMALISE and MEANS:
@@ -136,7 +136,7 @@ for iota in range(num_surr):
             ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
         elif not MEANS:
             ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-        ax2.axis([0, cnt-1, 12.5, 15.5])
+        ax2.axis([0, cnt-1, 60, 75])
         for tl in ax2.get_yticklabels():
             tl.set_color('#CA4F17')
         tit = 'SURR: Evolution of difference in cond'
@@ -163,5 +163,5 @@ for iota in range(num_surr):
             fname += 'means_'
         else:
             fname += 'var_'
-        fname += ('%dyears_%d.png' % (WINDOW_LENGTH, iota))
+        fname += ('%dyears_%dperiod_%d.png' % (WINDOW_LENGTH, PERIOD, iota))
         plt.savefig('debug/' + fname)
