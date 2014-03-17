@@ -10,10 +10,11 @@ from surrogates.surrogates import construct_fourier_surrogates
 import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
+from scipy.signal import detrend
 
 
-ANOMALISE = False
-PERIOD = 6 # years, period of wavelet
+ANOMALISE = True
+PERIOD = 8 # years, period of wavelet
 #WINDOW_LENGTH = 32 # years, should be at least PERIOD of wavelet
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
@@ -22,6 +23,7 @@ PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analy
 debug_plot = False # partial
 MEANS = False # if True, compute conditional means, if False, compute conditional variance
 num_surr = 10 # how many surrs will be used to evaluate
+DETREND = 1
 
 
 
@@ -47,6 +49,10 @@ print("[%s] Data from %s loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d
 print("** Using surrogate data..")
 mean, var = g.get_seasonality()
 data_copy = g.data.copy()
+if DETREND:
+    g.data = detrend(g.data, axis = 0)
+    trend = data_copy - g.data
+    
     
 
 ## analysis ##
@@ -71,12 +77,14 @@ total_meanvars = []
 
 for iota in range(num_surr):
     # prepare surrogates
-    surr = construct_fourier_surrogates(data_copy) # generate surrogates from deseasonalised data
+    surr = construct_fourier_surrogates(g.data) # generate surrogates from deseasonalised and detrended data
+    if DETREND:
+        surr += trend
     surr *= var # add deviation to surrogates
-    g.data = surr + mean # add mean to surrogates
+    surr += mean # add mean to surrogates
     
     # wavelet
-    wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+    wave, _, _, _ = wavelet_analysis.continous_wavelet(surr, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
     phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
     
     
@@ -89,7 +97,7 @@ for iota in range(num_surr):
     cnt = 0
     while end_idx < g.data.shape[0]: # while still in the correct range
         cnt += 1
-        data_temp = g.data[start_idx : end_idx] # subselect data
+        data_temp = surr[start_idx : end_idx] # subselect data
         phase_temp = phase[0,start_idx : end_idx]
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
@@ -114,13 +122,13 @@ for iota in range(num_surr):
         ax1.plot(total_diffs[-1], color = '#403A37', linewidth = 2, figure = fig)
         #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
         if not ANOMALISE and MEANS:
-            ax1.axis([0, cnt-1, 0, 6])
+            ax1.axis([0, cnt-1, 0, 3])
         if not ANOMALISE and not MEANS:
-            ax1.axis([0, cnt-1, 0, 30])
+            ax1.axis([0, cnt-1, 0, 25])
         if ANOMALISE and MEANS:
             ax1.axis([0, cnt-1, 0, 2])
         if ANOMALISE and not MEANS:
-            ax1.axis([0, cnt-1, 0, 10])
+            ax1.axis([0, cnt-1, 0, 6])
         if np.int(WINDOW_LENGTH) == WINDOW_LENGTH:
             ax1.set_xlabel('start year of %d-year wide window' % WINDOW_LENGTH, size = 14)
         else:
@@ -136,7 +144,7 @@ for iota in range(num_surr):
             ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
         elif not MEANS:
             ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-        ax2.axis([0, cnt-1, 60, 75])
+        ax2.axis([0, cnt-1, 12, 15])
         for tl in ax2.get_yticklabels():
             tl.set_color('#CA4F17')
         tit = 'SURR: Evolution of difference in cond'
@@ -152,6 +160,10 @@ for iota in range(num_surr):
             tit += ('%d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
         else:
             tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+        if DETREND:
+            tit += '\n detrended'
+        else:
+            tit += '\n not detrended'
         #plt.title(tit)
         plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
         #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
@@ -163,5 +175,7 @@ for iota in range(num_surr):
             fname += 'means_'
         else:
             fname += 'var_'
+        if DETREND:
+            fname += 'detrend_'
         fname += ('%dyears_%dperiod_%d.png' % (WINDOW_LENGTH, PERIOD, iota))
         plt.savefig('debug/' + fname)
