@@ -97,7 +97,7 @@ class DataField:
         
         
         
-    def load(self, filename = None, variable_name = None, dataset = 'ECA-reanalysis'):
+    def load(self, filename = None, variable_name = None, dataset = 'ECA-reanalysis', print_prog = True):
         """
         Loads geophysical data from netCDF file for reanalysis or from text file for station data.
         Now supports following datasets: (dataset - keyword passed to function)
@@ -111,13 +111,14 @@ class DataField:
             v = d.variables[variable_name]
             
             self.data = v[:] # masked array - only land data, not ocean/sea
-            print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
             self.lons = d.variables['longitude'][:]
             self.lats = d.variables['latitude'][:]
-            print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
             self.time = d.variables['time'][:] # days since 1950-01-01 00:00
             self.time += date.toordinal(date(1950, 1, 1))
-            print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+            if print_prog:
+                print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
+                print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
+                print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
             
             d.close()     
                     
@@ -126,13 +127,14 @@ class DataField:
             v = d.variables[variable_name]
             
             self.data = v[:]
-            print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
             self.lons = d.variables['longitude'][:]
             self.lats = d.variables['latitude'][:]
-            print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
             self.time = d.variables['time'][:] # hours since 1900-01-01 00:00
             self.time = self.time / 24.0 + date.toordinal(date(1900, 1, 1))
-            print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+            if print_prog:
+                print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
+                print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
+                print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
             
             d.close()
             
@@ -141,12 +143,14 @@ class DataField:
             v = d.variables[variable_name]
             
             self.data = v[:]
-            print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
             self.lons = d.variables['lon'][:]
             self.lats = d.variables['lat'][:]
             self.time = d.variables['time'][:] # hours since 1-01-01 00:00
             self.time = self.time / 24.0 - 1.0
-            print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+            if print_prog:
+                print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
+                print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
+                print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
             
             d.close()
             
