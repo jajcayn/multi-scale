@@ -7,8 +7,9 @@ created on Jan 29, 2014
 import numpy as np
 from scipy.signal import detrend
 from netCDF4 import Dataset
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 import csv
+from os.path import split
 from distutils.version import LooseVersion
 
 
@@ -157,7 +158,7 @@ class DataField:
             
             
             
-    def load_station_data(self, filename, dataset = 'Klem_day'):
+    def load_station_data(self, filename, dataset = 'ECA-station'):
         """
         Loads station data, usually from text file. Uses numpy.loadtxt reader.
         """
@@ -425,3 +426,72 @@ class DataField:
             raise Exception('Unknown temporal sampling in the field.')
             
         return seasonal_mean, seasonal_var, trend
+        
+        
+        
+def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-station'):
+    """
+    Data loader for station data.
+    """
+    
+    print("[%s] Loading station data..." % (str(datetime.now())))
+    g = DataField()
+    g.load_station_data(filename, dataset)
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    day, month, year = g.extract_day_month_year()
+    print("[%s] Data from %s loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+        % (str(datetime.now()), g.location, str(g.data.shape), day[0], month[0], 
+           year[0], day[-1], month[-1], year[-1]))
+           
+    return g
+    
+    
+    
+def load_NCEP_data_daily(filename, start_date, end_date, lats, lons, level, anom):
+    """
+    Data loader for daily reanalyses data. Filenames in form path/air.sig995.%d.nc
+    """
+    
+    print("[%s] Loading daily NCEP/NCAR data..." % str(datetime.now()))
+    start_year = start_date.year()
+    end_year = end_date.year() - 1
+    glist = []
+    Ndays = 0
+    path, name = split(filename)
+    path += "/"
+    
+    for year in range(start_year, end_year+1):
+        g = DataField(data_folder = path)
+        fname = name % year
+        g.load(fname, 'air', dataset = 'NCEP', print_prog = False)
+        Ndays += len(g.time)
+        glist.append(g)
+        
+    data = np.zeros((Ndays, len(glist[0].lats), len(glist[0].lons)))
+    time = np.zeros((Ndays,))
+    n = 0
+    for g in glist:
+        Ndays_i = len(g.time)
+        data[n:Ndays_i + n, ...] = g.data
+        time[n:Ndays_i + n] = g.time
+        n += Ndays_i
+        
+    g = DataField(data = data, lons = glist[0].lons, lats = glist[0].lats, time = time)
+    del glist
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    g.select_lat_lon(lats, lons)
+    if level != None:
+        g.select_level(level)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    day, month, year = g.extract_day_month_year()
+
+    print("[%s] NCEP data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+        % (str(datetime.now()), str(g.data.shape), day[0], month[0], 
+           year[0], day[-1], month[-1], year[-1]))

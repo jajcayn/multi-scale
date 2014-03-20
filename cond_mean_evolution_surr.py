@@ -5,7 +5,7 @@ created on Mar 8, 2014
 """
 
 from src import wavelet_analysis
-from src.data_class import DataField
+from src.data_class import load_station_data
 from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
@@ -27,24 +27,13 @@ DETREND = 1
 
 
 ## loading data ##
-print("[%s] Loading station data..." % (str(datetime.now())))
-g = DataField()
-g.load_station_data('TG_STAID000027.txt', dataset = "ECA-station")
-print("** loaded")
 start_date = date(1834,7,28)
 end_date = date(2014, 1, 1) # exclusive
+g = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
 # length of the time series with date(1954,6,8) with start date(1775,1,1) = 65536 - power of 2
 # the same when end date(2014,1,1) than start date(1834,7,28)
-g.select_date(start_date, end_date)
-if ANOMALISE:
-    print("** anomalising")
-    g.anomalise()
-day, month, year = g.extract_day_month_year()
-print("[%s] Data from %s loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
-        % (str(datetime.now()), g.location, str(g.data.shape), day[0], month[0], 
-           year[0], day[-1], month[-1], year[-1]))
-           
-           
+
+
 print("** Using surrogate data..")
 
 mean, var, trend = g.get_seasonality(DETREND)

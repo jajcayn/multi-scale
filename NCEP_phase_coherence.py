@@ -6,7 +6,7 @@ created on Mar 19, 2014
 
 
 from src import wavelet_analysis
-from src.data_class import DataField
+from src.data_class import load_NCEP_data_daily
 import numpy as np
 from datetime import datetime, date
 from multiprocessing import Pool
@@ -14,49 +14,8 @@ from multiprocessing import Pool
 
 
 ##--- load daily NCEP data ---##
-# whole period 1948-2012
-start_year = 1948
-end_year = 2012
-glist = []
-Ndays = 0
-
-print("[%s] Loading daily data..." % str(datetime.now()))
-# load each .nc file and store DataField in list
-for year in range(start_year, end_year+1):
-    g = DataField(data_folder = '../../climate/data/SATdaily/') # relative path to SATdaily data, change for yours
-    fname = ("air.sig995.%d.nc" % year)
-    g.load(fname, 'air', dataset = 'NCEP', print_prog = False)
-    Ndays += len(g.time)
-    glist.append(g)
-    
-# iterate though list and append all values together
-data = np.zeros((Ndays, len(glist[0].lats), len(glist[0].lons)))
-time = np.zeros((Ndays,))
-n = 0
-for g in glist:
-    Ndays_i = len(g.time)
-    data[n:Ndays_i + n, ...] = g.data
-    time[n:Ndays_i + n] = g.time
-    n += Ndays_i
-    
-g = DataField(data = data, lons = glist[0].lons, lats = glist[0].lats, time = time)
-del glist
-
-## if slice temporal
-g.select_date(date(1948,1,1), date(2013,1,1))
-
-## if slice spatial
-g.select_lat_lon(None, None)
-
-## if slice level
-#g.select_level()
-
-## if anomalise
-#g.anomalise() # (removes just mean)
-
-## if normalise
-#_, _ = g.get_seasonality() # (removes mean and std from data and also returns it as arrays, you should not need them)
-print("[%s] Data loaded and pre-processed. Shape of the data is %s" % (str(datetime.now()), str(g.data.shape)))
+g = load_NCEP_data_daily('../../climate/data/SATdaily/air.sig995.%d.nc', date(1948,1,1), date(2013,1,1), 
+                         None, None, None, False)
 
 
 PERIOD = 8 # period of wavelet, in years
