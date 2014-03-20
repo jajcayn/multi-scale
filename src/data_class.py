@@ -451,9 +451,9 @@ def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-stati
     
     
     
-def load_NCEP_data_daily(filename, start_date, end_date, lats, lons, level, anom):
+def load_NCEP_data_daily(filename, varname, start_date, end_date, lats, lons, level, anom):
     """
-    Data loader for daily reanalyses data. Filenames in form path/air.sig995.%d.nc
+    Data loader for daily reanalyses data. Filename in form path/air.sig995.%d.nc
     """
     
     print("[%s] Loading daily NCEP/NCAR data..." % str(datetime.now()))
@@ -467,7 +467,7 @@ def load_NCEP_data_daily(filename, start_date, end_date, lats, lons, level, anom
     for year in range(start_year, end_year+1):
         g = DataField(data_folder = path)
         fname = name % year
-        g.load(fname, 'air', dataset = 'NCEP', print_prog = False)
+        g.load(fname, varname, dataset = 'NCEP', print_prog = False)
         Ndays += len(g.time)
         glist.append(g)
         

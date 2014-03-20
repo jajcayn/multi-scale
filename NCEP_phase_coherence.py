@@ -14,7 +14,7 @@ from multiprocessing import Pool
 
 
 ##--- load daily NCEP data ---##
-g = load_NCEP_data_daily('../../climate/data/SATdaily/air.sig995.%d.nc', date(1948,1,1), date(2013,1,1), 
+g = load_NCEP_data_daily('../../climate/data/SATdaily/air.sig995.%d.nc', 'air', date(1948,1,1), date(2013,1,1), 
                          None, None, None, False)
 
 
