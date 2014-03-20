@@ -10,7 +10,6 @@ from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
-from scipy.signal import detrend
 
 
 ANOMALISE = True
@@ -47,11 +46,8 @@ print("[%s] Data from %s loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d
            
            
 print("** Using surrogate data..")
-mean, var = g.get_seasonality()
-data_copy = g.data.copy()
-if DETREND:
-    g.data = detrend(g.data, axis = 0)
-    trend = data_copy - g.data
+
+mean, var, trend = g.get_seasonality(DETREND)
     
     
 
@@ -80,10 +76,7 @@ sg.copy_field(g)
 for iota in range(num_surr):
     # prepare surrogates
     sg.construct_fourier_surrogates_spatial() # generate surrogates from deseasonalised and detrended data
-    if DETREND:
-        sg.surr_data += trend
-    sg.surr_data *= var # add deviation to surrogates
-    sg.surr_data += mean # add mean to surrogates
+    sg.add_seasonality(mean, var, trend)
     
     # wavelet
     wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet

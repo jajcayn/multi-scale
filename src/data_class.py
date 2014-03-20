@@ -5,6 +5,7 @@ created on Jan 29, 2014
 """
 
 import numpy as np
+from scipy.signal import detrend
 from netCDF4 import Dataset
 from datetime import date, timedelta
 import csv
@@ -372,9 +373,10 @@ class DataField:
             
             
             
-    def get_seasonality(self):
+    def get_seasonality(self, DETREND = False):
         """
-        Removes the seasonality in both mean and std and returns the seasonal mean and std arrays.
+        Removes the seasonality in both mean and std (detrending is optional) and 
+        returns the seasonal mean and std arrays.
         """
         
         delta = self.time[1] - self.time[0]
@@ -396,6 +398,12 @@ class DataField:
                         print('**WARNING: some zero standard deviations found for date %d.%d' % (di, mi))
                         seasonal_var[seasonal_var == 0.0] = 1.0
                     self.data[sel, ...] /= seasonal_var[sel, ...]
+            if DETREND:
+                data_copy = self.data.copy()
+                self.data = detrend(self.data, axis = 0)
+                trend = data_copy - self.data
+            else:
+                trend = None
         elif abs(delta - 30) < 3.0:
             # monthly data
             seasonal_mean = np.zeros_like(self.data)
@@ -407,8 +415,13 @@ class DataField:
                 self.data[sel, ...] -= seasonal_mean[sel, ...]
                 seasonal_var[sel, ...] = nanstd(self.data[sel, ...], axis = 0, ddof = 1)
                 self.data[sel, ...] /= seasonal_var[sel, ...]
+            if DETREND:
+                data_copy = self.data.copy()
+                self.data = detrend(self.data, axis = 0)
+                trend = data_copy - self.data
+            else:
+                trend = None
         else:
             raise Exception('Unknown temporal sampling in the field.')
             
-        return seasonal_mean, seasonal_var
-                
+        return seasonal_mean, seasonal_var, trend

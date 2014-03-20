@@ -39,6 +39,19 @@ class SurrogateField(DataField):
         
         
         
+    def add_seasonality(self, mean, var, trend):
+        """
+        Adds seasonality to surrogates if there were constructed from deseasonalised
+        and optionally detrended data.
+        """
+        
+        if trend != None:
+            self.surr_data += trend
+        self.surr_data *= var
+        self.surr_data += mean
+        
+        
+        
     def get_surr(self):
         """
         Returns the surrogate data
