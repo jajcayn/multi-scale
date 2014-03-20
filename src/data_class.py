@@ -457,8 +457,8 @@ def load_NCEP_data_daily(filename, start_date, end_date, lats, lons, level, anom
     """
     
     print("[%s] Loading daily NCEP/NCAR data..." % str(datetime.now()))
-    start_year = start_date.year()
-    end_year = end_date.year() - 1
+    start_year = start_date.year
+    end_year = end_date.year - 1
     glist = []
     Ndays = 0
     path, name = split(filename)
