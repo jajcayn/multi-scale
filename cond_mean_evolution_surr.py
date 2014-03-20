@@ -6,7 +6,7 @@ created on Mar 8, 2014
 
 from src import wavelet_analysis
 from src.data_class import DataField
-from surrogates.surrogates import construct_fourier_surrogates
+from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
@@ -18,7 +18,7 @@ PERIOD = 8 # years, period of wavelet
 #WINDOW_LENGTH = 32 # years, should be at least PERIOD of wavelet
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-PLOT = True
+PLOT = False
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 debug_plot = False # partial
 MEANS = False # if True, compute conditional means, if False, compute conditional variance
@@ -74,17 +74,19 @@ def get_equidistant_bins():
 
 total_diffs = []
 total_meanvars = []
+sg = SurrogateField()
+sg.copy_field(g)
 
 for iota in range(num_surr):
     # prepare surrogates
-    surr = construct_fourier_surrogates(g.data) # generate surrogates from deseasonalised and detrended data
+    sg.construct_fourier_surrogates_spatial() # generate surrogates from deseasonalised and detrended data
     if DETREND:
-        surr += trend
-    surr *= var # add deviation to surrogates
-    surr += mean # add mean to surrogates
+        sg.surr_data += trend
+    sg.surr_data *= var # add deviation to surrogates
+    sg.surr_data += mean # add mean to surrogates
     
     # wavelet
-    wave, _, _, _ = wavelet_analysis.continous_wavelet(surr, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+    wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
     phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
     
     
@@ -97,7 +99,7 @@ for iota in range(num_surr):
     cnt = 0
     while end_idx < g.data.shape[0]: # while still in the correct range
         cnt += 1
-        data_temp = surr[start_idx : end_idx] # subselect data
+        data_temp = sg.surr_data[start_idx : end_idx] # subselect data
         phase_temp = phase[0,start_idx : end_idx]
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins

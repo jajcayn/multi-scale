@@ -1,2 +1,4 @@
 *.dat
 .spyderproject
+debug/
+*.pyc

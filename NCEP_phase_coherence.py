@@ -87,13 +87,10 @@ s0 = period / fourier_factor # get scale
 if WORKERS == 0:
     print("[%s] Performing wavelet analysis with period %d years..." % (str(datetime.now()), PERIOD))
     pool = None
+    map_function = map
 else:
     print("[%s] Performing wavelet analysis with period %d years in parallel using %d threads..." % (str(datetime.now()), PERIOD, WORKERS))
     pool = Pool(processes = WORKERS)
-    
-if pool == None:
-    map_function = map
-else:
     map_function = pool.map
         
 phase = np.zeros_like(g.data)
