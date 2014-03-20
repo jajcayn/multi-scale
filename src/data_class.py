@@ -495,3 +495,5 @@ def load_NCEP_data_daily(filename, start_date, end_date, lats, lons, level, anom
     print("[%s] NCEP data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
         % (str(datetime.now()), str(g.data.shape), day[0], month[0], 
            year[0], day[-1], month[-1], year[-1]))
+           
+    return g
