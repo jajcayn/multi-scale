@@ -67,6 +67,9 @@ for i, j, ph in job_result:
     #amplitude[:, i, j] = am
 
 del job_result
+# if job run in parallel now close the pool
+if WORKERS != 0:
+    pool.close()
         
 print("[%s] Wavelet analysis done. Shape of the phases is %s" % (str(datetime.now()), str(phase.shape)))
 
