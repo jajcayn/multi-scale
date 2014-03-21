@@ -12,16 +12,16 @@ from datetime import datetime, date
 import matplotlib.pyplot as plt
 
 
-ANOMALISE = True
+ANOMALISE = False
 PERIOD = 8 # years, period of wavelet
 #WINDOW_LENGTH = 32 # years, should be at least PERIOD of wavelet
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-PLOT = False
+PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 debug_plot = False # partial
-MEANS = False # if True, compute conditional means, if False, compute conditional variance
-num_surr = 10 # how many surrs will be used to evaluate
+MEANS = True # if True, compute conditional means, if False, compute conditional variance
+num_surr = 3 # how many surrs will be used to evaluate
 DETREND = 1
 
 
@@ -62,11 +62,19 @@ total_meanvars = []
 sg = SurrogateField()
 sg.copy_field(g)
 
+suF1 = np.loadtxt('../surr-milan/klmsuf1.txt') # 4 data columns
+suF2 = np.loadtxt('../surr-milan/klmsuf2.txt') # 3 data columns
+suM1 = np.loadtxt('../surr-milan/klmsum1.txt') # 3 data columns
+suM2 = np.loadtxt('../surr-milan/klmsum2.txt') # 3 data columns
+suM3 = np.loadtxt('../surr-milan/klmsum3.txt') # 3 data columns
+
+
 for iota in range(num_surr):
     # prepare surrogates
     sg.construct_fourier_surrogates_spatial() # generate surrogates from deseasonalised and detrended data
     sg.add_seasonality(mean, var, trend)
     
+    sg.surr_data = suM3[:, iota + 1]
     # wavelet
     wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
     phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
@@ -128,7 +136,7 @@ for iota in range(num_surr):
             ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
         elif not MEANS:
             ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-        ax2.axis([0, cnt-1, 12, 15])
+        ax2.axis([0, cnt-1, -1, 1.5])
         for tl in ax2.get_yticklabels():
             tl.set_color('#CA4F17')
         tit = 'SURR: Evolution of difference in cond'
@@ -149,6 +157,7 @@ for iota in range(num_surr):
         else:
             tit += '\n not detrended'
         #plt.title(tit)
+        tit = 'SURR: Evolution of difference in cond mean in temp - KLMSUM3.txt'
         plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
         #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
         if not ANOMALISE:
@@ -162,4 +171,5 @@ for iota in range(num_surr):
         if DETREND:
             fname += 'detrend_'
         fname += ('%dyears_%dperiod_%d.png' % (WINDOW_LENGTH, PERIOD, iota))
-        plt.savefig('debug/' + fname)
+        #plt.savefig('debug/' + fname)
+        plt.savefig('debug/surr-milan/sum3_%d.png' % iota)
