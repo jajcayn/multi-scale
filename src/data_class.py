@@ -238,12 +238,12 @@ class DataField:
         
     def find_date_ndx(self, date):
         """
-        Returns index which corresponds to the date. Returns None is the date is not contained in the data.
+        Returns index which corresponds to the date. Returns None if the date is not contained in the data.
         """
         
         d = date.toordinal()
         pos = np.nonzero(self.time == d)
-        if len(pos) == 1:
+        if not np.all(np.isnan(pos)):
             return int(pos[0])
         else:
             return None
