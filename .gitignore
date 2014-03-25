@@ -2,5 +2,4 @@
 .spyderproject
 debug/
 results/
-tests/
 *.pyc
