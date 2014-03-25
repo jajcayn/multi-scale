@@ -67,14 +67,19 @@ class SurrogateField(DataField):
         linear structure and covariance structure)
         """
         
+        # transform the time series to Fourier domain
         xf = np.fft.rfft(self.data, axis = 0)
         
+        # generate uniformly distributed random angles
         angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
         
+        # set the slowest frequency to zero, i.e. not to be randomised
         angle[0] = 0
         
+        # randomise the time series with random phases
         cxf = xf * np.exp(1j * angle[:, np.newaxis, np.newaxis])
         
+        # return randomised time series in time domain
         self.surr_data = np.fft.irfft(cxf, axis = 0)
         
         
@@ -88,6 +93,7 @@ class SurrogateField(DataField):
         
         xf = np.fft.rfft(self.data, axis = 0)
         
+        # same as above except generate random angles along all dimensions of input data
         angle = np.random.uniform(0, 2 * np.pi, xf.shape)
         
         angle[0, ...] = 0
