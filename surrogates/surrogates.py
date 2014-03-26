@@ -6,6 +6,7 @@ created on Mar 4, 2014
 
 import numpy as np
 from src.data_class import DataField
+import pywt
 
 
 
@@ -101,4 +102,16 @@ class SurrogateField(DataField):
         cxf = xf * np.exp(1j * angle)
         
         self.surr_data = np.fft.irfft(cxf, axis = 0)
+        
+        
+        
+    def construct_multifractal_surrogates(self, ):
+        """
+        Constructs multifractal surrogates (independent shuffling of the scale-specific coefficients,
+        preserving so called multifractal structure - hierarchical process exhibiting information flow
+        from large to small scales)
+        """
+        
+        coeffs = pywt.wavedec(self.data, 'db1', level = n-1)
+        
 
