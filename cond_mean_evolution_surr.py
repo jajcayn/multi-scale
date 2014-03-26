@@ -10,9 +10,10 @@ from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
+import pywt
 
 
-ANOMALISE = False
+ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
 #WINDOW_LENGTH = 32 # years, should be at least PERIOD of wavelet
 WINDOW_LENGTH = 16384 / 365.25
@@ -21,8 +22,41 @@ PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 debug_plot = False # partial
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-num_surr = 3 # how many surrs will be used to evaluate
+num_surr = 10 # how many surrs will be used to evaluate
 DETREND = 1
+RAND = 8
+
+
+def multifractal_surr(ts):
+    randomize_from = RAND
+    n = int(np.log2(ts.shape[0]))
+    coeffs_db1 = pywt.wavedec(ts, 'db1', level = n-1)
+    
+    coeffs_tilde = []
+    for j in range(randomize_from):
+        coeffs_tilde.append(coeffs_db1[j])
+
+    shuffled_coeffs = []
+    for j in range(randomize_from):
+        shuffled_coeffs.append(coeffs_db1[j])
+
+    for j in range(randomize_from,len(coeffs_db1)):
+        multip = np.zeros_like(coeffs_db1[j])
+        for k in range(coeffs_db1[j-1].shape[0]):
+            multip[2*k] = coeffs_db1[j][2*k] / coeffs_db1[j-1][k]
+            multip[2*k+1] = coeffs_db1[j][2*k+1] / coeffs_db1[j-1][k]
+        coefs = np.zeros_like(multip)
+        multip = np.random.permutation(multip)
+        for k in range(coeffs_db1[j-1].shape[0]):
+            coefs[2*k] = multip[2*k] * coeffs_tilde[j-1][k]
+            coefs[2*k+1] = multip[2*k+1] * coeffs_tilde[j-1][k]
+        coeffs_tilde.append(coefs)
+        coeffs_db1[j] = np.sort(coeffs_db1[j])
+        idx = np.argsort(coeffs_tilde[j])
+        
+        shuffled_coeffs.append(coeffs_db1[j][idx])
+        
+    return pywt.waverec(shuffled_coeffs, 'db1')
 
 
 
@@ -62,19 +96,19 @@ total_meanvars = []
 sg = SurrogateField()
 sg.copy_field(g)
 
-suF1 = np.loadtxt('../surr-milan/klmsuf1.txt') # 4 data columns
-suF2 = np.loadtxt('../surr-milan/klmsuf2.txt') # 3 data columns
-suM1 = np.loadtxt('../surr-milan/klmsum1.txt') # 3 data columns
-suM2 = np.loadtxt('../surr-milan/klmsum2.txt') # 3 data columns
-suM3 = np.loadtxt('../surr-milan/klmsum3.txt') # 3 data columns
+#suF1 = np.loadtxt('../surr-milan/klmsuf1.txt') # 4 data columns
+#suF2 = np.loadtxt('../surr-milan/klmsuf2.txt') # 3 data columns
+#suM1 = np.loadtxt('../surr-milan/klmsum1.txt') # 3 data columns
+#suM2 = np.loadtxt('../surr-milan/klmsum2.txt') # 3 data columns
+#suM3 = np.loadtxt('../surr-milan/klmsum3.txt') # 3 data columns
 
 
 for iota in range(num_surr):
     # prepare surrogates
     sg.construct_fourier_surrogates_spatial() # generate surrogates from deseasonalised and detrended data
+    sg.surr_data = multifractal_surr(g.data)    
     sg.add_seasonality(mean, var, trend)
     
-    sg.surr_data = suM3[:, iota + 1]
     # wavelet
     wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
     phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
@@ -157,7 +191,7 @@ for iota in range(num_surr):
         else:
             tit += '\n not detrended'
         #plt.title(tit)
-        tit = 'SURR: Evolution of difference in cond mean in temp - KLMSUM3.txt'
+        tit = ('SURR: Evolution of difference in cond mean in temp SATA - MF surrogates, \n randomised from %d. scale' % RAND)
         plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
         #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
         if not ANOMALISE:
@@ -172,4 +206,4 @@ for iota in range(num_surr):
             fname += 'detrend_'
         fname += ('%dyears_%dperiod_%d.png' % (WINDOW_LENGTH, PERIOD, iota))
         #plt.savefig('debug/' + fname)
-        plt.savefig('debug/surr-milan/sum3_%d.png' % iota)
+        plt.savefig('debug/MFsurr/surr_%d_%d.png' % (RAND, iota))
