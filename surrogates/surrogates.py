@@ -46,10 +46,13 @@ class SurrogateField(DataField):
         and optionally detrended data.
         """
         
-        if trend != None:
-            self.surr_data += trend
-        self.surr_data *= var
-        self.surr_data += mean
+        if self.surr_data != None:
+            if trend != None:
+                self.surr_data += trend
+            self.surr_data *= var
+            self.surr_data += mean
+        else:
+            raise Exception("Surrogate data has not been created yet.")
         
         
         
@@ -68,20 +71,24 @@ class SurrogateField(DataField):
         linear structure and covariance structure)
         """
         
-        # transform the time series to Fourier domain
-        xf = np.fft.rfft(self.data, axis = 0)
-        
-        # generate uniformly distributed random angles
-        angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
-        
-        # set the slowest frequency to zero, i.e. not to be randomised
-        angle[0] = 0
-        
-        # randomise the time series with random phases
-        cxf = xf * np.exp(1j * angle[:, np.newaxis, np.newaxis])
-        
-        # return randomised time series in time domain
-        self.surr_data = np.fft.irfft(cxf, axis = 0)
+        if self.data != None:
+            # transform the time series to Fourier domain
+            xf = np.fft.rfft(self.data, axis = 0)
+            
+            # generate uniformly distributed random angles
+            angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
+            
+            # set the slowest frequency to zero, i.e. not to be randomised
+            angle[0] = 0
+            
+            # randomise the time series with random phases
+            cxf = xf * np.exp(1j * angle[:, np.newaxis, np.newaxis])
+            
+            # return randomised time series in time domain
+            self.surr_data = np.fft.irfft(cxf, axis = 0)
+            
+        else:
+            raise Exception("No data to randomise in the field. First you must copy some DataField.")
         
         
         
@@ -92,26 +99,81 @@ class SurrogateField(DataField):
         (should be also used with station data which has only temporal dimension)
         """
         
-        xf = np.fft.rfft(self.data, axis = 0)
+        if self.data != None:
+            xf = np.fft.rfft(self.data, axis = 0)
+            
+            # same as above except generate random angles along all dimensions of input data
+            angle = np.random.uniform(0, 2 * np.pi, xf.shape)
+            
+            angle[0, ...] = 0
+            
+            cxf = xf * np.exp(1j * angle)
+            
+            self.surr_data = np.fft.irfft(cxf, axis = 0)
+            
+        else:
+            raise Exception("No data to randomise in the field. First you must copy some DataField.")
+    
         
-        # same as above except generate random angles along all dimensions of input data
-        angle = np.random.uniform(0, 2 * np.pi, xf.shape)
-        
-        angle[0, ...] = 0
-        
-        cxf = xf * np.exp(1j * angle)
-        
-        self.surr_data = np.fft.irfft(cxf, axis = 0)
         
         
-        
-    def construct_multifractal_surrogates(self, ):
+    def construct_multifractal_surrogates(self, randomise_from_scale = 2):
         """
         Constructs multifractal surrogates (independent shuffling of the scale-specific coefficients,
-        preserving so called multifractal structure - hierarchical process exhibiting information flow
+        preserving so-called multifractal structure - hierarchical process exhibiting information flow
         from large to small scales)
+        build according to: Palus, M. (2008): Bootstraping multifractals: Surrogate data from random 
+        cascades on wavelet dyadic trees. Phys. Rev. Letters, 101.
         """
         
-        coeffs = pywt.wavedec(self.data, 'db1', level = n-1)
+        if self.data != None:
+            n = int(np.log2(self.data.shape[0])) # time series length should be 2^n
+            
+            # get coefficient from discrete wavelet transform, 
+            # it is a list of length n with numpy arrays as every object
+            coeffs = pywt.wavedec(self.data, 'db1', level = n-1)
+            
+            # prepare output lists and append coefficients which will not be shuffled
+            coeffs_tilde = []
+            for j in range(randomise_from_scale):
+                coeffs_tilde.append(coeffs[j])
+        
+            shuffled_coeffs = []
+            for j in range(randomise_from_scale):
+                shuffled_coeffs.append(coeffs[j])
+            
+            # run for each desired scale
+            for j in range(randomise_from_scale, len(coeffs)):
+                
+                # get multiplicators for scale j
+                multiplicators = np.zeros_like(coeffs[j])
+                for k in range(coeffs[j-1].shape[0]):
+                    multiplicators[2*k] = coeffs[j][2*k] / coeffs[j-1][k]
+                    multiplicators[2*k+1] = coeffs[j][2*k+1] / coeffs[j-1][k]
+               
+                # shuffle multiplicators in scale j randomly
+                coef = np.zeros_like(multiplicators)
+                multiplicators = np.random.permutation(multiplicators)
+                
+                # get coefficients with tilde according to a cascade
+                for k in range(coeffs[j-1].shape[0]):
+                    coef[2*k] = multiplicators[2*k] * coeffs_tilde[j-1][k]
+                    coef[2*k+1] = multiplicators[2*k+1] * coeffs_tilde[j-1][k]
+                coeffs_tilde.append(coef)
+                
+                # sort original coefficients
+                coeffs[j] = np.sort(coeffs[j])
+                
+                # sort shuffled coefficients
+                idx = np.argsort(coeffs_tilde[j])
+                
+                # finally, rearange original coefficient according to coefficient with tilde
+                shuffled_coeffs.append(coeffs[j][idx])
+                
+            # return randomised time series as inverse discrete wavelet transform
+            self.surr_data = pywt.waverec(shuffled_coeffs, 'db1')
+            
+        else:
+            raise Exception("No data to randomise in the field. First you must copy some DataField.")
         
 
