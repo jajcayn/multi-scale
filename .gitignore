@@ -4,3 +4,4 @@
 debug/
 results/
 *.pyc
+*.png
