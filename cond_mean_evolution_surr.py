@@ -19,7 +19,6 @@ WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
-debug_plot = False # partial
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 num_surr = 10 # how many surrs will be used to evaluate
 DETREND = 1
@@ -62,7 +61,7 @@ def get_equidistant_bins():
 total_diffs = []
 total_meanvars = []
 sg = SurrogateField()
-#sg.copy_field(g)
+sg.copy_field(g)
 
 #suF1 = np.loadtxt('../surr-milan/klmsuf1.txt') # 4 data columns
 #suF2 = np.loadtxt('../surr-milan/klmsuf2.txt') # 3 data columns
@@ -110,67 +109,67 @@ for iota in range(num_surr):
     print("[%s] Wavelet analysis done. Now plotting.." % (str(datetime.now())))
     
    
-    if PLOT:
-        fig, ax1 = plt.subplots(figsize=(11,8))
-        ax1.plot(total_diffs[-1], color = '#403A37', linewidth = 2, figure = fig)
-        #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
-        if not ANOMALISE and MEANS:
-            ax1.axis([0, cnt-1, 0, 3])
-        if not ANOMALISE and not MEANS:
-            ax1.axis([0, cnt-1, 0, 25])
-        if ANOMALISE and MEANS:
-            ax1.axis([0, cnt-1, 0, 2])
-        if ANOMALISE and not MEANS:
-            ax1.axis([0, cnt-1, 0, 6])
-        if np.int(WINDOW_LENGTH) == WINDOW_LENGTH:
-            ax1.set_xlabel('start year of %d-year wide window' % WINDOW_LENGTH, size = 14)
-        else:
-            ax1.set_xlabel('start year of %.2f-year wide window' % WINDOW_LENGTH, size = 14)
-        if MEANS:
-            ax1.set_ylabel('difference in cond mean in temperature [$^{\circ}$C]', size = 14)
-        elif not MEANS:
-            ax1.set_ylabel('difference in cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-        plt.xticks(np.arange(0,cnt,15), np.arange(start_date.year, end_date.year, 15), rotation = 30)
-        ax2 = ax1.twinx()
-        ax2.plot(total_meanvars[-1], color = '#CA4F17', linewidth = 2, figure = fig) # color = '#CA4F17'
-        if MEANS:
-            ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
-        elif not MEANS:
-            ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-        ax2.axis([0, cnt-1, -1, 1.5])
-        for tl in ax2.get_yticklabels():
-            tl.set_color('#CA4F17')
-        tit = 'SURR: Evolution of difference in cond'
-        if MEANS:
-            tit += ' mean in temp, '
-        else:
-            tit += ' variance in temp, '
-        if not ANOMALISE:
-            tit += 'SAT, '
-        else:
-            tit += 'SATA, '
-        if np.int(WINDOW_LENGTH) == WINDOW_LENGTH:
-            tit += ('%d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
-        else:
-            tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
-        if DETREND:
-            tit += '\n detrended'
-        else:
-            tit += '\n not detrended'
-        #plt.title(tit)
-        tit = ('SURR: Evolution of difference in cond mean in temp SATA - MF surrogates, \n randomised from %d. scale' % RAND)
-        plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
-        #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
-        if not ANOMALISE:
-            fname = 'SURR_SAT_'
-        else:
-            fname = 'SURR_SATA_'
-        if MEANS:
-            fname += 'means_'
-        else:
-            fname += 'var_'
-        if DETREND:
-            fname += 'detrend_'
-        fname += ('%dyears_%dperiod_%d.png' % (WINDOW_LENGTH, PERIOD, iota))
-        #plt.savefig('debug/' + fname)
-        plt.savefig('debug/MFsurr/surr_%d_%d.png' % (RAND, iota))
+#    if PLOT:
+#        fig, ax1 = plt.subplots(figsize=(11,8))
+#        ax1.plot(total_diffs[-1], color = '#403A37', linewidth = 2, figure = fig)
+#        #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
+#        if not ANOMALISE and MEANS:
+#            ax1.axis([0, cnt-1, 0, 3])
+#        if not ANOMALISE and not MEANS:
+#            ax1.axis([0, cnt-1, 0, 25])
+#        if ANOMALISE and MEANS:
+#            ax1.axis([0, cnt-1, 0, 2])
+#        if ANOMALISE and not MEANS:
+#            ax1.axis([0, cnt-1, 0, 6])
+#        if np.int(WINDOW_LENGTH) == WINDOW_LENGTH:
+#            ax1.set_xlabel('start year of %d-year wide window' % WINDOW_LENGTH, size = 14)
+#        else:
+#            ax1.set_xlabel('start year of %.2f-year wide window' % WINDOW_LENGTH, size = 14)
+#        if MEANS:
+#            ax1.set_ylabel('difference in cond mean in temperature [$^{\circ}$C]', size = 14)
+#        elif not MEANS:
+#            ax1.set_ylabel('difference in cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
+#        plt.xticks(np.arange(0,cnt,15), np.arange(start_date.year, end_date.year, 15), rotation = 30)
+#        ax2 = ax1.twinx()
+#        ax2.plot(total_meanvars[-1], color = '#CA4F17', linewidth = 2, figure = fig) # color = '#CA4F17'
+#        if MEANS:
+#            ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
+#        elif not MEANS:
+#            ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
+#        ax2.axis([0, cnt-1, -1, 1.5])
+#        for tl in ax2.get_yticklabels():
+#            tl.set_color('#CA4F17')
+#        tit = 'SURR: Evolution of difference in cond'
+#        if MEANS:
+#            tit += ' mean in temp, '
+#        else:
+#            tit += ' variance in temp, '
+#        if not ANOMALISE:
+#            tit += 'SAT, '
+#        else:
+#            tit += 'SATA, '
+#        if np.int(WINDOW_LENGTH) == WINDOW_LENGTH:
+#            tit += ('%d-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+#        else:
+#            tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
+#        if DETREND:
+#            tit += '\n detrended'
+#        else:
+#            tit += '\n not detrended'
+#        #plt.title(tit)
+#        tit = ('SURR: Evolution of difference in cond mean in temp SATA - MF surrogates, \n randomised from %d. scale' % RAND)
+#        plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
+#        #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
+#        if not ANOMALISE:
+#            fname = 'SURR_SAT_'
+#        else:
+#            fname = 'SURR_SATA_'
+#        if MEANS:
+#            fname += 'means_'
+#        else:
+#            fname += 'var_'
+#        if DETREND:
+#            fname += 'detrend_'
+#        fname += ('%dyears_%dperiod_%d.png' % (WINDOW_LENGTH, PERIOD, iota))
+#        #plt.savefig('debug/' + fname)
+#        plt.savefig('debug/MFsurr/surr_%d_%d.png' % (RAND, iota))
