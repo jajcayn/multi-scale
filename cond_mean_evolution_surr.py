@@ -3,6 +3,8 @@ created on Mar 8, 2014
 
 @author: Nikola Jajcay
 """
+import matplotlib
+matplotlib.use("Agg")
 
 from src import wavelet_analysis
 from src.data_class import load_station_data
@@ -101,7 +103,7 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 2
+WORKERS = 20
 num_surr = 1000 # how many surrs will be used to evaluate
 rand = 2
 
@@ -255,7 +257,7 @@ for i in range(num_surr):
 for i in range(WORKERS):
     jobQ.put(None)
     
-print("[%s] Starting workers..." % (str(datetime.now())))
+print("[%s] Starting %d workers..." % (str(datetime.now()), WORKERS))
 workers = [Process(target = _cond_difference_surrogates, args = (sg, jobQ, resQ)) for iota in range(WORKERS)]
 
 for w in workers:
