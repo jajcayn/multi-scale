@@ -124,8 +124,8 @@ y = 365.25 # year in days
 fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
 period = PERIOD * y # frequency of interest
 s0 = period / fourier_factor # get scale 
-wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
+#wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+#phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
 
 cond_means = np.zeros((8,))
@@ -136,29 +136,31 @@ def get_equidistant_bins():
     
 
 d, m, year = g.extract_day_month_year()
-data_temp = np.zeros((WINDOW_LENGTH * y))
-phase_temp = np.zeros((WINDOW_LENGTH * y))
+#data_temp = np.zeros((WINDOW_LENGTH * y))
+#phase_temp = np.zeros((WINDOW_LENGTH * y))
 difference = []
 mean_var = []
-start_idx = g.find_date_ndx(start_date) # set to first date
-end_idx = start_idx + data_temp.shape[0] # first date plus WINDOW_LENGTH years (since year is 365.25, leap years are counted)
+start_idx = g_copy.find_date_ndx(start_date) # set to first date
+end_idx = start_idx + int(WINDOW_LENGTH * y) # first date plus WINDOW_LENGTH years (since year is 365.25, leap years are counted)
 cnt = 0
-while end_idx < g.data.shape[0]: # while still in the correct range
+while end_idx < g_copy.data.shape[0]: # while still in the correct range
     cnt += 1
-    data_temp = g.data[start_idx : end_idx] # subselect data
-    phase_temp = phase[0,start_idx : end_idx]
+    g.data = g_copy.data[start_idx : end_idx] # subselect data
+    g.time = g_copy.time[start_idx : end_idx]
+    wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+    phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
     for i in range(cond_means.shape[0]): # get conditional means for current phase range
         #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
         phase_bins = get_equidistant_bins() # equidistant bins
-        ndx = ((phase_temp >= phase_bins[i]) & (phase_temp <= phase_bins[i+1]))
+        ndx = ((phase[0,:] >= phase_bins[i]) & (phase[0,:] <= phase_bins[i+1]))
         if MEANS:
-            cond_means[i] = np.mean(data_temp[ndx])
+            cond_means[i] = np.mean(g.data[ndx])
         else:
-            cond_means[i] = np.var(data_temp[ndx], ddof = 1)
+            cond_means[i] = np.var(g.data[ndx], ddof = 1)
     difference.append(cond_means.max() - cond_means.min()) # append difference to list    
     mean_var.append(np.mean(cond_means))
-    start_idx = g.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
-    end_idx = start_idx + data_temp.shape[0] # shift end index
+    start_idx = g_copy.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
+    end_idx = start_idx + int(WINDOW_LENGTH * y) # shift end index
 print("[%s] Wavelet analysis done." % (str(datetime.now())))
 
 difference = np.array(difference)
@@ -322,7 +324,7 @@ mvtest = meanvar_test[meanvar_test == True].shape[0]
     
 render([difference, np.array(diff_mean)], [mean_var, np.array(meanvar_mean)], [np.array(diff_std), np.array(meanvar_std)],
         subtit = ("95percentil of difference %d and of mean %d from %d data points" % (dtest, mvtest, difference.shape[0])),
-        fname = "debug/%dsurrogates_each_window_rand%d" % (num_surr, rand))
+        fname = "debug/%dsurrogates_each_window_wavelet_rand%d" % (num_surr, rand))
         
     
 
