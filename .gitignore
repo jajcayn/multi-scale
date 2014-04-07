@@ -5,3 +5,4 @@ debug/
 results/
 *.pyc
 *.png
+test.py
