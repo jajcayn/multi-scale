@@ -220,6 +220,8 @@ class DataField:
                             station = row[1][1:-13].lower()
                         elif row[1][-6] == ' ':
                             station = row[1][1:-14].lower()
+                        elif row[1][-7] == ' ':
+                            station = row[1][1:-15].lower()
                         self.location = station.title() + ', ' + country.title()
                     if i > 20: # actual data - len(row) = 4 as SOUID, DATE, TG, Q_TG
                         value = float(row[2])
