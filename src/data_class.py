@@ -5,7 +5,6 @@ created on Jan 29, 2014
 """
 
 import numpy as np
-from scipy.signal import detrend
 from netCDF4 import Dataset
 from datetime import date, timedelta, datetime
 import csv
@@ -75,6 +74,30 @@ def nanstd(arr, axis = None, ddof = 0):
         
         return std
         
+        
+def nandetrend(arr, axis = 0):
+    """
+    Removes the linear trend along the axis, ignoring Nans.
+    """
+    a = arr.copy()
+    rnk = len(a.shape)
+    if axis < 0:
+        axis += rnk # axis -1 means along last dimension
+    newdims = np.r_[axis, 0:axis, axis + 1:rnk]
+    newdata = np.reshape(np.transpose(a, tuple(newdims)), (a.shape[axis], np.prod(a.shape, axis = 0) // a.shape[axis]))
+    newdata = newdata.copy()
+    x = np.arange(0, a.shape[axis], 1)
+    A = np.vstack([x, np.ones(len(x))]).T
+    m, c = np.linalg.lstsq(A, newdata)[0]
+    for i in range(a.shape[axis]):
+        newdata[i, ...] = newdata[i, ...] - (m*x[i] + c)
+    tdshape = np.take(a.shape, newdims, 0)
+    ret = np.reshape(newdata, tuple(tdshape))
+    vals = list(range(1,rnk))
+    olddims = vals[:axis] + [0] + vals[axis:]
+    ret = np.transpose(ret, tuple(olddims))
+    
+    return ret, m
         
 
 class DataField:
@@ -158,7 +181,7 @@ class DataField:
             
             
             
-    def load_station_data(self, filename, dataset = 'ECA-station'):
+    def load_station_data(self, filename, dataset = 'ECA-station', print_prog = True):
         """
         Loads station data, usually from text file. Uses numpy.loadtxt reader.
         """
@@ -212,8 +235,9 @@ class DataField:
             self.data = np.array(data)
             self.time = np.array(time)
             self.missing = np.array(missing)
-            print("Station data from %s saved to structure. Shape of the data is %s" % (self.location, str(self.data.shape)))
-            print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+            if print_prog:
+                print("Station data from %s saved to structure. Shape of the data is %s" % (self.location, str(self.data.shape)))
+                print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
             if self.missing.shape[0] != 0:
                 print("** WARNING: There were some missing values! To be precise, %d missing values were found!" % (self.missing.shape[0]))
                         
@@ -401,7 +425,7 @@ class DataField:
                     self.data[sel, ...] /= seasonal_var[sel, ...]
             if DETREND:
                 data_copy = self.data.copy()
-                self.data = detrend(self.data, axis = 0)
+                self.data, _ = nandetrend(self.data, axis = 0)
                 trend = data_copy - self.data
             else:
                 trend = None
@@ -418,7 +442,7 @@ class DataField:
                 self.data[sel, ...] /= seasonal_var[sel, ...]
             if DETREND:
                 data_copy = self.data.copy()
-                self.data = detrend(self.data, axis = 0)
+                self.data, _ = nandetrend(self.data, axis = 0)
                 trend = data_copy - self.data
             else:
                 trend = None
@@ -435,8 +459,10 @@ def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-stati
     """
     
     print("[%s] Loading station data..." % (str(datetime.now())))
-    g = DataField()
-    g.load_station_data(filename, dataset)
+    path, name = split(filename)
+    path += "/"
+    g = DataField(data_folder = path)
+    g.load_station_data(name, dataset, print_prog = False)
     print("** loaded")
     g.select_date(start_date, end_date)
     if anom:
