@@ -6,3 +6,4 @@ results/
 *.pyc
 *.png
 test.py
+*.py~
