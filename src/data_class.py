@@ -81,21 +81,27 @@ def nandetrend(arr, axis = 0):
     """
     a = arr.copy()
     rnk = len(a.shape)
+    # determine axis
     if axis < 0:
         axis += rnk # axis -1 means along last dimension
+    # reshape that axis is 1. dimension and other dimensions are enrolled into 2. dimensions
     newdims = np.r_[axis, 0:axis, axis + 1:rnk]
     newdata = np.reshape(np.transpose(a, tuple(newdims)), (a.shape[axis], np.prod(a.shape, axis = 0) // a.shape[axis]))
     newdata = newdata.copy()
+    # compute linear fit as least squared residuals
     x = np.arange(0, a.shape[axis], 1)
     A = np.vstack([x, np.ones(len(x))]).T
     m, c = np.linalg.lstsq(A, newdata)[0]
+    # remove the trend from the data along 1. axis
     for i in range(a.shape[axis]):
         newdata[i, ...] = newdata[i, ...] - (m*x[i] + c)
+    # reshape back to original shape
     tdshape = np.take(a.shape, newdims, 0)
     ret = np.reshape(newdata, tuple(tdshape))
     vals = list(range(1,rnk))
     olddims = vals[:axis] + [0] + vals[axis:]
     ret = np.transpose(ret, tuple(olddims))
+    # return detrended data and linear coefficient
     
     return ret, m
         
@@ -216,11 +222,11 @@ class DataField:
                     i += 1
                     if i == 16: # line with location
                         country = row[0][38:].lower()
-                        if row[1][-5] == ' ':
+                        if row[1][-5] == ' ': # for stations with 2-digit SOUID
                             station = row[1][1:-13].lower()
-                        elif row[1][-6] == ' ':
+                        elif row[1][-6] == ' ': # for stations with 3-digit SOUID
                             station = row[1][1:-14].lower()
-                        elif row[1][-7] == ' ':
+                        elif row[1][-7] == ' ': # for stations with 4-digit SOUID
                             station = row[1][1:-15].lower()
                         self.location = station.title() + ', ' + country.title()
                     if i > 20: # actual data - len(row) = 4 as SOUID, DATE, TG, Q_TG

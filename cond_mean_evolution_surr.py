@@ -4,7 +4,7 @@ created on Mar 8, 2014
 @author: Nikola Jajcay
 """
 import matplotlib
-matplotlib.use("Agg")
+#matplotlib.use("Agg")
 
 from src import wavelet_analysis
 from src.data_class import load_station_data
@@ -112,8 +112,8 @@ rand = 2
 ## loading data ##
 start_date = date(1924, 4, 15)
 end_date = date(2014, 1, 1) # exclusive
-g = load_station_data('../data/Spain/TG_STAID000230.txt', start_date, end_date, ANOMALISE)
-g_copy = load_station_data('../data/Spain/TG_STAID000230.txt', start_date, end_date, ANOMALISE)
+g = load_station_data('../data/Spain/TG_STAID003937.txt', start_date, end_date, ANOMALISE)
+g_copy = load_station_data('../data/Spain/TG_STAID003937.txt', start_date, end_date, ANOMALISE)
 # length of the time series with date(1954,6,8) with start date(1775,1,1) = 65536 - power of 2
 # the same when end date(2014,1,1) than start date(1834,7,28)
 
@@ -333,7 +333,7 @@ mvtest = meanvar_test[meanvar_test == True].shape[0]
     
 render([difference, np.array(diff_mean)], [mean_var, np.array(meanvar_mean)], [np.array(diff_std), np.array(meanvar_std)],
         subtit = ("95percentil of difference %d and of mean %d from %d data points" % (dtest, mvtest, difference.shape[0])),
-        fname = "debug/%dsurrogates_each_window_Madrid1.png" % (num_surr))
+        fname = "debug/%dsurrogates_each_window_Tortosa.png" % (num_surr))
         
     
 
