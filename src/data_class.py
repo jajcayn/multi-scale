@@ -468,8 +468,11 @@ def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-stati
     
     print("[%s] Loading station data..." % (str(datetime.now())))
     path, name = split(filename)
-    path += "/"
-    g = DataField(data_folder = path)
+    if path != '':
+        path += "/"
+        g = DataField(data_folder = path)
+    else:
+        g = DataField()
     g.load_station_data(name, dataset, print_prog = False)
     print("** loaded")
     g.select_date(start_date, end_date)

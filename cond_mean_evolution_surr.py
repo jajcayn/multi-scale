@@ -104,7 +104,7 @@ PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 3
-num_surr = 4 # how many surrs will be used to evaluate
+num_surr = 1000 # how many surrs will be used to evaluate
 rand = 2
 
 
@@ -112,8 +112,8 @@ rand = 2
 ## loading data ##
 start_date = date(1924, 4, 15)
 end_date = date(2014, 1, 1) # exclusive
-g = load_station_data('../data/Spain/TG_STAID003937.txt', start_date, end_date, ANOMALISE)
-g_copy = load_station_data('../data/Spain/TG_STAID003937.txt', start_date, end_date, ANOMALISE)
+g = load_station_data('../data/Spain/TG_STAID000230.txt', start_date, end_date, ANOMALISE)
+g_copy = load_station_data('../data/Spain/TG_STAID000230.txt', start_date, end_date, ANOMALISE)
 # length of the time series with date(1954,6,8) with start date(1775,1,1) = 65536 - power of 2
 # the same when end date(2014,1,1) than start date(1834,7,28)
 
@@ -173,7 +173,7 @@ mean_var = np.array(mean_var)
 
 ## wavelet analysis SURROGATES
 
-print("[%s] Now computing wavelet analysis for %d MF surrogates in parallel." % (str(datetime.now()), num_surr))
+print("[%s] Now computing wavelet analysis for %d FT surrogates in parallel." % (str(datetime.now()), num_surr))
 surrogates_difference = np.zeros((num_surr, difference.shape[0]))
 surrogates_mean_var = np.zeros_like(surrogates_difference)
 surr_completed = 0
@@ -237,7 +237,8 @@ def _cond_difference_surrogates(sg, jobq, resq):
             if np.all(np.isnan(g.data) == False): # check for missing values
                 mean, var, trend = g.get_seasonality(DETREND = True)
                 sg.copy_field(g)
-                sg.construct_multifractal_surrogates(randomise_from_scale = rand)
+                #sg.construct_multifractal_surrogates(randomise_from_scale = rand)
+                sg.construct_fourier_surrogates_spatial()
                 sg.add_seasonality(mean, var, trend)
                 wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
                 phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
@@ -333,7 +334,7 @@ mvtest = meanvar_test[meanvar_test == True].shape[0]
     
 render([difference, np.array(diff_mean)], [mean_var, np.array(meanvar_mean)], [np.array(diff_std), np.array(meanvar_std)],
         subtit = ("95percentil of difference %d and of mean %d from %d data points" % (dtest, mvtest, difference.shape[0])),
-        fname = "debug/%dsurrogates_each_window_Tortosa.png" % (num_surr))
+        fname = "debug/%dsurrogates_each_window_FT_Madrid.png" % (num_surr))
         
     
 
