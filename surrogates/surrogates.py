@@ -122,7 +122,7 @@ class SurrogateField(DataField):
         Constructs multifractal surrogates (independent shuffling of the scale-specific coefficients,
         preserving so-called multifractal structure - hierarchical process exhibiting information flow
         from large to small scales)
-        build according to: Palus, M. (2008): Bootstraping multifractals: Surrogate data from random 
+        written according to: Palus, M. (2008): Bootstraping multifractals: Surrogate data from random 
         cascades on wavelet dyadic trees. Phys. Rev. Letters, 101.
         """
         

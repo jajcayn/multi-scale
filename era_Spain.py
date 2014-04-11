@@ -10,6 +10,7 @@ from datetime import date, datetime
 from src import wavelet_analysis
 from multiprocessing import Process, Queue
 from surrogates.surrogates import SurrogateField
+
 #==============================================================================
 # ERA data download
 # 
