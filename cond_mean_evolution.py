@@ -9,10 +9,11 @@ from src.data_class import load_station_data
 import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
+from surrogates.surrogates import SurrogateField
 
 
-ANOMALISE = False
-PERIOD = 10 # years, period of wavelet
+ANOMALISE = True
+PERIOD = 8 # years, period of wavelet
 #WINDOW_LENGTH = 32 # years, should be at least PERIOD of wavelet
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
@@ -20,16 +21,27 @@ PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 debug_plot = True # partial
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
+USE_SURR = True
 
 
 ## loading data ##
 start_date = date(1834,7,28)
 end_date = date(2014, 1, 1) # exclusive
 g = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
+print g.data[:20]
            
+if USE_SURR:
+    print("** replacing original data with surrogate data...")
+    sg = SurrogateField()
+    sg.copy_field(g)
+    sg.construct_multifractal_surrogates()
+    #sg.construct_fourier_surrogates_spatial()
+    d = sg.get_surr()
+    g.data = d.copy()
 
 ## analysis ##
 # wavelet
+print g.data[:20]
 print("[%s] Wavelet analysis in progress with %d year window shifted by %d year(s)..." % (str(datetime.now()), WINDOW_LENGTH, WINDOW_SHIFT))
 k0 = 6. # wavenumber of Morlet wavelet used in analysis
 y = 365.25 # year in days
@@ -44,7 +56,7 @@ cond_means = np.zeros((8,))
 
 # solution where all bins are edited
 def get_equiquantal_bins(phase_part):
-    # use iterative algorythm
+    # use iterative algorithm
     volume = int(phase_part.shape[0] / 8.)
     start = phase_part.min()
     phase_bins = [start]
@@ -107,7 +119,7 @@ while end_idx < g.data.shape[0]: # while still in the correct range
                 plt.title('SAT cond variance \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
                                                   m[end_idx], year[end_idx]), size = 20)
             elif ANOMALISE and MEANS:
-                plt.title('SATA cond mean \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
+                plt.title('SATA cond mean - MFsurr \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
                                                   m[end_idx], year[end_idx]), size = 20)
             elif ANOMALISE and not MEANS:
                 plt.title('SATA cond variance \n %d.%d.%d - %d.%d.%d' % (d[start_idx], m[start_idx], year[start_idx], d[end_idx], 
@@ -128,17 +140,17 @@ while end_idx < g.data.shape[0]: # while still in the correct range
                 plt.ylabel('cond mean in temperature [$^{\circ}$C]')
             elif not MEANS:
                 plt.ylabel('cond variance in temperature [$^{\circ}$C$^2$]')
-            plt.axis([-np.pi, np.pi, 5, 15])
+            plt.axis([-np.pi, np.pi, -2, 2])
             plt.title('Difference is %g \n Mean is %g' % (difference[-1], mean_var[-1]))
             if not ANOMALISE:
-                fname = 'debug/SAT_'
+                fname = 'debug/MFsurr/dbg/SAT_'
             else:
-                fname = 'debug/SATA_'
+                fname = 'debug/MFsurr/dbg/SATA_'
             if MEANS:
                 fname += 'means_'
             else:
                 fname += 'var_'
-            fname += ('%dyears/%dperiod_plot_%s-%s.png' % (WINDOW_LENGTH, PERIOD, str(date(year[start_idx], m[start_idx], d[start_idx])), 
+            fname += ('%s-%s.png' % (str(date(year[start_idx], m[start_idx], d[start_idx])), 
                                                str(date(year[end_idx], m[end_idx], d[end_idx]))))
             plt.savefig(fname)
     start_idx = g.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
@@ -175,7 +187,7 @@ if PLOT:
         ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
     elif not MEANS:
         ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-    ax2.axis([0, cnt-1, 8.5, 11.5])
+    ax2.axis([0, cnt-1, -1, 1.5])
     for tl in ax2.get_yticklabels():
         tl.set_color('#CA4F17')
     tit = 'Evolution of difference in cond'
@@ -190,7 +202,7 @@ if PLOT:
     if np.int(WINDOW_LENGTH) == WINDOW_LENGTH:
         tit += ('%d-year window, %d-year shift,\n %d-year wavelet' % (WINDOW_LENGTH, WINDOW_SHIFT, PERIOD))
     else:
-        tit += ('%.2f-year window, %d-year shift,\n %d-year wavelet' % (WINDOW_LENGTH, WINDOW_SHIFT, PERIOD))
+        tit += ('%.2f-year window, %d-year shift,\n MF surrogates' % (WINDOW_LENGTH, WINDOW_SHIFT))
     #plt.title(tit)
     plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
@@ -199,11 +211,11 @@ if PLOT:
     else:
         fname = 'SATA_'
     if MEANS:
-        fname += 'means_'
+        fname += 'means_MF'
     else:
         fname += 'var_'
-    fname += ('%dyears_%dperiod.png' % (WINDOW_LENGTH, PERIOD))
-    plt.savefig('debug/' + fname)
+    fname += ".png"
+    plt.savefig('debug/MFsurr/' + fname)
   
 
     
