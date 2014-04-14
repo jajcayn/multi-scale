@@ -61,7 +61,10 @@ class SurrogateField(DataField):
         Returns the surrogate data
         """
         
-        return self.surr_data.copy()
+        if self.surr_data != None:
+            return self.surr_data.copy()
+        else:
+            raise Exception("Surrogate data has not been created yet.")
         
 
 
@@ -141,6 +144,12 @@ class SurrogateField(DataField):
             for lat in range(num_lats):
                 for lon in range(num_lons):
                     n = int(np.log2(self.data.shape[0])) # time series length should be 2^n
+                    n_real = np.log2(self.data.shape[0])
+                    
+                    if n != n_real:
+                        # if time series length is not 2^n
+                        raise Exception("Time series length must be power of 2 (2^n).")
+                        break
                     
                     # get coefficient from discrete wavelet transform, 
                     # it is a list of length n with numpy arrays as every object
@@ -185,6 +194,9 @@ class SurrogateField(DataField):
                         
                     # return randomised time series as inverse discrete wavelet transform
                     self.surr_data[:, lat, lon] = pywt.waverec(shuffled_coeffs, 'db1')
+            
+            # squeeze single-dimensional entries (station data e.g.)
+            self.surr_data = np.squeeze(self.surr_data)
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
