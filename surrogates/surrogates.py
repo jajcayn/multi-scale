@@ -195,8 +195,9 @@ class SurrogateField(DataField):
                     # return randomised time series as inverse discrete wavelet transform
                     self.surr_data[:, lat, lon] = pywt.waverec(shuffled_coeffs, 'db1')
             
-            # squeeze single-dimensional entries (station data e.g.)
+            # squeeze single-dimensional entries (e.g. station data)
             self.surr_data = np.squeeze(self.surr_data)
+            self.data = np.squeeze(self.data)
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")

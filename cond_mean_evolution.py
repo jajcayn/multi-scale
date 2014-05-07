@@ -19,7 +19,7 @@ WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
-debug_plot = True # partial
+debug_plot = False # partial
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 USE_SURR = True
 
@@ -28,7 +28,6 @@ USE_SURR = True
 start_date = date(1834,7,28)
 end_date = date(2014, 1, 1) # exclusive
 g = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
-print g.data[:20]
            
 if USE_SURR:
     print("** replacing original data with surrogate data...")

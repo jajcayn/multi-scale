@@ -3,7 +3,7 @@ created on Mar 8, 2014
 
 @author: Nikola Jajcay
 """
-import matplotlib
+#import matplotlib
 #matplotlib.use("Agg")
 
 from src import wavelet_analysis
@@ -103,17 +103,17 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 3
-num_surr = 1000 # how many surrs will be used to evaluate
+WORKERS = 4
+num_surr = 100 # how many surrs will be used to evaluate
 rand = 2
 
 
 
 ## loading data ##
-start_date = date(1924, 4, 15)
+start_date = date(1834, 7, 28)
 end_date = date(2014, 1, 1) # exclusive
-g = load_station_data('../data/Spain/TG_STAID000230.txt', start_date, end_date, ANOMALISE)
-g_copy = load_station_data('../data/Spain/TG_STAID000230.txt', start_date, end_date, ANOMALISE)
+g = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
+g_copy = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
 # length of the time series with date(1954,6,8) with start date(1775,1,1) = 65536 - power of 2
 # the same when end date(2014,1,1) than start date(1834,7,28)
 
@@ -124,8 +124,8 @@ y = 365.25 # year in days
 fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
 period = PERIOD * y # frequency of interest
 s0 = period / fourier_factor # get scale 
-#wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-#phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
+wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
 
 cond_means = np.zeros((8,))
@@ -136,8 +136,8 @@ def get_equidistant_bins():
     
 
 d, m, year = g.extract_day_month_year()
-#data_temp = np.zeros((WINDOW_LENGTH * y))
-#phase_temp = np.zeros((WINDOW_LENGTH * y))
+data_temp = np.zeros((WINDOW_LENGTH * y))
+phase_temp = np.zeros((WINDOW_LENGTH * y))
 difference = []
 mean_var = []
 start_idx = g_copy.find_date_ndx(start_date) # set to first date
@@ -145,19 +145,21 @@ end_idx = start_idx + int(WINDOW_LENGTH * y) # first date plus WINDOW_LENGTH yea
 cnt = 0
 while end_idx < g_copy.data.shape[0]: # while still in the correct range
     cnt += 1
-    g.data = g_copy.data[start_idx : end_idx] # subselect data
-    g.time = g_copy.time[start_idx : end_idx]
-    if np.all(np.isnan(g.data) == False): # check for missing values
-        wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-        phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
+    #g.data = g_copy.data[start_idx : end_idx] # subselect data
+    #g.time = g_copy.time[start_idx : end_idx]
+    phase_temp = phase[0, start_idx : end_idx]
+    data_temp = g_copy.data[start_idx : end_idx]
+    if np.all(np.isnan(data_temp) == False): # check for missing values
+        #wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        #phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
             phase_bins = get_equidistant_bins() # equidistant bins
-            ndx = ((phase[0,:] >= phase_bins[i]) & (phase[0,:] <= phase_bins[i+1]))
+            ndx = ((phase_temp >= phase_bins[i]) & (phase_temp <= phase_bins[i+1]))
             if MEANS:
-                cond_means[i] = np.mean(g.data[ndx])
+                cond_means[i] = np.mean(data_temp[ndx])
             else:
-                cond_means[i] = np.var(g.data[ndx], ddof = 1)
+                cond_means[i] = np.var(data_temp[ndx], ddof = 1)
         difference.append(cond_means.max() - cond_means.min()) # append difference to list    
         mean_var.append(np.mean(cond_means))
     else:
@@ -174,15 +176,13 @@ mean_var = np.array(mean_var)
 ## wavelet analysis SURROGATES
 
 print("[%s] Now computing wavelet analysis for %d FT surrogates in parallel." % (str(datetime.now()), num_surr))
-surrogates_difference = np.zeros((num_surr, difference.shape[0]))
-surrogates_mean_var = np.zeros_like(surrogates_difference)
-surr_completed = 0
 
-#mean, var, trend = g.get_seasonality(DETREND = True) # use when MF surrogates are created before sliding window analysis
+
+#mean, var, trend = g_copy.get_seasonality(DETREND = True) # use when MF surrogates are created before sliding window analysis
 
 # prepare surr field
-sg = SurrogateField()
-#sg.copy_field(g)
+
+#sg.copy_field(g_copy)
 
 #==============================================================================
 # function for MF surrogates to be created BEFORE sliding window analysis
@@ -224,117 +224,88 @@ sg = SurrogateField()
 #==============================================================================
 # function for MF surrogates to be created in EACH WINDOW separately
 #==============================================================================
-def _cond_difference_surrogates(sg, jobq, resq):
+def _cond_difference_surrogates(g, a, jobq, resq):
+    mean, var, trend = a
     while jobq.get() is not None:
-        difference = []
-        mean_var = []
-        start_idx = g_copy.find_date_ndx(start_date) # set to first date
-        end_idx = start_idx + int(WINDOW_LENGTH * y) # first date plus WINDOW_LENGTH years (since year is 365.25, leap years are counted)
-        cnt = 0
-        while end_idx < g_copy.data.shape[0]: # while still in the correct range
-            g.data = g_copy.data[start_idx : end_idx]
-            g.time = g_copy.time[start_idx : end_idx]
-            if np.all(np.isnan(g.data) == False): # check for missing values
-                mean, var, trend = g.get_seasonality(DETREND = True)
-                sg.copy_field(g)
-                #sg.construct_multifractal_surrogates(randomise_from_scale = rand)
-                sg.construct_fourier_surrogates_spatial()
-                sg.add_seasonality(mean, var, trend)
-                wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-                phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
-                for i in range(cond_means.shape[0]): # get conditional means for current phase range
-                    #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
-                    phase_bins = get_equidistant_bins() # equidistant bins
-                    ndx = ((phase[0,:] >= phase_bins[i]) & (phase[0,:] <= phase_bins[i+1]))
-                    if MEANS:
-                        cond_means[i] = np.mean(sg.surr_data[ndx])
-                    else:
-                        cond_means[i] = np.var(sg.surr_data[ndx], ddof = 1)
-                difference.append(cond_means.max() - cond_means.min()) # append difference to list    
-                mean_var.append(np.mean(cond_means))
+        sg = SurrogateField()
+        sg.copy_field(g)
+        #sg.construct_multifractal_surrogates()
+        sg.construct_fourier_surrogates_spatial()
+        sg.add_seasonality(mean, var, trend)
+        wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
+        for i in range(cond_means.shape[0]): # get conditional means for current phase range
+            #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
+            phase_bins = get_equidistant_bins() # equidistant bins
+            ndx = ((phase[0,:] >= phase_bins[i]) & (phase[0,:] <= phase_bins[i+1]))
+            if MEANS:
+                cond_means[i] = np.mean(sg.surr_data[ndx])
             else:
-                difference.append(0)
-                mean_var.append(0)
-            cnt += 1
-            start_idx = g_copy.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
-            end_idx = start_idx + int(WINDOW_LENGTH * y) # shift end index
+                cond_means[i] = np.var(sg.surr_data[ndx], ddof = 1)
+        diff = (cond_means.max() - cond_means.min()) # append difference to list    
+        mean_var = np.mean(cond_means)
         
-        resq.put((np.array(difference), np.array(mean_var)))
+        resq.put((diff, mean_var))
 
-# construct the job queue
-jobQ = Queue()
-resQ = Queue()
-for i in range(num_surr):
-    jobQ.put(1)
-for i in range(WORKERS):
-    jobQ.put(None)
-    
-print("[%s] Starting %d workers..." % (str(datetime.now()), WORKERS))
-workers = [Process(target = _cond_difference_surrogates, args = (sg, jobQ, resQ)) for iota in range(WORKERS)]
 
-for w in workers:
-    w.start()
-    
-while surr_completed < num_surr:
-    
-    # get result
-    diff, meanVar = resQ.get()
-    surrogates_difference[surr_completed, :] = diff
-    surrogates_mean_var[surr_completed, :] = meanVar
-    surr_completed += 1
-    
-    #if surr_completed % 10 == 0:
-    print("[%s] PROGRESS: %d/%d surrogates completed." % (str(datetime.now()), surr_completed, num_surr))
+difference_surr = []
+difference_surr_std = []
+mean_var_surr = []
+mean_var_surr_std = []
+start_idx = g_copy.find_date_ndx(start_date) # set to first date
+end_idx = start_idx + int(WINDOW_LENGTH * y) # first date plus WINDOW_LENGTH years (since year is 365.25, leap years are counted)
+cnt = 0
+while end_idx < g_copy.data.shape[0]: # while still in the correct range
+    surr_completed = 0
+    diffs = np.zeros((num_surr,))
+    mean_vars = np.zeros_like(diffs)
+    g.data = g_copy.data[start_idx : end_idx].copy()
+    g.time = g_copy.time[start_idx : end_idx]
+    if np.all(np.isnan(g.data) == False): # check for missing values
+        # construct the job queue
+        jobQ = Queue()
+        resQ = Queue()
+        for i in range(num_surr):
+            jobQ.put(1)
+        for i in range(WORKERS):
+            jobQ.put(None)
+        a = g.get_seasonality(DETREND = True)
+        workers = [Process(target = _cond_difference_surrogates, args = (g, a, jobQ, resQ)) for iota in range(WORKERS)]
+        for w in workers:
+            w.start()
+        while surr_completed < num_surr:
+            # get result
+            diff, meanVar = resQ.get()
+            diffs[surr_completed] = diff
+            mean_vars[surr_completed] = meanVar
+            surr_completed += 1
+            #if surr_completed % 50 == 0:
+             #   print("[%s] PROGRESS:%d time window - %d/%d surrogates completed." % (str(datetime.now()), cnt, surr_completed, num_surr))
+        for w in workers:
+            w.join()
         
-for w in workers:
-    w.join()
+        difference_surr.append(np.mean(diffs))
+        difference_surr_std.append(np.std(diffs, ddof = 1))
+        mean_var_surr.append(np.mean(mean_vars))
+        mean_var_surr_std.append(np.std(mean_vars, ddof = 1))
+        print("%d. time point - data: %.2f, surr mean: %.2f, surr std: %.2f" % (cnt, difference[cnt], np.mean(diffs), np.std(diffs, ddof = 1)))    
+    else:
+        difference_surr.append(0)
+        difference_surr_std.append(0)
+        mean_var_surr.append(0)
+        mean_var_surr_std.append(0)
+
+    cnt += 1
+    start_idx = g_copy.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
+    end_idx = start_idx + int(WINDOW_LENGTH * y) # shift end index
 
 print("[%s] Wavelet analysis of surrogates done." % (str(datetime.now())))
 
 
 
-#statistical testing
-print("[%s] Statistical testing in progress..." % (str(datetime.now())))
-diff_mean = []
-diff_std = []
-meanvar_mean = []
-meanvar_std = []
-diff_test = np.zeros_like(difference, dtype = np.bool)
-meanvar_test = np.zeros_like(difference, dtype = np.bool)
-for t in range(difference.shape[0]):
-#    surr_mean = np.mean(surrogates_difference[:, t], axis = 0)
-#    surr_std = np.std(surrogates_difference[:, t], axis = 0, ddof = 1)
-#    stats.append([surr_mean, surr_std])
-
-    diff = np.mean(surrogates_difference[:, t], axis = 0)
-    std = np.std(surrogates_difference[:, t], axis = 0, ddof = 1)
-    meanvar = np.mean(surrogates_mean_var[:, t], axis = 0)
-    m_std = np.std(surrogates_mean_var[:, t], axis = 0, ddof = 1)
-    diff_mean.append(diff)
-    diff_std.append(std)
-    meanvar_mean.append(meanvar)
-    meanvar_std.append(m_std)
     
-    sorted_surr = np.sort(surrogates_difference[:, t], axis = 0)[::-1]
-    # make bool array -> false means data is higher than surrogate
-    test = difference[t] > sorted_surr
-    # count falses
-    falses = test[test == False].shape[0]
-    if falses <= ((num_surr / 100) * 5):
-        diff_test[t] = True
-        
-    sorted_surr = np.sort(surrogates_mean_var[:, t], axis = 0)[::-1]
-    test = mean_var[t] > sorted_surr
-    falses = test[test == False].shape[0]
-    if falses <= ((num_surr / 100) * 5):
-        meanvar_test[t] = True
-    
-dtest = diff_test[diff_test == True].shape[0]  
-mvtest = meanvar_test[meanvar_test == True].shape[0]
-    
-render([difference, np.array(diff_mean)], [mean_var, np.array(meanvar_mean)], [np.array(diff_std), np.array(meanvar_std)],
-        subtit = ("95percentil of difference %d and of mean %d from %d data points" % (dtest, mvtest, difference.shape[0])),
-        fname = "debug/%dsurrogates_each_window_FT_Madrid.png" % (num_surr))
+render([difference, np.array(difference_surr)], [mean_var, np.array(mean_var_surr)], [np.array(difference_surr_std), np.array(mean_var_surr_std)],
+        fname = "debug/PRG_%d_surr_FT_in_each_window.png" % (num_surr))
         
     
 
