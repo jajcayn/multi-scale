@@ -53,6 +53,7 @@ plt.xlabel('time [years]')
 plt.ylabel('continuous phase [rad]')
 plt.legend([p1, p2, p3], ['16k data', '16k data cropped from 64k', 'difference of phases'], loc = 2)
 plt.title('Continuous phase - coherence \n mean phase coherence: %.2f' % np.sqrt(coh))
+print 'plotting...'
 plt.show()
 
 #==============================================================================
