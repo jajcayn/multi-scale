@@ -297,6 +297,8 @@ class DataField:
         self.time = self.time[ndx]
         self.data = self.data[ndx]
         
+        return ndx
+        
         
         
     def select_lat_lon(self, lats, lons):
@@ -378,6 +380,63 @@ class DataField:
             
         else:
             raise Exception('Luckily for you, there is no missing values!')
+            
+            
+            
+    def _shift_index_by_month(self, current_idx):
+        """
+        Returns the index in data shifted by month.
+        """
+        
+        dt = date.fromordinal(self.time[current_idx])
+        if dt.month < 12:
+            mi = dt.month + 1
+            y = dt.year
+        else:
+            mi = 1
+            y = dt.year + 1
+            
+        return self.find_date_ndx(date(y, mi, dt.day))
+        
+        
+            
+            
+    def get_monthly_data(self):
+        """
+        Converts the daily data to monthly means.
+        """
+        
+        delta = self.time[1] - self.time[0]
+        if delta == 1:
+            # daily data
+            day, mon, year = self.extract_day_month_year()
+            monthly_data = []
+            monthly_time = []
+            # if first day of the data is not the first day of month - shift month
+            # by one to start with the full month
+            if day[0] != 1:
+                mi = mon[0]+1 if mon[0] < 12 else 1
+                y = year[0] if mon[0] < 12 else year[0] + 1
+            else:
+                mi = mon[0]
+                y = year[0]
+            start_idx = self.find_date_ndx(date(y, mi, 1))
+            end_idx = self._shift_index_by_month(start_idx)
+            while end_idx <= self.data.shape[0] and end_idx is not None:
+                monthly_data.append(np.mean(self.data[start_idx : end_idx, ...], axis = 0))
+                monthly_time.append(self.time[start_idx])
+                start_idx = end_idx
+                end_idx = self._shift_index_by_month(start_idx)
+                if end_idx is None: # last piece, then exit the loop
+                    monthly_data.append(np.mean(self.data[start_idx : , ...], axis = 0))
+                    monthly_time.append(self.time[start_idx])
+            self.data = np.array(monthly_data)
+            self.time = np.array(monthly_time)                
+        elif abs(delta - 30) < 3.0:
+            # monhtly data
+            raise Exception('The data are already monthly values.')
+        else:
+            raise Exception('Unknown temporal sampling in the field.')
         
         
     def anomalise(self):

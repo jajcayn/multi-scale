@@ -9,6 +9,7 @@ from data_class import load_station_data
 import wavelet_analysis
 import matplotlib.pyplot as plt
 from surrogates.surrogates import SurrogateField
+from datetime import date
 
 
 class OscillatoryTimeSeries:
@@ -48,6 +49,33 @@ class OscillatoryTimeSeries:
         self.amplitude = amplitude[0, :]
         
         
+    def plot_phase_amplitude(self, seasons = False, fname = None):
+        """
+        Plots phase-amplitude plot.
+        """
+        fig, ax1 = plt.subplots(figsize=(15,9))
+        ax1.plot(self.phase, color = '#088BA6')
+        ax1.axis([0, self.phase.shape[0], -np.pi, np.pi])
+        ax1.set_ylabel('phase [rad]')
+        for tl in ax1.get_yticklabels():
+            tl.set_color('#088BA6')
+        ax1.set_xlabel('time [year]')
+        year_diff = np.round((date.fromordinal(self.g.time[-1]).year - date.fromordinal(self.g.time[0]).year) / 10)
+        xnames = np.arange(date.fromordinal(self.g.time[0]).year, date.fromordinal(self.g.time[-1]).year+1, year_diff)
+        plt.xticks(np.linspace(0,self.phase.shape[0],len(xnames)), xnames, rotation = 30)
+        ax2 = ax1.twinx()
+        ax2.plot(self.amplitude, color = '#D55026', linewidth = 2)
+        ax2.set_ylabel('amplitude')
+        ax2.axis([0, self.phase.shape[0], 0, np.ceil(self.amplitude.max())])
+        for tl in ax2.get_yticklabels():
+            tl.set_color('#D55026')
+        plt.title("%s - phase-amplitude plot \n %s - %s" % (self.g.location, str(date.fromordinal(self.g.time[0])), str(date.fromordinal(self.g.time[-1]))))
+        if fname is None:
+            plt.show()
+        else:
+            plt.savefig(fname)
+        
+        
     def get_conditional_means(self, bin_no = None, means = True):
         """
         Gets conditional means (if means = True) or conditional variance (means = False).
@@ -67,17 +95,16 @@ class OscillatoryTimeSeries:
             self.phase_bins = phase_bins
             if means:
                 self.cond_means = cond_means
-                self.cond_variance = None
             else:
-                self.cond_means = None
                 self.cond_variance = cond_means
+            
             return cond_means
         
         else:
             raise Exception('First perform a wavelet transform to obtain phase!')
         
         
-    def get_conditional_means_surrogates(self, num_surr, MF_surr = True):
+    def get_conditional_means_surrogates(self, num_surr, MF_surr = True, means = True):
         """
         Gets conditional means/variance for num_surr surrogates.
         If MF_surr is True, multifractal surrogates are used, otherway FT surrogates are used.
@@ -101,9 +128,9 @@ class OscillatoryTimeSeries:
                 phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
                 for i in range(cond_means_surr.shape[1]):
                     ndx = ((phase >= self.phase_bins[i]) & (phase <= self.phase_bins[i+1]))[0]
-                    if self.cond_variance is None:
+                    if means:
                         cond_means_surr[su, i] = np.mean(self.sg.surr_data[ndx])
-                    elif self.cond_means is None:
+                    else:
                         cond_means_surr[su, i] = np.var(self.sg.surr_data[ndx], ddof = 1)
                         
                 if (su+1) % 10 == 0:
@@ -116,17 +143,17 @@ class OscillatoryTimeSeries:
             raise Exception('First obtain conditional means/variance on data, than on surrogates!')
         
         
-    def plot_conditional_means(self, fname = None, plot_surrogates = False):
+    def plot_conditional_means(self, means = True, fname = None, plot_surrogates = False, subtit = ''):
         """
         Plots conditional means/variance as a bar plot.
         """
         if self.cond_means is not None or self.cond_variance is not None:
             diff = (self.phase_bins[1] - self.phase_bins[0])
             fig = plt.figure(figsize=(6,10))
-            if self.cond_variance is None:
+            if means:
                 if not plot_surrogates:
                     b1 = plt.bar(self.phase_bins[:-1]+diff*0.05, self.cond_means, width = diff*0.9, bottom = None, fc = '#403A37', figure = fig)
-                    plt.title("%s -- cond. means %s \n difference: %.2f$^{\circ}$C" % (self.g.location, self.sat, (self.cond_means.max() - self.cond_means.min())))
+                    plt.title("%s -- cond. means %s \n difference: %.2f$^{\circ}$C %s" % (self.g.location, self.sat, (self.cond_means.max() - self.cond_means.min()), subtit))
                 elif plot_surrogates and self.cond_means_surrogates is not None:
                     b1 = plt.bar(self.phase_bins[:-1], self.cond_means, width = diff*0.45, bottom = None, fc = '#403A37', figure = fig)
                     b2 = plt.bar(self.phase_bins[:-1] + diff*0.5, np.mean(self.cond_means_surrogates, axis = 0), width = diff*0.45, bottom = None, fc = '#A09793', figure = fig)
@@ -139,10 +166,10 @@ class OscillatoryTimeSeries:
                     raise Exception('No surrogates created to plot! Either obtain surrogates or plot with plot_surrogates = False!')
                 plt.ylabel('cond mean temperature [$^{\circ}$C]')
                 plt.axis([-np.pi, np.pi, np.floor(self.cond_means.min() * 2) / 2, np.ceil(self.cond_means.max() * 2) / 2])
-            elif self.cond_means is None:
+            else:
                 if not plot_surrogates:
                     b1 = plt.bar(self.phase_bins[:-1]+diff*0.05, self.cond_variance, width = diff*0.9, bottom = None, fc = '#403A37', figure = fig)
-                    plt.title("%s -- cond. variance %s \n difference: %.2f$^{\circ}$C$^{2}$ \n %d years period" % (self.g.location, self.sat, (self.cond_variance.max() - self.cond_variance.min()), self.period))
+                    plt.title("%s -- cond. variance %s \n difference: %.2f$^{\circ}$C$^{2}$ %s" % (self.g.location, self.sat, (self.cond_variance.max() - self.cond_variance.min()), subtit))
                 elif plot_surrogates and self.cond_means_surrogates is not None:
                     b1 = plt.bar(self.phase_bins[:-1], self.cond_variance, width = diff*0.45, bottom = None, fc = '#403A37', figure = fig)
                     b2 = plt.bar(self.phase_bins[:-1] + diff*0.5, np.mean(self.cond_means_surrogates, axis = 0), width = diff*0.45, bottom = None, fc = '#A09793', figure = fig)

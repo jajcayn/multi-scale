@@ -15,7 +15,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue
 
 
-def render(diffs, meanvars, stds = None, subtit = '',  fname = None):
+def render(diffs, meanvars, stds = None, subtit = '', fname = None):
     fig, ax1 = plt.subplots(figsize=(11,8))
     if len(diffs) > 3:
         ax1.plot(diffs, color = '#403A37', linewidth = 2, figure = fig)
@@ -103,8 +103,8 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
 PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 4
-num_surr = 100 # how many surrs will be used to evaluate
+WORKERS = 3
+num_surr = 1000 # how many surrs will be used to evaluate
 rand = 2
 
 
@@ -112,8 +112,8 @@ rand = 2
 ## loading data ##
 start_date = date(1834, 7, 28)
 end_date = date(2014, 1, 1) # exclusive
-g = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
-g_copy = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
+g = load_station_data('TG_STAID000010.txt', start_date, end_date, ANOMALISE)
+g_copy = load_station_data('TG_STAID000010.txt', start_date, end_date, ANOMALISE)
 # length of the time series with date(1954,6,8) with start date(1775,1,1) = 65536 - power of 2
 # the same when end date(2014,1,1) than start date(1834,7,28)
 
@@ -124,8 +124,8 @@ y = 365.25 # year in days
 fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
 period = PERIOD * y # frequency of interest
 s0 = period / fourier_factor # get scale 
-wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
+#wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+#phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
 
 cond_means = np.zeros((8,))
@@ -136,8 +136,8 @@ def get_equidistant_bins():
     
 
 d, m, year = g.extract_day_month_year()
-data_temp = np.zeros((WINDOW_LENGTH * y))
-phase_temp = np.zeros((WINDOW_LENGTH * y))
+#data_temp = np.zeros((WINDOW_LENGTH * y))
+#phase_temp = np.zeros((WINDOW_LENGTH * y))
 difference = []
 mean_var = []
 start_idx = g_copy.find_date_ndx(start_date) # set to first date
@@ -145,21 +145,21 @@ end_idx = start_idx + int(WINDOW_LENGTH * y) # first date plus WINDOW_LENGTH yea
 cnt = 0
 while end_idx < g_copy.data.shape[0]: # while still in the correct range
     cnt += 1
-    #g.data = g_copy.data[start_idx : end_idx] # subselect data
-    #g.time = g_copy.time[start_idx : end_idx]
-    phase_temp = phase[0, start_idx : end_idx]
-    data_temp = g_copy.data[start_idx : end_idx]
-    if np.all(np.isnan(data_temp) == False): # check for missing values
-        #wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-        #phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
+    g.data = g_copy.data[start_idx : end_idx].copy() # subselect data
+    g.time = g_copy.time[start_idx : end_idx]
+    #phase_temp = phase[0, start_idx : end_idx]
+    #data_temp = g_copy.data[start_idx : end_idx]
+    if np.all(np.isnan(g.data) == False): # check for missing values
+        wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
             phase_bins = get_equidistant_bins() # equidistant bins
-            ndx = ((phase_temp >= phase_bins[i]) & (phase_temp <= phase_bins[i+1]))
+            ndx = ((phase[0, :] >= phase_bins[i]) & (phase[0, :] <= phase_bins[i+1]))
             if MEANS:
-                cond_means[i] = np.mean(data_temp[ndx])
+                cond_means[i] = np.mean(g.data[ndx])
             else:
-                cond_means[i] = np.var(data_temp[ndx], ddof = 1)
+                cond_means[i] = np.var(g.data[ndx], ddof = 1)
         difference.append(cond_means.max() - cond_means.min()) # append difference to list    
         mean_var.append(np.mean(cond_means))
     else:
@@ -175,7 +175,7 @@ mean_var = np.array(mean_var)
 
 ## wavelet analysis SURROGATES
 
-print("[%s] Now computing wavelet analysis for %d FT surrogates in parallel." % (str(datetime.now()), num_surr))
+print("[%s] Now computing wavelet analysis for %d MF surrogates in parallel." % (str(datetime.now()), num_surr))
 
 
 #mean, var, trend = g_copy.get_seasonality(DETREND = True) # use when MF surrogates are created before sliding window analysis
@@ -229,8 +229,8 @@ def _cond_difference_surrogates(g, a, jobq, resq):
     while jobq.get() is not None:
         sg = SurrogateField()
         sg.copy_field(g)
-        #sg.construct_multifractal_surrogates()
-        sg.construct_fourier_surrogates_spatial()
+        sg.construct_multifractal_surrogates()
+        #sg.construct_fourier_surrogates_spatial()
         sg.add_seasonality(mean, var, trend)
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
@@ -252,6 +252,8 @@ difference_surr = []
 difference_surr_std = []
 mean_var_surr = []
 mean_var_surr_std = []
+difference_95perc = np.zeros_like(difference, np.bool)
+mean_95perc = np.zeros_like(difference, np.bool)
 start_idx = g_copy.find_date_ndx(start_date) # set to first date
 end_idx = start_idx + int(WINDOW_LENGTH * y) # first date plus WINDOW_LENGTH years (since year is 365.25, leap years are counted)
 cnt = 0
@@ -280,7 +282,7 @@ while end_idx < g_copy.data.shape[0]: # while still in the correct range
             mean_vars[surr_completed] = meanVar
             surr_completed += 1
             #if surr_completed % 50 == 0:
-             #   print("[%s] PROGRESS:%d time window - %d/%d surrogates completed." % (str(datetime.now()), cnt, surr_completed, num_surr))
+             #   print("[%s] PROGRESS:%d time window - %d/%d surrogates completed." % (str(datetime.now()), cnt, surr_completed, num_surr))   
         for w in workers:
             w.join()
         
@@ -288,6 +290,14 @@ while end_idx < g_copy.data.shape[0]: # while still in the correct range
         difference_surr_std.append(np.std(diffs, ddof = 1))
         mean_var_surr.append(np.mean(mean_vars))
         mean_var_surr_std.append(np.std(mean_vars, ddof = 1))
+        
+        percentil = difference[cnt] > diffs
+        no_true = percentil[percentil == True].shape[0]
+        difference_95perc[cnt] = True if (no_true > num_surr * 0.95) else False
+        
+        percentil = mean_var[cnt] > mean_vars
+        no_true = percentil[percentil == True].shape[0]
+        mean_95perc[cnt] = True if (no_true > num_surr * 0.95) else False
         print("%d. time point - data: %.2f, surr mean: %.2f, surr std: %.2f" % (cnt, difference[cnt], np.mean(diffs), np.std(diffs, ddof = 1)))    
     else:
         difference_surr.append(0)
@@ -302,10 +312,10 @@ while end_idx < g_copy.data.shape[0]: # while still in the correct range
 print("[%s] Wavelet analysis of surrogates done." % (str(datetime.now())))
 
 
-
-    
+        
 render([difference, np.array(difference_surr)], [mean_var, np.array(mean_var_surr)], [np.array(difference_surr_std), np.array(mean_var_surr_std)],
-        fname = "debug/PRG_%d_surr_FT_in_each_window.png" % (num_surr))
+        subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
+        fname = "debug/STHLM_%d_surr_MF_in_each_window.png" % (num_surr))
         
     
 
