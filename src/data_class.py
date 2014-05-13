@@ -550,7 +550,36 @@ def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-stati
            year[0], day[-1], month[-1], year[-1]))
            
     return g
-    
+
+
+
+def load_NCEP_data_monthly(filename, varname, start_date, end_date, lats, lons, level, anom):
+    """
+    Data loader for monthly reanalyses data. 
+    """
+
+    print("[%s] Loading monthly NCEP/NCAR data..." % str(datetime.now()))
+    path, name = split(filename)
+    path += "/"
+
+    g = DataField(data_folder = path)
+    g.load(name, varname, dataset = 'NCEP', print_prog = False)
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    g.select_lat_lon(lats, lons)
+    if level != None:
+        g.select_level(level)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    day, month, year = g.extract_day_month_year()
+
+    print("[%s] NCEP data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+        % (str(datetime.now()), str(g.data.shape), day[0], month[0], 
+           year[0], day[-1], month[-1], year[-1]))
+
+    return g
+
     
     
 def load_NCEP_data_daily(filename, varname, start_date, end_date, lats, lons, level, anom):
