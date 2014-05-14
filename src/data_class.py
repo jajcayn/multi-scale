@@ -382,7 +382,30 @@ class DataField:
             raise Exception('Luckily for you, there is no missing values!')
             
             
-            
+    def flatten_field(self):
+        """
+        Reshape the field to 2dimensions such that axis 0 is temporal and axis 1 is spatial.
+        """        
+
+        if self.data.ndim == 3:
+            self.data = np.reshape(self.data, (self.data.shape[0], np.prod(self.data.shape[1:])))
+        else:
+            raise Exception('Data field is already flattened!')
+
+
+
+    def reshape_flat_field(self):
+        """
+        Reshape flattened field to original time x lat x lon shape.
+        """
+
+        if self.data.ndim == 2:
+            new_shape = [self.data.shape[0]] + list((self.lats.shape[0], self.lons.shape[0]))
+            self.data = np.reshape(self.data, new_shape)
+        else:
+            raise Exception('Data field is not flattened!')
+
+
     def _shift_index_by_month(self, current_idx):
         """
         Returns the index in data shifted by month.
@@ -397,7 +420,6 @@ class DataField:
             y = dt.year + 1
             
         return self.find_date_ndx(date(y, mi, dt.day))
-        
         
             
             

@@ -67,10 +67,11 @@ class ScaleSpecificNetwork():
 		del job_result
 
 
-	def get_phase_coherence_matrix(self):
+	def get_phase_coherence_matrix(self, pool = None):
 		"""
 		Gets the matrix of mean phase coherence between each two grid-points.
 		"""
-
+		
+		self.g.flatten_field()
 
 
