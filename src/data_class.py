@@ -381,29 +381,51 @@ class DataField:
         else:
             raise Exception('Luckily for you, there is no missing values!')
             
+
             
-    def flatten_field(self):
+    def flatten_field(self, f = None):
         """
         Reshape the field to 2dimensions such that axis 0 is temporal and axis 1 is spatial.
+        If f is None, reshape the self.data field, else reshape the f field.
         """        
 
-        if self.data.ndim == 3:
-            self.data = np.reshape(self.data, (self.data.shape[0], np.prod(self.data.shape[1:])))
-        else:
-            raise Exception('Data field is already flattened!')
+        if f is None:
+            if self.data.ndim == 3:
+                self.data = np.reshape(self.data, (self.data.shape[0], np.prod(self.data.shape[1:])))
+            else:
+                raise Exception('Data field is already flattened!')
+
+        elif f is not None:
+            if f.ndim == 3:
+                f = np.reshape(f, (f.shape[0], np.prod(f.shape[1:])))
+
+                return f
+            else:
+                raise Exception('The field f is already flattened!')
 
 
 
-    def reshape_flat_field(self):
+    def reshape_flat_field(self, f = None):
         """
         Reshape flattened field to original time x lat x lon shape.
         """
 
-        if self.data.ndim == 2:
-            new_shape = [self.data.shape[0]] + list((self.lats.shape[0], self.lons.shape[0]))
-            self.data = np.reshape(self.data, new_shape)
-        else:
-            raise Exception('Data field is not flattened!')
+        if f is None:
+            if self.data.ndim == 2:
+                new_shape = [self.data.shape[0]] + list((self.lats.shape[0], self.lons.shape[0]))
+                self.data = np.reshape(self.data, new_shape)
+            else:
+                raise Exception('Data field is not flattened!')
+
+        elif f is not None:
+            if f.ndim == 2:
+                new_shape = [f.shape[0]] + list((self.lats.shape[0], self.lons.shape[0]))
+                f = np.reshape(f, new_shape)
+
+                return f
+            else:
+                raise Exception('The field f is not flattened!')
+
 
 
     def _shift_index_by_month(self, current_idx):

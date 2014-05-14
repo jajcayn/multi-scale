@@ -67,11 +67,50 @@ class ScaleSpecificNetwork():
 		del job_result
 
 
+	def _get_phase_coherence(a):
+		"""
+		Gets mean phase coherence for given data.
+		"""
+
+		i, j, ph1, ph2 = a
+
+		# get continuous phase
+		for ii in range(ph1.shape[0] - 1):
+			if np.abs(ph1[ii+1] - ph1[ii]) > 1:
+				ph1[ii+1: ] += 2 * np.pi
+			if np.abs(ph2[ii+1] - ph2[ii]) > 1:
+				ph2[ii+1: ] += 2 * np.pi
+
+		# get phase diff
+		diff = ph1 - ph2
+
+		# compute mean phase coherence
+		coh = np.mean(np.cos(diff)) * np.mean(np.cos(diff)) + np.mean(np.sin(diff)) * np.mean(np.sin(diff))
+
+		return i, j, coh
+
+
 	def get_phase_coherence_matrix(self, pool = None):
 		"""
 		Gets the matrix of mean phase coherence between each two grid-points.
 		"""
 		
-		self.g.flatten_field()
+		self.phase = self.g.flatten_field(self.phase)
+
+		self.coherence_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
+
+		if pool is None:
+			map_func = map
+		elif pool is not None:
+			map_func = pool.map
+
+		job_args = [ (i, j, self.phase[:, i], self.phase[:, j]) for i in range(self.phase.shape[1]) for j in range(i, self.phase.shape[1]) ]
+		job_results = map_func(self._get_phase_coherence, job_args)
+		del job_args
+
+		for i, j, coh in job_results:
+			self.coherence_matrix[i, j] = coh
+
+		del job_results
 
 
