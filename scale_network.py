@@ -1,6 +1,45 @@
 import numpy as np
 from src.data_class import load_NCEP_data_monthly, load_NCEP_data_daily
 import src.wavelet_analysis as wvlt
+from datetime import datetime
+
+
+def _get_oscillatory_modes(a):
+    """
+    Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
+    """
+    i, j, s0, dt, data = a
+    wave, _, _, _ = wvlt.continous_wavelet(data, dt, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
+    phase = np.arctan2(np.imag(wave), np.real(wave))
+    amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+    
+    return i, j, phase, amplitude
+
+
+def _get_phase_coherence(a):
+    """
+    Gets mean phase coherence for given data.
+    """
+
+    i, j, phase = a
+    ph1 = phase[:, i].copy()
+    ph2 = phase[:, j].copy()
+    # get continuous phase
+    for ii in range(ph1.shape[0] - 1):
+        if np.abs(ph1[ii+1] - ph1[ii]) > 1:
+            ph1[ii+1: ] += 2 * np.pi
+        if np.abs(ph2[ii+1] - ph2[ii]) > 1:
+            ph2[ii+1: ] += 2 * np.pi
+
+    # get phase diff
+    diff = ph1 - ph2
+
+    # compute mean phase coherence
+    coh = np.mean(np.cos(diff)) * np.mean(np.cos(diff)) + np.mean(np.sin(diff)) * np.mean(np.sin(diff))
+
+    return i, j, coh
+
+
 
 class ScaleSpecificNetwork():
     """
@@ -23,18 +62,8 @@ class ScaleSpecificNetwork():
 
         self.num_lats = self.g.lats.shape[0]
         self.num_lons = self.g.lons.shape[0]
+        self.sampling = sampling
 
-
-    def _get_oscillatory_modes(a):
-        """
-        Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
-        """
-        i, j, s0, data = a
-        wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
-        phase = np.arctan2(np.imag(wave), np.real(wave))
-        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
-        
-        return i, j, phase, amplitude
 
 
     def wavelet(self, period, pool = None):
@@ -47,6 +76,10 @@ class ScaleSpecificNetwork():
         fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
         per = period * y # frequency of interest
         s0 = per / fourier_factor # get scale
+        if self.sampling == 'monthly':
+            dt = 30
+        elif self.sampling == 'daily':
+            dt = 1
 
         self.phase = np.zeros_like(self.g.data)
         self.amplitude = np.zeros_like(self.g.data)
@@ -56,8 +89,8 @@ class ScaleSpecificNetwork():
         elif pool is not None:
             map_func = pool.map
 
-        job_args = [ (i, j, s0, self.g.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
-        job_result = map_func(self._get_oscillatory_modes, job_args)
+        job_args = [ (i, j, s0, dt, self.g.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_result = map_func(_get_oscillatory_modes, job_args)
         del job_args
 
         for i, j, ph, am in job_result:
@@ -66,28 +99,6 @@ class ScaleSpecificNetwork():
 
         del job_result
 
-
-    def _get_phase_coherence(a):
-        """
-        Gets mean phase coherence for given data.
-        """
-
-        i, j, ph1, ph2 = a
-
-        # get continuous phase
-        for ii in range(ph1.shape[0] - 1):
-            if np.abs(ph1[ii+1] - ph1[ii]) > 1:
-                ph1[ii+1: ] += 2 * np.pi
-            if np.abs(ph2[ii+1] - ph2[ii]) > 1:
-                ph2[ii+1: ] += 2 * np.pi
-
-        # get phase diff
-        diff = ph1 - ph2
-
-        # compute mean phase coherence
-        coh = np.mean(np.cos(diff)) * np.mean(np.cos(diff)) + np.mean(np.sin(diff)) * np.mean(np.sin(diff))
-
-        return i, j, coh
 
 
     def get_phase_coherence_matrix(self, pool = None):
@@ -103,13 +114,16 @@ class ScaleSpecificNetwork():
             map_func = map
         elif pool is not None:
             map_func = pool.map
-
-        job_args = [ (i, j, self.phase[:, i], self.phase[:, j]) for i in range(self.phase.shape[1]) for j in range(i, self.phase.shape[1]) ]
-        job_results = map_func(self._get_phase_coherence, job_args)
+        job_args = [ (i, j, self.phase) for i in range(self.phase.shape[1]) for j in range(i, self.phase.shape[1]) ]
+        start = datetime.now()
+        job_results = map_func(_get_phase_coherence, job_args)
+        end = datetime.now()
+        print end-start
         del job_args
 
         for i, j, coh in job_results:
             self.coherence_matrix[i, j] = coh
+            self.coherence_matrix[j, i] = coh
 
         del job_results
 
