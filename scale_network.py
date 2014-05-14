@@ -8,8 +8,8 @@ def _get_oscillatory_modes(a):
     """
     Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
     """
-    i, j, s0, dt, data = a
-    wave, _, _, _ = wvlt.continous_wavelet(data, dt, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
+    i, j, s0, data = a
+    wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
     phase = np.arctan2(np.imag(wave), np.real(wave))
     amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
     
@@ -72,14 +72,13 @@ class ScaleSpecificNetwork():
         """
 
         k0 = 6. # wavenumber of Morlet wavelet used in analysis, suppose Morlet mother wavelet
-        y = 365.25 # year in days, for periods at least 4years totally sufficient, effectively omitting leap years
+        if self.sampling == 'monthly':
+            y = 12
+        elif self.sampling == 'daily':
+            y = 365.25
         fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
         per = period * y # frequency of interest
         s0 = per / fourier_factor # get scale
-        if self.sampling == 'monthly':
-            dt = 30
-        elif self.sampling == 'daily':
-            dt = 1
 
         self.phase = np.zeros_like(self.g.data)
         self.amplitude = np.zeros_like(self.g.data)
@@ -89,7 +88,7 @@ class ScaleSpecificNetwork():
         elif pool is not None:
             map_func = pool.map
 
-        job_args = [ (i, j, s0, dt, self.g.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_args = [ (i, j, s0, self.g.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
         job_result = map_func(_get_oscillatory_modes, job_args)
         del job_args
 
@@ -126,5 +125,6 @@ class ScaleSpecificNetwork():
             self.coherence_matrix[j, i] = coh
 
         del job_results
-
+        
+        self.phase = self.g.reshape_flat_field(self.phase)
 

@@ -41,12 +41,13 @@ class OscillatoryTimeSeries:
         per = period * y # frequency of interest
         s0 = per / fourier_factor # get scale
         self.scale = s0
-        wave, _, _, _ = wavelet_analysis.continous_wavelet(self.g.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
+        wave, _, _, coi = wavelet_analysis.continous_wavelet(self.g.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
         
         phase = np.arctan2(np.imag(wave), np.real(wave))
         self.phase = phase[0, :]
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
         self.amplitude = amplitude[0, :]
+        self.coi = np.log2(coi)
         
         
     def plot_phase_amplitude(self, seasons = False, fname = None):

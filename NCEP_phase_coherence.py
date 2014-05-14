@@ -13,12 +13,12 @@ pool = Pool(4)
 net.wavelet(8, pool)
 #print 'wavelet ready'
 #print net.g.data.shape
-net.get_phase_coherence_matrix(pool)
-#
-#
-pool.close()
+#net.get_phase_coherence_matrix(pool)
+##
+##
+#pool.close()
 
-#plt.plot(net.phase[:, 2, 6])
-#plt.plot(net.amplitude[:, 2, 6])
-##plt.plot(net.g.data[:, 2, 6])
-#plt.show()
+plt.plot(net.phase[:, 2, 6])
+plt.plot(net.amplitude[:, 2, 6])
+#plt.plot(net.g.data[:, 2, 6])
+plt.show()

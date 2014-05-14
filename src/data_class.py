@@ -408,6 +408,7 @@ class DataField:
     def reshape_flat_field(self, f = None):
         """
         Reshape flattened field to original time x lat x lon shape.
+        If f is None, reshape the self.data field, else reshape the f field.
         """
 
         if f is None:
