@@ -3,6 +3,7 @@ created on Mar 8, 2014
 
 @author: Nikola Jajcay
 """
+
 #import matplotlib
 #matplotlib.use("Agg")
 
@@ -101,7 +102,7 @@ PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 PLOT = True
-PAD = False # whether padding is used in wavelet analysis (see src/wavelet_analysis)
+PAD = True # whether padding is used in wavelet analysis (see src/wavelet_analysis)
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 3
 num_surr = 1000 # how many surrs will be used to evaluate
@@ -110,10 +111,10 @@ rand = 2
 
 
 ## loading data ##
-start_date = date(1834, 7, 28)
+start_date = date(1828, 7, 28) # 1834
 end_date = date(2014, 1, 1) # exclusive
-g = load_station_data('TG_STAID000010.txt', start_date, end_date, ANOMALISE)
-g_copy = load_station_data('TG_STAID000010.txt', start_date, end_date, ANOMALISE)
+g = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
+g_copy = load_station_data('TG_STAID000027.txt', start_date, end_date, ANOMALISE)
 # length of the time series with date(1954,6,8) with start date(1775,1,1) = 65536 - power of 2
 # the same when end date(2014,1,1) than start date(1834,7,28)
 
@@ -141,21 +142,26 @@ d, m, year = g.extract_day_month_year()
 difference = []
 mean_var = []
 start_idx = g_copy.find_date_ndx(start_date) # set to first date
-end_idx = start_idx + int(WINDOW_LENGTH * y) # first date plus WINDOW_LENGTH years (since year is 365.25, leap years are counted)
+end_idx = start_idx + int((WINDOW_LENGTH + 4) * y) # first date plus WINDOW_LENGTH years (since year is 365.25, leap years are counted).
+start_data = date(1834,7,28)
 cnt = 0
 while end_idx < g_copy.data.shape[0]: # while still in the correct range
     cnt += 1
     g.data = g_copy.data[start_idx : end_idx].copy() # subselect data
-    g.time = g_copy.time[start_idx : end_idx]
+    g.time = g_copy.time[start_idx : end_idx].copy()
     #phase_temp = phase[0, start_idx : end_idx]
     #data_temp = g_copy.data[start_idx : end_idx]
+    start = g.find_date_ndx(start_data)
+    end = start + int(WINDOW_LENGTH * y)
     if np.all(np.isnan(g.data) == False): # check for missing values
-        wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, PAD, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
+        phase = phase[0, start : end]
+        g.data = g.data[start : end]
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
             phase_bins = get_equidistant_bins() # equidistant bins
-            ndx = ((phase[0, :] >= phase_bins[i]) & (phase[0, :] <= phase_bins[i+1]))
+            ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
             if MEANS:
                 cond_means[i] = np.mean(g.data[ndx])
             else:
@@ -166,7 +172,8 @@ while end_idx < g_copy.data.shape[0]: # while still in the correct range
         difference.append(0)
         mean_var.append(0)
     start_idx = g_copy.find_date_ndx(date(start_date.year + WINDOW_SHIFT * cnt, start_date.month, start_date.day)) # shift start index by WINDOW_SHIFT years
-    end_idx = start_idx + int(WINDOW_LENGTH * y) # shift end index
+    end_idx = start_idx + int((WINDOW_LENGTH + 4) * y) # shift end index
+    start_data = date(start_data.year + WINDOW_SHIFT, start_data.month, start_data.day)
 print("[%s] Wavelet analysis done." % (str(datetime.now())))
 
 difference = np.array(difference)
@@ -315,7 +322,7 @@ print("[%s] Wavelet analysis of surrogates done." % (str(datetime.now())))
         
 render([difference, np.array(difference_surr)], [mean_var, np.array(mean_var_surr)], [np.array(difference_surr_std), np.array(mean_var_surr_std)],
         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
-        fname = "debug/STHLM_%d_surr_MF_in_each_window.png" % (num_surr))
+        fname = "debug/PRG_%d_surr_MF_in_each_window.png" % (num_surr))
         
     
 
