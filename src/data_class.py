@@ -426,6 +426,42 @@ class DataField:
                 return f
             else:
                 raise Exception('The field f is not flattened!')
+                
+                
+                
+    def get_data_of_precise_length(self, length = '16k', start_date = None, end_date = None, COPY = False):
+        """
+        Selects the data such that the length of the time series is exactly length.
+        If COPY is True, it will replace the data and time, if False it will return them.
+        Both dates are inclusive.
+        """
+        
+        if isinstance(length, int):
+            ln = length
+        elif 'k' in length:
+            order = int(length[:-1])
+            pow2list = np.array([np.power(2,n) for n in range(10,19)])
+            ln = pow2list[np.where(order == pow2list/1000)[0][0]]
+        else:
+            raise Exception('Could not understand the length! Please type length as integer or as string like "16k".')
+            
+        if end_date is None and start_date is not None:
+            # from start date until length
+            idx = self.find_date_ndx(start_date)
+            data_temp = self.data[idx : idx + ln, ...].copy()
+            time_temp = self.time[idx : idx + ln, ...].copy()
+        elif start_date is None and end_date is not None:
+            idx = self.find_date_ndx(end_date)
+            data_temp = self.data[idx - ln + 1 : idx + 1].copy()
+            time_temp = self.time[idx - ln + 1 : idx + 1].copy()
+        else:
+            raise Exception('You messed start / end date selection! Pick only one!')
+            
+        if COPY:
+            self.data = data_temp.copy()
+            self.time = time_temp.copy()
+        else:
+            return data_temp, time_temp
 
 
 
