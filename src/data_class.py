@@ -433,7 +433,7 @@ class DataField:
         """
         Selects the data such that the length of the time series is exactly length.
         If COPY is True, it will replace the data and time, if False it will return them.
-        Both dates are inclusive.
+        If end_date is defined, it is exclusive.
         """
         
         if isinstance(length, int):
@@ -450,18 +450,24 @@ class DataField:
             idx = self.find_date_ndx(start_date)
             data_temp = self.data[idx : idx + ln, ...].copy()
             time_temp = self.time[idx : idx + ln, ...].copy()
+            idx_tuple = (idx, idx+ln)
+            
         elif start_date is None and end_date is not None:
             idx = self.find_date_ndx(end_date)
-            data_temp = self.data[idx - ln + 1 : idx + 1].copy()
-            time_temp = self.time[idx - ln + 1 : idx + 1].copy()
+            data_temp = self.data[idx - ln : idx].copy()
+            time_temp = self.time[idx - ln : idx].copy()
+            idx_tuple = (idx - ln, idx)
+            
         else:
             raise Exception('You messed start / end date selection! Pick only one!')
             
         if COPY:
             self.data = data_temp.copy()
             self.time = time_temp.copy()
+            return idx_tuple
+            
         else:
-            return data_temp, time_temp
+            return data_temp, time_temp, idx_tuple
 
 
 
