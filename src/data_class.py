@@ -271,7 +271,16 @@ class DataField:
             missing_ndx = np.logical_and(self.missing >= d_start, self.missing < d_to)
             self.missing = self.missing[missing_ndx] # slice missing if exists
         
+    
+    
+    def get_date_from_ndx(self, ndx):
+        """
+        Returns the date of the variable from given index.
+        """
         
+        return date.fromordinal(self.time[ndx])
+        
+    
         
     def find_date_ndx(self, date):
         """

@@ -33,7 +33,7 @@ def render(diffs, meanvars, stds = None, subtit = '', fname = None):
     if ANOMALISE and MEANS:
         ax1.axis([0, cnt-1, 0, 2])
     if ANOMALISE and not MEANS:
-        ax1.axis([0, cnt-1, 0, 6])
+        ax1.axis([0, cnt-1, 0, 8])
     ax1.set_xlabel('middle year of %.2f-year wide window' % (WINDOW_LENGTH / 365.25), size = 14)
     if MEANS:
         ax1.set_ylabel('difference in cond mean in temperature [$^{\circ}$C]', size = 14)
@@ -59,7 +59,7 @@ def render(diffs, meanvars, stds = None, subtit = '', fname = None):
         ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
     elif not MEANS:
         ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-    ax2.axis([0, cnt-1, -1, 1.5])
+    #ax2.axis([0, cnt-1, -1, 1.5])
     for tl in ax2.get_yticklabels():
         tl.set_color('#CA4F17')
     if len(diffs) < 3:
@@ -78,7 +78,7 @@ def render(diffs, meanvars, stds = None, subtit = '', fname = None):
     else:
         tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     #plt.title(tit)
-    tit = ('Evolution of difference in cond mean in temp SATA -- %s \n' % g.location)
+    tit = ('Evolution of difference in cond variance in temp SATA -- %s \n' % g.location)
     tit += subtit
     plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
@@ -97,7 +97,7 @@ WINDOW_LENGTH = 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 3
-NUM_SURR = 10 # how many surrs will be used to evaluate
+NUM_SURR = 1000 # how many surrs will be used to evaluate
 
 
 ## loading data
@@ -132,11 +132,12 @@ def _cond_difference_surrogates(g_temp, a, start_cut, jobq, resq):
         sg.add_seasonality(mean, var, trend)
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave))
-        sg.surr_data, _, idx = g_temp.get_data_of_precise_length('16k', start_cut, None, False)
+        _, _, idx = g_temp.get_data_of_precise_length('16k', start_cut, None, False)
+        sg.surr_data = sg.surr_data[idx[0] : idx[1]]
         phase = phase[0, idx[0] : idx[1]]
+        phase_bins = get_equidistant_bins() # equidistant bins
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
-            phase_bins = get_equidistant_bins() # equidistant bins
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
             if MEANS:
                 cond_means[i] = np.mean(sg.surr_data[ndx])
@@ -171,6 +172,7 @@ end_idx = to_wavelet
 _, _, idx = g.get_data_of_precise_length('16k', date.fromordinal(g.time[4*y]), None, False)
 first_mid_year = date.fromordinal(g.time[(idx[1] - idx[0])/2]).year
 
+
 while end_idx < g.data.shape[0]:
     cnt += 1
     
@@ -184,8 +186,8 @@ while end_idx < g.data.shape[0]:
         idx = g_working.get_data_of_precise_length('16k', start_cut, None, True)
         last_mid_year = date.fromordinal(g_working.time[(idx[1] - idx[0])/2]).year
         phase = phase[0, idx[0] : idx[1]]
+        phase_bins = get_equidistant_bins() # equidistant bins
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
-            phase_bins = get_equidistant_bins() # equidistant bins
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
             if MEANS:
                 cond_means[i] = np.mean(g_working.data[ndx])
@@ -200,7 +202,7 @@ while end_idx < g.data.shape[0]:
     # surrogates
     if NUM_SURR != 0:
         surr_completed = 0
-        surr_date = date(start_year + cnt/2, sm, sd)
+        surr_date = date(start_year + 5*cnt/7, sm, sd)
         diffs = np.zeros((NUM_SURR,))
         mean_vars = np.zeros_like(diffs)
         g_surrs.data, g_surrs.time, _ = g.get_data_of_precise_length('32k', surr_date, None, COPY = False)
@@ -213,9 +215,6 @@ while end_idx < g.data.shape[0]:
             for i in range(WORKERS):
                 jobQ.put(None)
             a = g_surrs.get_seasonality(DETREND = True)
-            g_surrs.data += a[2]
-            g_surrs.data *= a[1]
-            g_surrs.data += a[0]
             workers = [Process(target = _cond_difference_surrogates, args = (g_surrs, a, start_cut, jobQ, resQ)) for iota in range(WORKERS)]
             for w in workers:
                 w.start()
@@ -246,7 +245,8 @@ while end_idx < g.data.shape[0]:
             difference_surr_std.append(0)
             meanvar_surr.append(0)
             meanvar_surr_std.append(0)
-    
+    print
+    print
     start_idx = g.find_date_ndx(date(start_year + WINDOW_SHIFT*cnt, sm, sd))
     end_idx = start_idx + to_wavelet
 
