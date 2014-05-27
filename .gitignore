@@ -8,3 +8,4 @@ results/
 test.py
 *.py~
 *.jpg
+.Rhistory
