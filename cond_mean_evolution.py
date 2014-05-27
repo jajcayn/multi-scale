@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue
 
 
-def render(diffs, meanvars, stds = None, subtit = '', fname = None):
+def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = None):
     fig, ax1 = plt.subplots(figsize=(11,8))
     if len(diffs) > 3:
         ax1.plot(diffs, color = '#403A37', linewidth = 2, figure = fig)
@@ -25,15 +25,11 @@ def render(diffs, meanvars, stds = None, subtit = '', fname = None):
             ax1.fill_between(np.arange(0,diffs[1].shape[0],1), diffs[1] + stds[0], diffs[1] - stds[0], 
                              facecolor = "#899591", alpha = 0.5)
         p1, = ax1.plot(diffs[0], color = '#403A37', linewidth = 2, figure = fig)
+        if percentil != None:
+            for pos in np.where(percentil[:, 0] == True)[0]:
+                ax1.plot(pos, diffs[0][pos], 'o', markersize = 8, color = '#403A37')
     #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
-    if not ANOMALISE and MEANS:
-        ax1.axis([0, cnt-1, 0, 3])
-    if not ANOMALISE and not MEANS:
-        ax1.axis([0, cnt-1, 0, 25])
-    if ANOMALISE and MEANS:
-        ax1.axis([0, cnt-1, 0, 2])
-    if ANOMALISE and not MEANS:
-        ax1.axis([0, cnt-1, 0, 8])
+    ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
     ax1.set_xlabel('middle year of %.2f-year wide window' % (WINDOW_LENGTH / 365.25), size = 14)
     if MEANS:
         ax1.set_ylabel('difference in cond mean in temperature [$^{\circ}$C]', size = 14)
@@ -55,15 +51,18 @@ def render(diffs, meanvars, stds = None, subtit = '', fname = None):
             ax2.fill_between(np.arange(0,diffs[1].shape[0],1), meanvars[1] + stds[1], meanvars[1] - stds[1],
                              facecolor = "#64C4A0", alpha = 0.5)
         p3, = ax2.plot(meanvars[0], color = '#CA4F17', linewidth = 2, figure = fig)
+        if percentil != None:
+            for pos in np.where(percentil[:, 1] == True)[0]:
+                ax2.plot(pos, meanvars[0][pos], 'o', markersize = 8, color = '#CA4F17')
     if MEANS:
         ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
     elif not MEANS:
         ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-    #ax2.axis([0, cnt-1, -1, 1.5])
+    ax2.axis([0, cnt-1, mean_ax[0], mean_ax[1]])
     for tl in ax2.get_yticklabels():
         tl.set_color('#CA4F17')
     if len(diffs) < 3:
-        plt.legend([p1, p2, p3, p4], ["difference DATA", "difference SURROGATE mean", "mean DATA", "mean SURROGATE mean"])
+        plt.legend([p1, p2, p3, p4], ["difference DATA", "difference SURROGATE mean", "mean DATA", "mean SURROGATE mean"], loc = 2)
     tit = 'SURR: Evolution of difference in cond'
     if MEANS:
         tit += ' mean in temp, '
@@ -98,6 +97,9 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 3
 NUM_SURR = 1000 # how many surrs will be used to evaluate
+MF_SURR = True
+diff_ax = (0, 1.7)
+mean_ax = (-1, 1.5)
 
 
 ## loading data
@@ -127,8 +129,10 @@ def _cond_difference_surrogates(g_temp, a, start_cut, jobq, resq):
     while jobq.get() is not None:
         sg = SurrogateField()
         sg.copy_field(g_temp)
-        sg.construct_multifractal_surrogates()
-        #sg.construct_fourier_surrogates_spatial()
+        if MF_SURR:
+            sg.construct_multifractal_surrogates()
+        else:
+            sg.construct_fourier_surrogates_spatial()
         sg.add_seasonality(mean, var, trend)
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave))
@@ -161,6 +165,7 @@ meanvar_surr_std = []
 
 difference_95perc = []
 mean_95perc = []
+
 
 start_year = date.fromordinal(g.time[0]).year
 sm = date.fromordinal(g.time[0]).month
@@ -245,8 +250,7 @@ while end_idx < g.data.shape[0]:
             difference_surr_std.append(0)
             meanvar_surr.append(0)
             meanvar_surr_std.append(0)
-    print
-    print
+
     start_idx = g.find_date_ndx(date(start_year + WINDOW_SHIFT*cnt, sm, sd))
     end_idx = start_idx + to_wavelet
 
@@ -256,9 +260,19 @@ meanvar_data = np.array(meanvar_data)
 difference_95perc = np.array(difference_95perc)
 mean_95perc = np.array(mean_95perc)
 
+where_percentil = np.column_stack((difference_95perc, mean_95perc))
+
+fn = ("debug/PRG_%d_surr_" % NUM_SURR)
+if not MEANS:
+    fn += 'var_'
+if MF_SURR:
+    fn += 'MF_REWORK.png'
+else:
+    fn += 'FT_REWORK.png'
+
 render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
-        fname = "debug/PRG_%d_surr_MF_REWORK.png" % (NUM_SURR))
+        percentil = where_percentil, fname = fn)
 
 
 
