@@ -5,20 +5,67 @@ created on May 6, 2014
 """
 
 from src.oscillatory_time_series import OscillatoryTimeSeries
-from datetime import date
+from src.data_class import DataField
+from datetime import date, timedelta
 import matplotlib.pyplot as plt
 import numpy as np
+from surrogates.surrogates import SurrogateField
+import calendar
 
 
-ts = OscillatoryTimeSeries('TG_STAID000027.txt', date(1924,1,1), date(2014,1,1), True)
-idx1 = ts.g.find_date_ndx(date(1958,1,1))
-idx2 = ts.g.find_date_ndx(date(2002,11,10))
-ts.wavelet(8, PAD = True)
-ts.phase = ts.phase[idx1 : idx2]
-ts.amplitude = ts.amplitude[idx1:idx2]
-ts.plot_phase_amplitude()
+ts = OscillatoryTimeSeries('TG_STAID000027.txt', date(1834,7,28), date(2014,1,1), True)
+sg = SurrogateField()
+g = DataField()
 
 
-ts2 = OscillatoryTimeSeries('TG_STAID000027.txt', date(1958,1,1), date(2002,11,10), True)
-ts2.wavelet(8, PAD = False)
-ts2.plot_phase_amplitude()
+daily_var = np.zeros((365,3))
+mean, var_data, trend = ts.g.get_seasonality(True)
+sg.copy_field(ts.g)
+
+#MF
+sg.construct_multifractal_surrogates()
+sg.add_seasonality(mean, var_data, trend)
+
+g.data = sg.surr_data.copy()
+g.time = sg.time.copy()
+
+_, var_surr_MF, _ = g.get_seasonality(True)
+
+#FT
+sg.construct_fourier_surrogates_spatial()
+sg.add_seasonality(mean, var_data, trend)
+
+g.data = sg.surr_data.copy()
+g.time = sg.time.copy()
+
+_, var_surr_FT, _ = g.get_seasonality(True)
+
+delta = timedelta(days = 1)
+d = date(1895,1,1)
+
+for i in range(daily_var.shape[0]):
+    ndx = ts.g.find_date_ndx(d)
+    daily_var[i,0] = var_data[ndx]
+    daily_var[i,1] = var_surr_MF[ndx]
+    daily_var[i,2] = var_surr_FT[ndx]
+    d += delta
+    
+    
+    
+    
+
+p1, = plt.plot(daily_var[:, 0], linewidth = 2, color = '#AEBC76')
+p2, = plt.plot(daily_var[:, 1], linewidth = 2, color = '#350E18')
+p3, = plt.plot(daily_var[:, 2], linewidth = 2, color = '#8C4E5E')
+plt.axis([0, 365, 2, 7])
+plt.ylabel('standard deviation in temperature [$^{\circ}$C$^{2}$]')
+plt.xlabel('time [months]')
+plt.title('STD - data / MF surr / FT surr - %s' % ts.g.location)
+plt.legend([p1, p2, p3], ('data', 'MF surr', 'FT surr'))
+plt.xticks(np.arange(1,365,365/11), calendar.month_name[1:13], rotation = 30)
+plt.show()
+    
+
+
+
+
