@@ -96,14 +96,14 @@ WINDOW_LENGTH = 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 3
-NUM_SURR = 1000 # how many surrs will be used to evaluate
+NUM_SURR = 10 # how many surrs will be used to evaluate
 MF_SURR = True
-diff_ax = (0, 1.7)
+diff_ax = (0, 2)
 mean_ax = (-1, 1.5)
 
 
 ## loading data
-g = load_station_data('TG_STAID000027.txt', date(1830,1,1), date(2014,1,1), ANOMALISE)
+g = load_station_data('TG_STAID000054.txt', date(1893,1,1), date(2014,1,1), ANOMALISE)
 g_working = DataField()
 g_surrs = DataField()
 
@@ -189,6 +189,7 @@ while end_idx < g.data.shape[0]:
         phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
         start_cut = date.fromordinal(g.time[start_idx + 4*y])
         idx = g_working.get_data_of_precise_length('16k', start_cut, None, True)
+        print 'data  ', g_working.get_date_from_ndx(0), ' - ', g_working.get_date_from_ndx(-1)
         last_mid_year = date.fromordinal(g_working.time[(idx[1] - idx[0])/2]).year
         phase = phase[0, idx[0] : idx[1]]
         phase_bins = get_equidistant_bins() # equidistant bins
@@ -207,10 +208,11 @@ while end_idx < g.data.shape[0]:
     # surrogates
     if NUM_SURR != 0:
         surr_completed = 0
-        surr_date = date(start_year + 5*cnt/7, sm, sd)
+        surr_date = date(start_year + 5*cnt/11, sm, sd)
         diffs = np.zeros((NUM_SURR,))
         mean_vars = np.zeros_like(diffs)
         g_surrs.data, g_surrs.time, _ = g.get_data_of_precise_length('32k', surr_date, None, COPY = False)
+        print 'surrs from ', g_surrs.get_date_from_ndx(0), ' - ', g_surrs.get_date_from_ndx(-1)
         if np.all(np.isnan(g_surrs.data) == False):
             # construct the job queue
             jobQ = Queue()
@@ -262,7 +264,7 @@ mean_95perc = np.array(mean_95perc)
 
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
-fn = ("debug/PRG_%d_surr_" % NUM_SURR)
+fn = ("debug/POTSDAM_%d_surr_" % NUM_SURR)
 if not MEANS:
     fn += 'var_'
 if MF_SURR:
