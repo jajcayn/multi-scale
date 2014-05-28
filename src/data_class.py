@@ -270,6 +270,8 @@ class DataField:
         if self.missing != None:
             missing_ndx = np.logical_and(self.missing >= d_start, self.missing < d_to)
             self.missing = self.missing[missing_ndx] # slice missing if exists
+            
+        return ndx
         
     
     
@@ -619,6 +621,17 @@ class DataField:
             
         return seasonal_mean, seasonal_var, trend
         
+        
+        
+    def return_seasonality(self, mean, var, trend):
+        """
+        Return the seasonality to the data.
+        """
+        
+        if trend != None:
+            self.data += trend
+        self.data *= var
+        self.data += mean
         
         
         

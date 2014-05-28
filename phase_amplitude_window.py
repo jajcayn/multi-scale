@@ -13,7 +13,7 @@ from surrogates.surrogates import SurrogateField
 import calendar
 
 
-ts = OscillatoryTimeSeries('TG_STAID000027.txt', date(1834,7,28), date(2014,1,1), True)
+ts = OscillatoryTimeSeries('TG_STAID000027.txt', date(1834,7,28), date(2014,1,1), False)
 sg = SurrogateField()
 g = DataField()
 
@@ -60,7 +60,8 @@ p3, = plt.plot(daily_var[:, 2], linewidth = 2, color = '#8C4E5E')
 plt.axis([0, 365, 2, 7])
 plt.ylabel('standard deviation in temperature [$^{\circ}$C$^{2}$]')
 plt.xlabel('time [months]')
-plt.title('STD - data / MF surr / FT surr - %s' % ts.g.location)
+plt.title('STD - data / MF surr / FT surr - %s \n %s -- %s' % (ts.g.location,
+            str(ts.g.get_date_from_ndx(0)), str(ts.g.get_date_from_ndx(-1))), size = 22)
 plt.legend([p1, p2, p3], ('data', 'MF surr', 'FT surr'))
 plt.xticks(np.arange(1,365,365/11), calendar.month_name[1:13], rotation = 30)
 plt.show()
