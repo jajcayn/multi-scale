@@ -9,6 +9,8 @@ from src.data_class import load_station_data, DataField
 from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue
 
@@ -100,13 +102,13 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = False # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 22
 NUM_SURR = 1000 # how many surrs will be used to evaluate
-MF_SURR = True
-diff_ax = (1, 8)
+MF_SURR = False
+diff_ax = (1, 7)
 mean_ax = (9, 18)
 
 
 ## loading data
-g = load_station_data('TG_STAID000054.txt', date(1893,1,1), date(2014,1,1), ANOMALISE)
+g = load_station_data('TG_STAID000027.txt', date(1830,1,1), date(2014,1,1), ANOMALISE)
 g_working = DataField()
 g_surrs = DataField()
 
@@ -210,7 +212,7 @@ while end_idx < g.data.shape[0]:
     # surrogates
     if NUM_SURR != 0:
         surr_completed = 0
-        surr_date = date(start_year + 5*cnt/11, sm, sd)
+        surr_date = date(start_year + 5*cnt/7, sm, sd) # POTSDAM 5*cnt/11, PRG/STHLM 5*cnt/7
         diffs = np.zeros((NUM_SURR,))
         mean_vars = np.zeros_like(diffs)
         g_surrs.data, g_surrs.time, _ = g.get_data_of_precise_length('32k', surr_date, None, COPY = False)
@@ -265,13 +267,13 @@ mean_95perc = np.array(mean_95perc)
 
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
-fn = ("debug/POTSDAM_%d_surr_" % NUM_SURR)
+fn = ("debug/PRG_%d_surr_" % NUM_SURR)
 if not MEANS:
     fn += 'var_'
 if MF_SURR:
-    fn += 'MF_REWORK.png'
+    fn += 'MF_REWORK.eps'
 else:
-    fn += 'FT_REWORK.png'
+    fn += 'FT_REWORK.eps'
 
 render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 

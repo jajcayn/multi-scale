@@ -90,16 +90,16 @@ ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 3
-NUM_SURR = 20 # how many surrs will be used to evaluate
-MF_SURR = True
-diff_ax = (0, 1.8)
-mean_ax = (-1, 1.5)
+MEANS = False # if True, compute conditional means, if False, compute conditional variance
+WORKERS = 22
+NUM_SURR = 1000 # how many surrs will be used to evaluate
+MF_SURR = False
+diff_ax = (1, 8)
+mean_ax = (9, 18)
 
 
 ## loading data
-g = load_station_data('TG_STAID000027.txt', date(1834,7,28), date(2014,1,1), ANOMALISE)
+g = load_station_data('TG_STAID000054.txt', date(1924,4,15), date(2014,1,1), ANOMALISE)
 sg = SurrogateField()
 
 
@@ -123,8 +123,8 @@ mean, var, trend = g.get_seasonality(True)
 sg.copy_field(g)
 g.return_seasonality(mean, var, trend)
 
-main_cut_ndx = g.select_date(date(1838,1,1), date(2010,1,1))
-y1 = 1838
+main_cut_ndx = g.select_date(date(1928,1,1), date(2010,1,1))
+y1 = 1928
 phase = phase[0, main_cut_ndx]
 
 difference_data = []
@@ -151,7 +151,7 @@ while end < g.data.shape[0]:
             cond_means[i] = np.var(data_temp[ndx], ddof = 1)
     difference_data.append(cond_means.max() - cond_means.min()) # append difference to list    
     meanvar_data.append(np.mean(cond_means))
-    
+
     start = g.find_date_ndx(date(y1 + cnt*WINDOW_SHIFT, 1, 1))
     end = start + WINDOW_LENGTH
 
@@ -255,7 +255,7 @@ mean_95perc = np.array(mean_95perc)
 
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
-fn = ("debug/PRG_%d_surr_" % NUM_SURR)
+fn = ("debug/POTSDAM_%d_surr_" % NUM_SURR)
 if not MEANS:
     fn += 'var_'
 if MF_SURR:
