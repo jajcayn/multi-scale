@@ -9,8 +9,6 @@ from src.data_class import load_station_data, DataField
 from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
-import matplotlib
-matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue
 
