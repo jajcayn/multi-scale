@@ -689,6 +689,35 @@ def load_NCEP_data_monthly(filename, varname, start_date, end_date, lats, lons, 
 
     return g
 
+
+
+def load_ECAD_data_daily(filename, varname, start_date, end_date, lats, lons, anom):
+    """
+    Data loader for daily ECA&D reanalysis data.
+    """
+
+    print("[%s] Loading daily ECA&D data..." % str(datetime.now()))
+    path, name = split(filename)
+    if path != '':
+        path += "/"
+        g = DataField(data_folder = path)
+    else:
+        g = DataField()
+    g.load(name, varname, dataset = 'ECA-reanalysis', print_prog = False)
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    g.select_lat_lon(lats, lons)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    day, month, year = g.extract_day_month_year()
+
+    print("[%s] ECA&D data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+        % (str(datetime.now()), str(g.data.shape), day[0], month[0], 
+           year[0], day[-1], month[-1], year[-1]))
+
+    return g
+
     
     
 def load_NCEP_data_daily(filename, varname, start_date, end_date, lats, lons, level, anom):
