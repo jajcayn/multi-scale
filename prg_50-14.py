@@ -10,13 +10,14 @@ from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import date, datetime
 from multiprocessing import Process, Queue
+import cPickle
 
 
 ANOMALISE = True
 PERIOD = 8
 START_DATE = date(1950, 1, 1)
 MEANS = True
-NUM_SURR = 10
+NUM_SURR = 20
 WORKERS = 2
 MF_SURR = True
 
@@ -70,27 +71,28 @@ for i in range(cond_means.shape[0]):
 
 ## wavelet and cond means SURROGATES
 def _cond_difference_surrogates(sg, a, jobq, resq):
-    cond_means_temp = np.zeros_like(cond_means)
-    if MF_SURR:
-        sg.construct_multifractal_surrogates()
-    else:
-        sg.construct_fourier_surrogates_spatial()
-    sg.add_seasonality(a[0], a[1], a[2])
-    wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-    phase = np.arctan2(np.imag(wave), np.real(wave))
-
-    sg.surr_data = sg.surr_data[edge_cut_ndx]
-    phase = phase[edge_cut_ndx]
-
-    phase_bins = get_equidistant_bins()
-    for i in range(cond_means_surr.shape[0]):
-        ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-        if MEANS:
-            cond_means_temp[i] = np.mean(sg.surr_data[ndx])
+    while jobq.get() is not None:
+        cond_means_temp = np.zeros_like(cond_means)
+        if MF_SURR:
+            sg.construct_multifractal_surrogates()
         else:
-            cond_means_temp[i] = np.var(sg.surr_data[ndx], ddof = 1)
+            sg.construct_fourier_surrogates_spatial()
+        sg.add_seasonality(a[0], a[1], a[2])
 
-    resq.put((cond_means_temp))
+        wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        phase = np.arctan2(np.imag(wave), np.real(wave))
+
+        sg.surr_data = sg.surr_data[edge_cut_ndx]
+        phase = phase[0, edge_cut_ndx]
+
+        phase_bins = get_equidistant_bins()
+        for i in range(cond_means_surr.shape[0]):
+            ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
+            if MEANS:
+                cond_means_temp[i] = np.mean(sg.surr_data[ndx])
+            else:
+                cond_means_temp[i] = np.var(sg.surr_data[ndx], ddof = 1)
+        resq.put(cond_means_temp)
 
 
 
@@ -119,5 +121,8 @@ while surr_completed < NUM_SURR:
 for w in workers:
     w.join()
 
+print("[%s] Conditional means on surrogates done. Saving data..." % (str(datetime.now())))
 
-
+fname = ("PRG_50-14_%s.bin" % ('var' if not MEANS else 'means'))
+with open(fname, 'w') as f:
+    cPickle.dump({"conditional_means_data" : cond_means, "conditional_means_surrs" : cond_means_surr}, f)
