@@ -691,7 +691,7 @@ def load_NCEP_data_monthly(filename, varname, start_date, end_date, lats, lons, 
 
 
 
-def load_ECAD_data_daily(filename, varname, start_date, end_date, lats, lons, anom):
+def load_ECA_D_data_daily(filename, varname, start_date, end_date, lats, lons, anom):
     """
     Data loader for daily ECA&D reanalysis data.
     """
