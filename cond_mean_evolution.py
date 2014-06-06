@@ -97,12 +97,12 @@ ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 13462#16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-MEANS = True # if True, compute conditional means, if False, compute conditional variance
+MEANS = False # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 3
-NUM_SURR = 20 # how many surrs will be used to evaluate
+NUM_SURR = 1000 # how many surrs will be used to evaluate
 MF_SURR = True
-diff_ax = (0, 2)
-mean_ax = (-1, 1.5)
+diff_ax = (1, 8)
+mean_ax = (9, 18)
 
 
 ## loading data
@@ -127,16 +127,15 @@ def get_equidistant_bins():
     
 
 
-def _cond_difference_surrogates(g_temp, a, start_cut, jobq, resq):
-    mean, var, trend = a
+def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq):
+#    mean, var, trend = a
     while jobq.get() is not None:
-        sg = SurrogateField()
-        sg.copy_field(g_temp)
-        if MF_SURR:
-            sg.construct_multifractal_surrogates()
-        else:
-            sg.construct_fourier_surrogates_spatial()
-        sg.add_seasonality(mean, var, trend)
+        sg.construct_surrogates_with_residuals()
+#        if MF_SURR:
+#            sg.construct_multifractal_surrogates()
+#        else:
+#            sg.construct_fourier_surrogates_spatial()
+#        sg.add_seasonality(mean, var, trend)
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave))
         _, _, idx = g_temp.get_data_of_precise_length('16k', start_cut, None, False)
@@ -187,7 +186,6 @@ while end_idx < g.data.shape[0]:
     # data
     g_working.data = g.data[start_idx : end_idx].copy()
     g_working.time = g.time[start_idx : end_idx].copy()
-    print 'data: ', g_working.get_date_from_ndx(0), ' -- ', g_working.get_date_from_ndx(-1)
     if np.all(np.isnan(g_working.data) == False):
         wave, _, _, _ = wavelet_analysis.continous_wavelet(g_working.data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
@@ -217,7 +215,6 @@ while end_idx < g.data.shape[0]:
         #g_surrs.data, g_surrs.time, _ = g.get_data_of_precise_length('16k', surr_date, None, COPY = False)
         g_surrs.data = g.data[start_idx : end_idx].copy()
         g_surrs.time = g.time[start_idx : end_idx].copy()
-        print 'surrs: ', g_surrs.get_date_from_ndx(0), ' -- ', g_surrs.get_date_from_ndx(-1)
         if np.all(np.isnan(g_surrs.data) == False):
             # construct the job queue
             jobQ = Queue()
@@ -226,8 +223,12 @@ while end_idx < g.data.shape[0]:
                 jobQ.put(1)
             for i in range(WORKERS):
                 jobQ.put(None)
-            a = g_surrs.get_seasonality(DETREND = True)
-            workers = [Process(target = _cond_difference_surrogates, args = (g_surrs, a, start_cut, jobQ, resQ)) for iota in range(WORKERS)]
+#            a = g_surrs.get_seasonality(DETREND = True)
+            sg = SurrogateField()
+            sg.copy_field(g_surrs)
+            sg.prepare_AR_surrogates()
+            a = None
+            workers = [Process(target = _cond_difference_surrogates, args = (sg, g_surrs, a, start_cut, jobQ, resQ)) for iota in range(WORKERS)]
             for w in workers:
                 w.start()
             while surr_completed < NUM_SURR:
@@ -272,10 +273,11 @@ where_percentil = np.column_stack((difference_95perc, mean_95perc))
 fn = ("debug/PRG_%d_surr_reanalysis-like_window_" % NUM_SURR)
 if not MEANS:
     fn += 'var_'
-if MF_SURR:
-    fn += 'MF_REWORK.png'
-else:
-    fn += 'FT_REWORK.png'
+#if MF_SURR:
+#    fn += 'MF_REWORK.png'
+#else:
+#    fn += 'FT_REWORK.png'
+fn += 'AR1_REWORK.png'
 
 render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 

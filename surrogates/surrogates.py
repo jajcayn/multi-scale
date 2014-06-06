@@ -7,6 +7,16 @@ created on Mar 4, 2014
 import numpy as np
 from src.data_class import DataField
 import pywt
+from var_model import VARModel
+
+
+
+def _prepare_surrogates(a):
+    i, j, order_range, crit, ts = a
+    v = VARModel()
+    v.estimate(ts, order_range, True, crit, None)
+    r = v.compute_residuals(ts)
+    return (i, j, v, r) 
 
 
 
@@ -19,6 +29,7 @@ class SurrogateField(DataField):
     def __init__(self):
         DataField.__init__(self)
         self.surr_data = None
+        self.model_grid = None
         
 
         
@@ -119,7 +130,6 @@ class SurrogateField(DataField):
     
         
         
-        
     def construct_multifractal_surrogates(self, randomise_from_scale = 2):
         """
         Constructs multifractal surrogates (independent shuffling of the scale-specific coefficients,
@@ -203,3 +213,79 @@ class SurrogateField(DataField):
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
         
 
+
+    def prepare_AR_surrogates(self, pool = None, order_range = [1, 1], crit = 'sbc'):
+        """
+        Prepare for generating AR(k) surrogates by identifying the AR model and computing
+        the residuals. Adapted from script by Vejmelka -- https://github.com/vejmelkam/ndw-climate
+        """
+        
+        if self.data != None:
+            
+            if pool == None:
+                map_func = map
+            else:
+                map_func = pool.map
+                
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+            else:
+                num_lats = 1
+                num_lons = 1
+                self.data = self.data[:, np.newaxis, np.newaxis]
+            num_tm = self.time.shape[0]
+                
+            job_data = [ (i, j, order_range, crit, self.data[:, i, j]) for i in range(num_lats) for j in range(num_lons) ]
+            job_results = map_func(_prepare_surrogates, job_data)
+            
+            max_ord = max([r[2].order() for r in job_results])
+            num_tm_s = num_tm - max_ord
+            
+            self.model_grid = np.zeros((num_lats, num_lons), dtype = np.object)
+            self.residuals = np.zeros((num_tm_s, num_lats, num_lons), dtype = np.float64)
+    
+            for i, j, v, r in job_results:
+                self.model_grid[i,j] = v
+                self.residuals[:, i, j] = r[:num_tm_s, 0]
+    
+            self.max_ord = max_ord
+            
+            self.data = np.squeeze(self.data)
+            
+        else:
+            raise Exception("No data to randomise in the field. First you must copy some DataField.")
+        
+        
+        
+    def construct_surrogates_with_residuals(self):
+        """
+        Constructs a new surrogate time series from AR(k) model.
+        Adapted from script by Vejmelka -- https://github.com/vejmelkam/ndw-climate
+        """
+        
+        if self.model_grid != None:
+            
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+            else:
+                num_lats = 1
+                num_lons = 1
+            num_tm_s = self.time.shape[0] - self.max_ord
+            
+            self.surr_data = np.zeros((num_tm_s, num_lats, num_lons))
+            
+            r = np.zeros((num_tm_s, 1), dtype = np.float64)
+            
+            for i in range(num_lats):
+                for j in range(num_lons):
+                    ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
+                    r[ndx, 0] = self.residuals[:, i, j]
+    
+                    self.surr_data[:, i, j] = self.model_grid[i, j].simulate_with_residuals(r)[:, 0]
+                    
+            self.surr_data = np.squeeze(self.surr_data)
+
+        else:
+           raise Exception("The AR(k) model is not simulated yet. First prepare surrogates!") 
