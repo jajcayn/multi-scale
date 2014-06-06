@@ -284,6 +284,15 @@ class DataField:
         
         return date.fromordinal(self.time[ndx])
         
+        
+        
+    def get_spatial_dims(self):
+        """
+        Returns the spatial dimensions of the data as list.
+        """
+        
+        return list(self.data.shape[1:])
+        
     
         
     def find_date_ndx(self, date):
@@ -457,7 +466,12 @@ class DataField:
             ln = pow2list[np.where(order == pow2list/1000)[0][0]]
         else:
             raise Exception('Could not understand the length! Please type length as integer or as string like "16k".')
-            
+        
+        if start_date is not None and self.find_date_ndx(start_date) == None:
+            start_date = self.get_date_from_ndx(0)
+        if end_date is not None and self.find_date_ndx(end_date) == None:
+            end_date = self.get_date_from_ndx(-1)
+        
         if end_date is None and start_date is not None:
             # from start date until length
             idx = self.find_date_ndx(start_date)
@@ -467,8 +481,8 @@ class DataField:
             
         elif start_date is None and end_date is not None:
             idx = self.find_date_ndx(end_date)
-            data_temp = self.data[idx - ln : idx].copy()
-            time_temp = self.time[idx - ln : idx].copy()
+            data_temp = self.data[idx - ln : idx, ...].copy()
+            time_temp = self.time[idx - ln : idx, ...].copy()
             idx_tuple = (idx - ln, idx)
             
         else:
