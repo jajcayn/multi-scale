@@ -75,6 +75,7 @@ def nanstd(arr, axis = None, ddof = 0):
         return std
         
         
+        
 def nandetrend(arr, axis = 0):
     """
     Removes the linear trend along the axis, ignoring Nans.
@@ -110,6 +111,7 @@ def nandetrend(arr, axis = 0):
     
     return ret, m
         
+
 
 class DataField:
     """
@@ -537,6 +539,7 @@ class DataField:
             raise Exception('Unknown temporal sampling in the field.')
         
         
+        
     def anomalise(self):
         """
         Removes the seasonal/yearly cycle from the data
@@ -632,6 +635,7 @@ class DataField:
             self.data += trend
         self.data *= var
         self.data += mean
+        
         
         
         
