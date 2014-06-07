@@ -26,7 +26,7 @@ NUM_SURR = 1000 # number of surrogates to be evaluated
 SURR_TYPE = [1, 1, 1] # which types of surrogates to be evaluated as [MF, FT, AR(1)]
 
 
-## load data and prepare data
+## load and prepare data
 g = load_ECA_D_data_daily('tg_0.25deg_reg_v10.0.nc', 'tg', date(1950,1,1), date(2014,1,1), None, None, ANOMALISE)
 g.get_data_of_precise_length('16k', START_DATE, None, True) # get 2^n data because of MF surrogates
 END_DATE = g.get_date_from_ndx(-1)
@@ -74,6 +74,9 @@ for i, j, ph in job_result:
     phase_data[:, i, j] = ph
 del job_result
 
+if pool is not None:
+    pool.close()
+
 # select interor of wavelet to suppress unwanted edge effects
 IDX = g.select_date(date(START_DATE.year + 4, START_DATE.month, START_DATE.day), 
                     date(END_DATE.year - 4, END_DATE.month, END_DATE.day))
@@ -110,16 +113,79 @@ with open(fname, 'w') as f:
 
 
 def _analysis_surrogates(a):
-    sf, seasonality, idx, jobq, req = a
+    sf, seasonality, idx, jobq, resq = a
     mean, var, trend = seasonality
+    phase_bins = get_equidistant_bins()
     while jobq.get() is not None:
         if SURR_TYPE[0]: # MF surrs
+            mf_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
+            mf_mean = np.zeros_like(mf_diffs)
             sf.construct_multifractal_surrogates()
             sf.add_seasonality(mean, var, trend)
-            wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
-            phase = np.arctan2(np.imag(wave), np.real(wave))
-            # subselect surr_data and phase
-            sf.surr_data = sf.surr_data[idx, ...]
+            for lat in range(sf.lats.shape[0]):
+                for lon in range(sf.lons.shape[0]):
+                    wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
+                    phase = np.arctan2(np.imag(wave), np.real(wave))
+                    # subselect surr_data and phase
+                    sf.surr_data = sf.surr_data[idx, ...]
+                    phase = phase[0, idx]
+                    cond_means_temp = np.zeros((8,))
+                    for i in range(cond_means_temp.shape[0]):
+                        ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
+                        if MEANS:
+                            cond_means_temp[i] = np.mean(sf.surr_data[ndx])
+                        else:
+                            cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
+                    mf_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
+                    mf_mean[lat, lon] = np.mean(cond_means_temp)
+
+        if SURR_TYPE[1]: # FT surrs
+            ft_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
+            ft_mean = np.zeros_like(ft_diffs)
+            sf.construct_fourier_surrogates()
+            sf.add_seasonality(mean, var, trend)
+            for lat in range(sf.lats.shape[0]):
+                for lon in range(sf.lons.shape[0]):
+                    wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
+                    phase = np.arctan2(np.imag(wave), np.real(wave))
+                    # subselect surr_data and phase
+                    sf.surr_data = sf.surr_data[idx, ...]
+                    phase = phase[0, idx]
+                    cond_means_temp = np.zeros((8,))
+                    for i in range(cond_means_temp.shape[0]):
+                        ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
+                        if MEANS:
+                            cond_means_temp[i] = np.mean(sf.surr_data[ndx])
+                        else:
+                            cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
+                    ft_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
+                    ft_mean[lat, lon] = np.mean(cond_means_temp)
+
+        if SURR_TYPE[2]: # AR(1) surrs
+            ar_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
+            ar_mean = np.zeros_like(ar_diffs)
+            sf.data += trend
+            sf.data *= var
+            sf.data += mean
+            sf.prepare_AR_surrogates()
+            sf.construct_surrogates_with_residuals()
+            for lat in range(sf.lats.shape[0]):
+                for lon in range(sf.lons.shape[0]):
+                    wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
+                    phase = np.arctan2(np.imag(wave), np.real(wave))
+                    # subselect surr_data and phase
+                    sf.surr_data = sf.surr_data[idx, ...]
+                    phase = phase[0, idx]
+                    cond_means_temp = np.zeros((8,))
+                    for i in range(cond_means_temp.shape[0]):
+                        ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
+                        if MEANS:
+                            cond_means_temp[i] = np.mean(sf.surr_data[ndx])
+                        else:
+                            cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
+                    ar_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
+                    ar_mean[lat, lon] = np.mean(cond_means_temp)
+
     
 
 

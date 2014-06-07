@@ -114,6 +114,7 @@ class SurrogateField(DataField):
         """
         
         if self.data != None:
+            
             xf = np.fft.rfft(self.data, axis = 0)
             
             # same as above except generate random angles along all dimensions of input data
