@@ -105,7 +105,11 @@ for lat in range(g.lats.shape[0]):
         
 print("[%s] Analysis on data done. Starting surrogates..." % (str(datetime.now())))
 
+
 ## save file in case something will go wrong with surrogates..
+if not MEANS: # from variance to standard deviation
+    difference_data = np.sqrt(difference_data)
+    mean_data = np.sqrt(mean_data)
 fname = ('ECA-D_cond_%s_%s' % ('means' if MEANS else 'std', str(START_DATE)))
 with open(fname, 'w') as f:
     cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data}, f)
@@ -116,6 +120,8 @@ def _analysis_surrogates(a):
     sf, seasonality, idx, jobq, resq = a
     mean, var, trend = seasonality
     phase_bins = get_equidistant_bins()
+    surr_diffs = []
+    surr_means = []
     while jobq.get() is not None:
         if SURR_TYPE[0]: # MF surrs
             mf_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
@@ -138,6 +144,8 @@ def _analysis_surrogates(a):
                             cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
                     mf_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
                     mf_mean[lat, lon] = np.mean(cond_means_temp)
+            surr_diffs.append(mf_diffs)
+            surr_means.append(mf_mean)
 
         if SURR_TYPE[1]: # FT surrs
             ft_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
@@ -160,6 +168,8 @@ def _analysis_surrogates(a):
                             cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
                     ft_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
                     ft_mean[lat, lon] = np.mean(cond_means_temp)
+            surr_diffs.append(ft_diffs)
+            surr_means.append(ft_mean)
 
         if SURR_TYPE[2]: # AR(1) surrs
             ar_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
@@ -185,11 +195,20 @@ def _analysis_surrogates(a):
                             cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
                     ar_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
                     ar_mean[lat, lon] = np.mean(cond_means_temp)
+                    
+            surr_diffs.append(ar_diffs)
+            surr_means.append(ar_mean)
+                    
+        resq.put((surr_diffs, surr_means))
+        
 
     
 
 
 ## wavelet surrogates
+print("[%s] Computing %d MF/FT/AR(1) surrogates in parallel using %d workers..." % (str(datetime.now()), NUM_SURR, WORKERS))
+surr_MIX_diff = np.zeros([np.sum(SURR_TYPE), NUM_SURR] + g.get_spatial_dims())
+surr_MIX_mean = np.zeros([np.sum(SURR_TYPE), NUM_SURR] + g.get_spatial_dims())
 surr_completed = 0
 jobQ = Queue()
 resQ = Queue()
@@ -200,8 +219,48 @@ for i in range(WORKERS):
     
 seasonality = (mean, var, trend)
 workers = [Process(target = _analysis_surrogates, args = (sg, seasonality, IDX, jobQ, resQ)) for iota in range(WORKERS)]
+
+t_start = datetime.now()
+
+print("[%s] Starting workers..." % (str(datetime.now())))
 for w in workers:
     w.start()
+    
+t_last = t_start
+
+while surr_completed < NUM_SURR:
+    # get result
+    surr_diff, surr_mean = resQ.get()
+    for surr_type in range(len(surr_diff)):
+        surr_MIX_diff[surr_type, surr_completed, ...] = surr_diff[surr_type]
+        surr_MIX_mean[surr_type, surr_completed, ...] = surr_mean[surr_type]
+    surr_completed += 1
+    
+    # time to go
+    t_now = datetime.now()
+    
+    if (t_now - t_last).total_seconds() > 600:
+        t_last = t_now
+        dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
+        print("[%s] PROGRESS: %d/%d complete, predicted completition at %s..."
+               % (str(datetime.now()), surr_completed, NUM_SURR, str(t_now+dt)))
+               
+for w in workers:
+    w.join()
+    
+print("[%s] Analysis on surrogates done after %s. Now saving data..." % (str(datetime.now()), str(datetime.now - t_start)))
+
+## save file with surrogates
+if not MEANS: # from variance to standard deviation
+    difference_data = np.sqrt(difference_data)
+    mean_data = np.sqrt(mean_data)
+    surr_MIX_diff = np.sqrt(surr_MIX_diff)
+    surr_MIX_mean = np.sqrt(surr_MIX_mean)
+fname = ('ECA-D_cond_%s_%s' % ('means' if MEANS else 'std', str(START_DATE)))
+with open(fname, 'w') as f:
+    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
+                  'difference_surrogates' : surr_MIX_diff, 'mean surrogates' : surr_MIX_mean,
+                  'surrogates_type' : SURR_TYPE}, f)
 
 
 
