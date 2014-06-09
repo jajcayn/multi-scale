@@ -15,6 +15,7 @@ from multiprocessing import Process, Queue, Pool
 
 def get_equidistant_bins():
     return np.array(np.linspace(-np.pi, np.pi, 9))
+    
 
 
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
@@ -24,6 +25,12 @@ START_DATE = date(1950,1,1)
 MEANS = True # if True conditional means will be evaluated, if False conditional variance
 NUM_SURR = 1000 # number of surrogates to be evaluated
 SURR_TYPE = [1, 1, 1] # which types of surrogates to be evaluated as [MF, FT, AR(1)]
+
+
+log_file = open('ECA-D_cond_%s_%s' % ('means' if MEANS else 'std', datetime.now().strftime('%Y%m%d-%H%M')), 'w')
+def log(msg):
+    log_file.write('[%s] %s\n' % (str(datetime.now()), msg))
+    log_file.flush()
 
 
 ## load and prepare data
@@ -37,7 +44,7 @@ g.return_seasonality(mean, var, trend) # return seasonality to data for analysis
 
 
 ## wavelet data
-print("[%s] Running wavelet analysis on data using %d workers..." % (str(datetime.now()), WORKERS))
+log("Running wavelet analysis on data using %d workers..." % (WORKERS))
 k0 = 6. # wavenumber of Morlet wavelet used in analysis
 y = 365.25 # year in days
 fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
@@ -83,8 +90,7 @@ IDX = g.select_date(date(START_DATE.year + 4, START_DATE.month, START_DATE.day),
 
 phase_data = phase_data[IDX, ...]
 
-print("[%s] Wavelet on data done. Computing conditional %s on data..." % (str(datetime.now()), 
-      'means' if MEANS else 'variance'))
+log("Wavelet on data done. Computing conditional %s on data..." % ('means' if MEANS else 'variance'))
 
 ## conditional means/variance data
 difference_data = np.zeros(g.get_spatial_dims())
@@ -103,7 +109,7 @@ for lat in range(g.lats.shape[0]):
         difference_data[lat, lon] = cond_means_data[:, lat, lon].max() - cond_means_data[:, lat, lon].min()
         mean_data[lat, lon] = np.mean(cond_means_data[:, lat, lon])
         
-print("[%s] Analysis on data done. Starting surrogates..." % (str(datetime.now())))
+log("Analysis on data done. Starting surrogates...")
 
 
 ## save file in case something will go wrong with surrogates..
@@ -206,7 +212,7 @@ def _analysis_surrogates(a):
 
 
 ## wavelet surrogates
-print("[%s] Computing %d MF/FT/AR(1) surrogates in parallel using %d workers..." % (str(datetime.now()), NUM_SURR, WORKERS))
+log("Computing %d MF/FT/AR(1) surrogates in parallel using %d workers..." % (NUM_SURR, WORKERS))
 surr_MIX_diff = np.zeros([np.sum(SURR_TYPE), NUM_SURR] + g.get_spatial_dims())
 surr_MIX_mean = np.zeros([np.sum(SURR_TYPE), NUM_SURR] + g.get_spatial_dims())
 surr_completed = 0
@@ -222,7 +228,7 @@ workers = [Process(target = _analysis_surrogates, args = (sg, seasonality, IDX, 
 
 t_start = datetime.now()
 
-print("[%s] Starting workers..." % (str(datetime.now())))
+log("Starting workers...")
 for w in workers:
     w.start()
     
@@ -242,13 +248,13 @@ while surr_completed < NUM_SURR:
     if (t_now - t_last).total_seconds() > 600:
         t_last = t_now
         dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
-        print("[%s] PROGRESS: %d/%d complete, predicted completition at %s..."
-               % (str(datetime.now()), surr_completed, NUM_SURR, str(t_now+dt)))
+        log("PROGRESS: %d/%d complete, predicted completition at %s..."
+               % (surr_completed, NUM_SURR, str(t_now+dt)))
                
 for w in workers:
     w.join()
     
-print("[%s] Analysis on surrogates done after %s. Now saving data..." % (str(datetime.now()), str(datetime.now - t_start)))
+log("Analysis on surrogates done after %s. Now saving data..." % (str(datetime.now - t_start)))
 
 ## save file with surrogates
 if not MEANS: # from variance to standard deviation
