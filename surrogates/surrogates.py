@@ -13,9 +13,13 @@ from var_model import VARModel
 
 def _prepare_surrogates(a):
     i, j, order_range, crit, ts = a
-    v = VARModel()
-    v.estimate(ts, order_range, True, crit, None)
-    r = v.compute_residuals(ts)
+    if np.all(np.isnan(ts)) == False:
+        v = VARModel()
+        v.estimate(ts, order_range, True, crit, None)
+        r = v.compute_residuals(ts)
+    else:
+        v = None
+        r = np.nan
     return (i, j, v, r) 
 
 
@@ -154,57 +158,66 @@ class SurrogateField(DataField):
             
             for lat in range(num_lats):
                 for lon in range(num_lons):
-                    n = int(np.log2(self.data.shape[0])) # time series length should be 2^n
-                    n_real = np.log2(self.data.shape[0])
+
+                    if np.all(np.isnan(self.data[:, lat, lon])) == False:
+
+                        n = int(np.log2(self.data.shape[0])) # time series length should be 2^n
+                        n_real = np.log2(self.data.shape[0])
+                        
+                        if n != n_real:
+                            # if time series length is not 2^n
+                            raise Exception("Time series length must be power of 2 (2^n).")
+                            break
+                        
+                        # get coefficient from discrete wavelet transform, 
+                        # it is a list of length n with numpy arrays as every object
+                        coeffs = pywt.wavedec(self.data[:, lat, lon], 'db1', level = n-1)
+                        
+                        # prepare output lists and append coefficients which will not be shuffled
+                        coeffs_tilde = []
+                        for j in range(randomise_from_scale):
+                            coeffs_tilde.append(coeffs[j])
                     
-                    if n != n_real:
-                        # if time series length is not 2^n
-                        raise Exception("Time series length must be power of 2 (2^n).")
-                        break
+                        shuffled_coeffs = []
+                        for j in range(randomise_from_scale):
+                            shuffled_coeffs.append(coeffs[j])
+                        
+                        # run for each desired scale
+                        for j in range(randomise_from_scale, len(coeffs)):
+                            
+                            # get multiplicators for scale j
+                            multiplicators = np.zeros_like(coeffs[j])
+                            for k in range(coeffs[j-1].shape[0]):
+                                if coeffs[j-1][k] == 0:
+                                    print("**WARNING: some zero coefficients in DWT transform!")
+                                    coeffs[j-1][k] = 1
+                                multiplicators[2*k] = coeffs[j][2*k] / coeffs[j-1][k]
+                                multiplicators[2*k+1] = coeffs[j][2*k+1] / coeffs[j-1][k]
+                           
+                            # shuffle multiplicators in scale j randomly
+                            coef = np.zeros_like(multiplicators)
+                            multiplicators = np.random.permutation(multiplicators)
+                            
+                            # get coefficients with tilde according to a cascade
+                            for k in range(coeffs[j-1].shape[0]):
+                                coef[2*k] = multiplicators[2*k] * coeffs_tilde[j-1][k]
+                                coef[2*k+1] = multiplicators[2*k+1] * coeffs_tilde[j-1][k]
+                            coeffs_tilde.append(coef)
+                            
+                            # sort original coefficients
+                            coeffs[j] = np.sort(coeffs[j])
+                            
+                            # sort shuffled coefficients
+                            idx = np.argsort(coeffs_tilde[j])
+                            
+                            # finally, rearange original coefficient according to coefficient with tilde
+                            shuffled_coeffs.append(coeffs[j][idx])
+                        
+                        # return randomised time series as inverse discrete wavelet transform
+                        self.surr_data[:, lat, lon] = pywt.waverec(shuffled_coeffs, 'db1')
                     
-                    # get coefficient from discrete wavelet transform, 
-                    # it is a list of length n with numpy arrays as every object
-                    coeffs = pywt.wavedec(self.data[:, lat, lon], 'db1', level = n-1)
-                    
-                    # prepare output lists and append coefficients which will not be shuffled
-                    coeffs_tilde = []
-                    for j in range(randomise_from_scale):
-                        coeffs_tilde.append(coeffs[j])
-                
-                    shuffled_coeffs = []
-                    for j in range(randomise_from_scale):
-                        shuffled_coeffs.append(coeffs[j])
-                    
-                    # run for each desired scale
-                    for j in range(randomise_from_scale, len(coeffs)):
-                        
-                        # get multiplicators for scale j
-                        multiplicators = np.zeros_like(coeffs[j])
-                        for k in range(coeffs[j-1].shape[0]):
-                            multiplicators[2*k] = coeffs[j][2*k] / coeffs[j-1][k]
-                            multiplicators[2*k+1] = coeffs[j][2*k+1] / coeffs[j-1][k]
-                       
-                        # shuffle multiplicators in scale j randomly
-                        coef = np.zeros_like(multiplicators)
-                        multiplicators = np.random.permutation(multiplicators)
-                        
-                        # get coefficients with tilde according to a cascade
-                        for k in range(coeffs[j-1].shape[0]):
-                            coef[2*k] = multiplicators[2*k] * coeffs_tilde[j-1][k]
-                            coef[2*k+1] = multiplicators[2*k+1] * coeffs_tilde[j-1][k]
-                        coeffs_tilde.append(coef)
-                        
-                        # sort original coefficients
-                        coeffs[j] = np.sort(coeffs[j])
-                        
-                        # sort shuffled coefficients
-                        idx = np.argsort(coeffs_tilde[j])
-                        
-                        # finally, rearange original coefficient according to coefficient with tilde
-                        shuffled_coeffs.append(coeffs[j][idx])
-                        
-                    # return randomised time series as inverse discrete wavelet transform
-                    self.surr_data[:, lat, lon] = pywt.waverec(shuffled_coeffs, 'db1')
+                    else:
+                        self.surr_data[:, lat, lon] = np.nan
             
             # squeeze single-dimensional entries (e.g. station data)
             self.surr_data = np.squeeze(self.surr_data)
@@ -239,16 +252,21 @@ class SurrogateField(DataField):
                 
             job_data = [ (i, j, order_range, crit, self.data[:, i, j]) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_prepare_surrogates, job_data)
-            
-            max_ord = max([r[2].order() for r in job_results])
+            max_ord = 0
+            for r in job_results:
+                if r[2] is not None and r[2].order() > max_ord:
+                    max_ord = r[2].order()
             num_tm_s = num_tm - max_ord
             
             self.model_grid = np.zeros((num_lats, num_lons), dtype = np.object)
             self.residuals = np.zeros((num_tm_s, num_lats, num_lons), dtype = np.float64)
     
             for i, j, v, r in job_results:
-                self.model_grid[i,j] = v
-                self.residuals[:, i, j] = r[:num_tm_s, 0]
+                self.model_grid[i, j] = v
+                if v is not None:
+                    self.residuals[:, i, j] = r[:num_tm_s, 0]
+                else:
+                    self.residuals[:, i, j] = np.nan
     
             self.max_ord = max_ord
             
@@ -281,10 +299,13 @@ class SurrogateField(DataField):
             
             for i in range(num_lats):
                 for j in range(num_lons):
-                    ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
-                    r[ndx, 0] = self.residuals[:, i, j]
-    
-                    self.surr_data[:, i, j] = self.model_grid[i, j].simulate_with_residuals(r)[:, 0]
+                    if np.all(np.isnan(self.residuals[:, i, j])) == False:
+                        ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
+                        r[ndx, 0] = self.residuals[:, i, j]
+        
+                        self.surr_data[:, i, j] = self.model_grid[i, j].simulate_with_residuals(r)[:, 0]
+                    else:
+                        self.surr_data[:, i, j] = np.nan
                     
             self.surr_data = np.squeeze(self.surr_data)
 
