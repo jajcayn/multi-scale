@@ -95,14 +95,14 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
         
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 13462#16384
+WINDOW_LENGTH = 16384 # 13462
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-MEANS = False # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 3
+MEANS = True # if True, compute conditional means, if False, compute conditional variance
+WORKERS = 16
 NUM_SURR = 1000 # how many surrs will be used to evaluate
 MF_SURR = True
-diff_ax = (1, 8)
-mean_ax = (9, 18)
+diff_ax = (0, 2)
+mean_ax = (-1, 1.5)
 
 
 ## loading data
@@ -176,7 +176,7 @@ sd = date.fromordinal(g.time[0]).day
 start_idx = 0
 end_idx = to_wavelet
 
-_, _, idx = g.get_data_of_precise_length(13462, date.fromordinal(g.time[4*y]), None, False)
+_, _, idx = g.get_data_of_precise_length('16k', date.fromordinal(g.time[4*y]), None, False)
 first_mid_year = date.fromordinal(g.time[(idx[1] - idx[0])/2]).year
 
 
@@ -190,7 +190,8 @@ while end_idx < g.data.shape[0]:
         wave, _, _, _ = wavelet_analysis.continous_wavelet(g_working.data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
         start_cut = date.fromordinal(g.time[start_idx + 4*y])
-        idx = g_working.get_data_of_precise_length(13462, start_cut, None, True)
+        idx = g_working.get_data_of_precise_length('16k', start_cut, None, True)
+        print 'data ', g_working.get_date_from_ndx(0), ' - ', g_working.get_date_from_ndx(-1)
         last_mid_year = date.fromordinal(g_working.time[(idx[1] - idx[0])/2]).year
         phase = phase[0, idx[0] : idx[1]]
         phase_bins = get_equidistant_bins() # equidistant bins
@@ -209,12 +210,13 @@ while end_idx < g.data.shape[0]:
     # surrogates
     if NUM_SURR != 0:
         surr_completed = 0
-        surr_date = date(start_year + cnt, sm, sd) # POTSDAM 5*cnt/11, PRG/STHLM 5*cnt/7
+        surr_date = date(start_year + 5*cnt/7, sm, sd) # POTSDAM 5*cnt/11, PRG/STHLM 5*cnt/7
         diffs = np.zeros((NUM_SURR,))
         mean_vars = np.zeros_like(diffs)
-        #g_surrs.data, g_surrs.time, _ = g.get_data_of_precise_length('16k', surr_date, None, COPY = False)
-        g_surrs.data = g.data[start_idx : end_idx].copy()
-        g_surrs.time = g.time[start_idx : end_idx].copy()
+        g_surrs.data, g_surrs.time, _ = g.get_data_of_precise_length('32k', surr_date, None, COPY = False)
+        print 'surrs ', g_surrs.get_date_from_ndx(0), ' - ', g_surrs.get_date_from_ndx(-1)
+        # g_surrs.data = g.data[start_idx : end_idx].copy()
+        # g_surrs.time = g.time[start_idx : end_idx].copy()
         if np.all(np.isnan(g_surrs.data) == False):
             # construct the job queue
             jobQ = Queue()

@@ -13,7 +13,7 @@ from var_model import VARModel
 
 def _prepare_surrogates(a):
     i, j, order_range, crit, ts = a
-    if np.all(np.isnan(ts)) == False:
+    if np.any(np.isnan(ts)) == False:
         v = VARModel()
         v.estimate(ts, order_range, True, crit, None)
         r = v.compute_residuals(ts)

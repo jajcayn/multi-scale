@@ -148,7 +148,9 @@ class DataField:
             d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
             
-            self.data = v[:] # masked array - only land data, not ocean/sea
+            data = v[:] # masked array - only land data, not ocean/sea
+            self.data = data.data.copy() # get only data, not mask
+            self.data[data.mask] = np.nan # filled masked values with NaNs
             self.lons = d.variables['longitude'][:]
             self.lats = d.variables['latitude'][:]
             self.time = d.variables['time'][:] # days since 1950-01-01 00:00
