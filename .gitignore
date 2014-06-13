@@ -2,7 +2,7 @@
 .spyderproject
 .spyderworkspace
 debug/
-results/
+result/
 *.pyc
 *.png
 test.py
@@ -10,3 +10,4 @@ test.py
 *.jpg
 .Rhistory
 *.bin
+*.out
