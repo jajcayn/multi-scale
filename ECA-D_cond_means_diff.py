@@ -167,7 +167,7 @@ with open(fname, 'w') as f:
 # release the g object 
 del g
 
-def _analysis_surrogates(sf, sfAR, seasonality, idx, jobq, resq):
+def _analysis_surrogates(sf, var, trend, idx, jobq, resq):
     phase_bins = get_equidistant_bins()
     while jobq.get() is not None:
         if SURR_TYPE == 'MF':
@@ -184,16 +184,18 @@ def _analysis_surrogates(sf, sfAR, seasonality, idx, jobq, resq):
                 if np.all(np.isnan(sf.surr_data[:, lat, lon])) == False:
                     wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
                     phase = np.arctan2(np.imag(wave), np.real(wave))
+		    del wave
                     # subselect surr_data and phase
-                    d = sf.surr_data[idx, lat, lon].copy()
+                    sf.surr_data[idx, lat, lon]
                     phase = phase[0, idx]
                     cond_means_temp = np.zeros((8,))
                     for i in range(cond_means_temp.shape[0]):
                         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
                         if MEANS:
-                            cond_means_temp[i] = np.mean(d[ndx])
+                            cond_means_temp[i] = np.mean(sf.surr_data[ndx])
                         else:
-                            cond_means_temp[i] = np.var(d[ndx], ddof = 1)
+                            cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
+		    del phase
                     surr_means[lat, lon] = np.mean(cond_means_temp)
                     surr_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
                 else:
