@@ -1,5 +1,5 @@
 """
-created on June 6, 2014
+created on June 13, 2014
 
 @author: Nikola Jajcay
 """
@@ -10,24 +10,61 @@ from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import cPickle
-from multiprocessing import Process, Queue, Pool
-import os
+from multiprocessing import Process, Queue, Pool, Array
 
 
+
+## functions
 def get_equidistant_bins():
     return np.array(np.linspace(-np.pi, np.pi, 9))
     
+    
+def _get_oscillatory_modes(a):
+    """
+    Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
+    """
+    i, j, s0, data = a
+    if np.all(np.isnan(data)) == False:
+        wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
+        phase = np.arctan2(np.imag(wave), np.real(wave))
+    else:
+        phase = np.nan
+    
+    return i, j, phase
+    
+    
+def _get_cond_means(a):
+    """
+    Gets either conditional means or variance according to phase.
+    """
+    i, j, phase, data, phase_bins = a
+    cond_means_temp = np.zeros((8,))
+    if np.all(np.isnan(phase)) == False:
+        for i in range(cond_means_temp.shape[0]):
+            ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
+            if MEANS:
+                cond_means_temp[i] = np.mean(data[ndx])
+            else:
+                cond_means_temp[i] = np.var(data[ndx], ddof = 1)
+        diff_temp = cond_means_temp.max() - cond_means_temp.min()
+        mean_temp = np.mean(cond_means_temp)
+    else:
+        diff_temp = np.nan
+        mean_temp = np.nan
 
+    return i, j, diff_temp, mean_temp
+    
+    
 
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
 WORKERS = 16 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1960,1,1)
-LATS = [25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
-LONS = [-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
+LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
+LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 MEANS = True # if True conditional means will be evaluated, if False conditional variance
+SURR_TYPE = 'MF' # None, for data, MF, FT or AR
 NUM_SURR = 1000 # number of surrogates to be evaluated
-SURR_TYPE = [0, 1, 0] # which types of surrogates to be evaluated as [MF, FT, AR(1)]
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
 
@@ -46,19 +83,18 @@ def log(msg):
 ## load and prepare data
 g = load_ECA_D_data_daily('tg_0.25deg_reg_v10.0.nc', 'tg', date(1950,1,1), date(2014,1,1), 
                             LATS, LONS, ANOMALISE, logger_function = log)
+                            
 g.get_data_of_precise_length('16k', START_DATE, None, True) # get 2^n data because of MF surrogates
 END_DATE = g.get_date_from_ndx(-1)
-if np.sum(SURR_TYPE) != 0:
+
+if SURR_TYPE is not None:
     log("Creating surrogate fields...")
     sg = SurrogateField() # for MF and FT surrs
-    if SURR_TYPE[2]:
-        sgAR = SurrogateField() # for AR(1) surrs
-        sgAR.copy_field(g)
     log("De-seasonalising the data and copying to surrogate field...")
-    mean, var, trend = g.get_seasonality(True) # subtract mean, divide by std and subtract trend from data
+    _, var, trend = g.get_seasonality(True) # subtract mean, divide by std and subtract trend from data
     sg.copy_field(g) # copy standartised data to SurrogateField
-    g.return_seasonality(mean, var, trend) # return seasonality to data for analysis
     log("Surrogate fields created.")
+
 
 
 ## wavelet data
@@ -70,44 +106,6 @@ period = PERIOD * y # frequency of interest
 s0 = period / fourier_factor # get scale
 
 phase_data = np.zeros_like(g.data)
-cond_means_data = np.zeros([8] + g.get_spatial_dims())
-
-
-def _get_oscillatory_modes(a):
-    """
-    Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
-    """
-    i, j, s0, data = a
-    if np.all(np.isnan(data)) == False:
-        wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
-        phase = np.arctan2(np.imag(wave), np.real(wave))
-    else:
-        phase = np.nan
-    
-    return i, j, phase
-
-
-def _get_cond_means(a):
-    """
-    Gets either conditional means or variance according to phase.
-    """
-    i, j, phase, data, phase_bins = a
-    cond_means_temp = np.zeros((8,))
-    if np.all(np.isnan(phase)) == False:
-        for i in range(cond_means_data.shape[0]):
-            ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-            if MEANS:
-                cond_means_temp[i] = np.mean(data[ndx])
-            else:
-                cond_means_temp[i] = np.var(data[ndx], ddof = 1)
-        diff_temp = cond_means_temp.max() - cond_means_temp.min()
-        mean_temp = np.mean(cond_means_temp)
-    else:
-        diff_temp = np.nan
-        mean_temp = np.nan
-
-    return i, j, diff_temp, mean_temp
-
 
 if WORKERS == 0:
     pool = None
@@ -115,10 +113,6 @@ if WORKERS == 0:
 else:
     pool = Pool(WORKERS)
     map_func = pool.map
-
-if SURR_TYPE[2]:
-    # prepare AR(1) surrogates in parallel
-    sgAR.prepare_AR_surrogates(pool)
     
 job_args = [ (i, j, s0, g.data[:, i, j]) for i in range(g.lats.shape[0]) for j in range(g.lons.shape[0]) ]
 job_result = map_func(_get_oscillatory_modes, job_args)
@@ -150,125 +144,71 @@ for i, j, diff_t, mean_t in job_result:
     mean_data[i, j] = mean_t
 del job_result
 
+
+# if surrogate type is AR, exploit the pool to prepare the AR model
+if SURR_TYPE == 'AR':
+    sg.prepare_AR_surrogates(pool)
+
 if pool is not None:
     pool.close()
     pool.join()
     del pool
         
 log("Analysis on data done. Saving file...")
-
-
 ## save file in case something will go wrong with surrogates..
 if not MEANS: # from variance to standard deviation
     difference_data = np.sqrt(difference_data)
     mean_data = np.sqrt(mean_data)
-fname = ('result/ECA-D_%s_cond_%s_data_%s_areaof_%s.bin' % ('SATA' if ANOMALISE else 'SAT', 
-         'means' if MEANS else 'std', str(START_DATE), str(LONS[0])+'-'+str(LONS[1])))
+fname = ('result/ECA-D_%s_cond_%s_data_from_%s_16k.bin' % ('SATA' if ANOMALISE else 'SAT', 
+         'means' if MEANS else 'std', str(START_DATE)))
 with open(fname, 'w') as f:
     cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data}, f)
-
+    
+# release the g object 
 del g
 
 def _analysis_surrogates(sf, sfAR, seasonality, idx, jobq, resq):
-    mean, var, trend = seasonality
     phase_bins = get_equidistant_bins()
-    surr_diffs = np.zeros((3, sf.data.shape[1], sf.data.shape[2]))
-    surr_means = np.zeros_like(surr_diffs)
     while jobq.get() is not None:
-        if SURR_TYPE[0]: # MF surrs
-            mf_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
-            mf_mean = np.zeros_like(mf_diffs)
+        if SURR_TYPE == 'MF':
             sf.construct_multifractal_surrogates()
-            sf.add_seasonality(mean, var, trend)
-            for lat in range(sf.lats.shape[0]):
-                for lon in range(sf.lons.shape[0]):
-                    if np.all(np.isnan(sf.surr_data[:, lat, lon])) == False:
-                        wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
-                        phase = np.arctan2(np.imag(wave), np.real(wave))
-                        # subselect surr_data and phase
-                        d = sf.surr_data[idx, lat, lon].copy()
-                        phase = phase[0, idx]
-                        cond_means_temp = np.zeros((8,))
-                        for i in range(cond_means_temp.shape[0]):
-                            ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-                            if MEANS:
-                                cond_means_temp[i] = np.mean(d[ndx])
-                            else:
-                                cond_means_temp[i] = np.var(d[ndx], ddof = 1)
-                        mf_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
-                        mf_mean[lat, lon] = np.mean(cond_means_temp)
-                        del cond_means_temp, phase, wave, d
-                    else:
-                        mf_diffs[lat, lon] = np.nan
-                        mf_mean[lat, lon] = np.nan
-            surr_diffs[0, ...] = mf_diffs
-            surr_means[0, ...] = mf_mean
-
-        if SURR_TYPE[1]: # FT surrs
-            ft_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
-            ft_mean = np.zeros_like(ft_diffs)
-            sf.construct_fourier_surrogates()
-            sf.add_seasonality(mean, var, trend)
-            for lat in range(sf.lats.shape[0]):
-                for lon in range(sf.lons.shape[0]):
-                    if np.all(np.isnan(sf.surr_data[:, lat, lon])) == False:
-                        wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
-                        phase = np.arctan2(np.imag(wave), np.real(wave))
-                        # subselect surr_data and phase
-                        d = sf.surr_data[idx, lat, lon].copy()
-                        phase = phase[0, idx]
-                        cond_means_temp = np.zeros((8,))
-                        for i in range(cond_means_temp.shape[0]):
-                            ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-                            if MEANS:
-                                cond_means_temp[i] = np.mean(d[ndx])
-                            else:
-                                cond_means_temp[i] = np.var(d[ndx], ddof = 1)
-                        ft_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
-                        ft_mean[lat, lon] = np.mean(cond_means_temp)
-                        del cond_means_temp, phase, wave, d
-                    else:
-                        ft_diffs[lat, lon] = np.nan
-                        ft_mean[lat, lon] = np.nan
-            surr_diffs[1, ...] = ft_diffs
-            surr_means[1, ...] = ft_mean
-
-        if SURR_TYPE[2]: # AR(1) surrs
-            ar_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
-            ar_mean = np.zeros_like(ar_diffs)
-            sfAR.construct_surrogates_with_residuals()
-            for lat in range(sfAR.lats.shape[0]):
-                for lon in range(sfAR.lons.shape[0]):
-                    if np.all(np.isnan(sfAR.surr_data[:, lat, lon])) == False: 
-                        wave, _, _, _ = wvlt.continous_wavelet(sfAR.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
-                        phase = np.arctan2(np.imag(wave), np.real(wave))
-                        # subselect surr_data and phase
-                        d = sfAR.surr_data[idx, lat, lon].copy()
-                        phase = phase[0, idx]
-                        cond_means_temp = np.zeros((8,))
-                        for i in range(cond_means_temp.shape[0]):
-                            ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-                            if MEANS:
-                                cond_means_temp[i] = np.mean(d[ndx])
-                            else:
-                                cond_means_temp[i] = np.var(d[ndx], ddof = 1)
-                        ar_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
-                        ar_mean[lat, lon] = np.mean(cond_means_temp)
-                        del cond_means_temp, phase, wave, d
-                    else:
-                        ar_diffs[lat, lon] = np.nan
-                        ar_mean[lat, lon] = np.nan
-            surr_diffs[2, ...] = ar_diffs
-            surr_means[2, ...] = ar_mean
+        elif SURR_TYPE == 'FT':
+            sf.construct_fourier_surrogates_spatial()
+        elif SURR_TYPE == 'AR':
+            sf.construct_surrogates_with_residuals()
+        sf.add_seasonality(0, var, trend)
+        surr_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
+        surr_means = np.zeros_like(surr_diffs)
+        for lat in range(sf.lats.shape[0]):
+            for lon in range(sf.lons.shape[0]):
+                if np.all(np.isnan(sf.surr_data[:, lat, lon])) == False:
+                    wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
+                    phase = np.arctan2(np.imag(wave), np.real(wave))
+                    # subselect surr_data and phase
+                    d = sf.surr_data[idx, lat, lon].copy()
+                    phase = phase[0, idx]
+                    cond_means_temp = np.zeros((8,))
+                    for i in range(cond_means_temp.shape[0]):
+                        ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
+                        if MEANS:
+                            cond_means_temp[i] = np.mean(d[ndx])
+                        else:
+                            cond_means_temp[i] = np.var(d[ndx], ddof = 1)
+                    surr_means[lat, lon] = np.mean(cond_means_temp)
+                    surr_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
+                else:
+                    surr_means[lat, lon] = np.nan
+                    surr_diffs[lat, lon] = np.nan
                     
         resq.put((surr_diffs, surr_means))
-        
-
-## wavelet surrogates
-if np.sum(SURR_TYPE) != 0:
+                    
+                    
+## surrogates
+if SURR_TYPE is not None:
     log("Computing %d MF/FT/AR(1) surrogates in parallel using %d workers..." % (NUM_SURR, WORKERS))
-    surr_MIX_diff = np.zeros((3, NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
-    surr_MIX_mean = np.zeros_like(surr_MIX_diff)
+    surr_diff = np.zeros((NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
+    surr_mean = np.zeros_like(surr_diff)
+    # create queues for input and output
     surr_completed = 0
     jobQ = Queue()
     resQ = Queue()
@@ -277,14 +217,11 @@ if np.sum(SURR_TYPE) != 0:
     for i in range(WORKERS):
         jobQ.put(None)
     
-    seasonality = mean, var, trend
-    if SURR_TYPE[2]:
-        sgAR = sgAR
-    else:
-        sgAR = None
-    workers = [Process(target = _analysis_surrogates, args = (sg, sgAR, seasonality, IDX, jobQ, resQ)) for iota in range(WORKERS)]
-
-    del seasonality
+    # create shared object in memory for processes to access
+    var = Array('d', var)
+    trend = Array('d', trend)
+    
+    workers = [Process(target = _analysis_surrogates, args = (sg, var, trend, IDX, jobQ, resQ)) for iota in range(WORKERS)]
     
     t_start = datetime.now()
 
@@ -296,10 +233,9 @@ if np.sum(SURR_TYPE) != 0:
 
     while surr_completed < NUM_SURR:
         # get result
-        surr_diff, surr_mean = resQ.get()
-        for surr_type in range(surr_diff.shape[0]):
-            surr_MIX_diff[surr_type, surr_completed, ...] = surr_diff[surr_type]
-            surr_MIX_mean[surr_type, surr_completed, ...] = surr_mean[surr_type]
+        surr_diffT, surr_meanT = resQ.get()
+        surr_diff[surr_completed, ...] = surr_diffT
+        surr_mean[surr_completed, ...] = surr_meanT
         surr_completed += 1
         
         # time to go
@@ -315,20 +251,35 @@ if np.sum(SURR_TYPE) != 0:
         w.join()
         
     log("Analysis on surrogates done after %s. Now saving data..." % (str(datetime.now() - t_start)))
-
+    
     ## save file with surrogates
     if not MEANS: # from variance to standard deviation
         difference_data = np.sqrt(difference_data)
         mean_data = np.sqrt(mean_data)
-        surr_MIX_diff = np.sqrt(surr_MIX_diff)
-        surr_MIX_mean = np.sqrt(surr_MIX_mean)
-    fname = ('result/ECA-D_%s_cond_%s_FTsurrogates_%s_areaof_%s.bin' % ('SATA' if ANOMALISE else 'SAT', 
-             'means' if MEANS else 'std', str(START_DATE), str(LONS[0])+'-'+str(LONS[1])))
+        surr_diff = np.sqrt(surr_diff)
+        surr_mean = np.sqrt(surr_mean)
+    fname = ('result/ECA-D_%s_cond_%s_%ssurrogates_from_%s_16k.bin.bin' % ('SATA' if ANOMALISE else 'SAT', 
+             'means' if MEANS else 'std', SURR_TYPE, str(START_DATE)))
     with open(fname, 'w') as f:
-        cPickle.dump({'difference_surrogates' : surr_MIX_diff, 'mean surrogates' : surr_MIX_mean,
+        cPickle.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
                       'surrogates_type' : SURR_TYPE}, f)
-
-os.remove('ECA-D_temp_file_seasonality.bin')
+                      
 log("Saved.")
 if LOG:
     log_file.close()
+        
+        
+
+
+
+
+        
+
+
+    
+    
+    
+    
+    
+    
+    
