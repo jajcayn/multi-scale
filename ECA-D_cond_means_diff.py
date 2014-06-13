@@ -10,7 +10,7 @@ from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import cPickle
-from multiprocessing import Process, Queue, Pool, Array
+from multiprocessing import Process, Queue, Pool
 
 
 
@@ -218,10 +218,6 @@ if SURR_TYPE is not None:
         jobQ.put(1)
     for i in range(WORKERS):
         jobQ.put(None)
-    
-    # create shared object in memory for processes to access
-    var = Array('d', var)
-    trend = Array('d', trend)
     
     workers = [Process(target = _analysis_surrogates, args = (sg, var, trend, IDX, jobQ, resQ)) for iota in range(WORKERS)]
     
