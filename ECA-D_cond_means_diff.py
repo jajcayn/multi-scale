@@ -10,7 +10,8 @@ from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import cPickle
-from multiprocessing import Process, Queue, Pool
+import ctypes
+from multiprocessing import Process, Queue, Pool, Array
 
 
 
@@ -177,30 +178,26 @@ def _analysis_surrogates(sf, var, trend, idx, jobq, resq):
         elif SURR_TYPE == 'AR':
             sf.construct_surrogates_with_residuals()
         sf.add_seasonality(0, var, trend)
-        surr_diffs = np.zeros((sf.data.shape[1], sf.data.shape[2]))
-        surr_means = np.zeros_like(surr_diffs)
-        for lat in range(sf.lats.shape[0]):
-            for lon in range(sf.lons.shape[0]):
-                if np.all(np.isnan(sf.surr_data[:, lat, lon])) == False:
-                    wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data[:, lat, lon], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
-                    phase = np.arctan2(np.imag(wave), np.real(wave))
-		    del wave
-                    # subselect surr_data and phase
-                    sf.surr_data[idx, lat, lon]
-                    phase = phase[0, idx]
-                    cond_means_temp = np.zeros((8,))
-                    for i in range(cond_means_temp.shape[0]):
-                        ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-                        if MEANS:
-                            cond_means_temp[i] = np.mean(sf.surr_data[ndx])
-                        else:
-                            cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
-		    del phase
-                    surr_means[lat, lon] = np.mean(cond_means_temp)
-                    surr_diffs[lat, lon] = cond_means_temp.max() - cond_means_temp.min()
+        if np.all(np.isnan(sf.surr_data)) == False:
+            wave, _, _, _ = wvlt.continous_wavelet(sf.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
+            phase = np.arctan2(np.imag(wave), np.real(wave))
+            del wave
+            # subselect surr_data and phase
+            sf.surr_data = sf.surr_data[idx]
+            phase = phase[0, idx]
+            cond_means_temp = np.zeros((8,))
+            for i in range(cond_means_temp.shape[0]):
+                ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
+                if MEANS:
+                    cond_means_temp[i] = np.mean(sf.surr_data[ndx])
                 else:
-                    surr_means[lat, lon] = np.nan
-                    surr_diffs[lat, lon] = np.nan
+                    cond_means_temp[i] = np.var(sf.surr_data[ndx], ddof = 1)
+            del phase
+            surr_means = np.mean(cond_means_temp)
+            surr_diffs = cond_means_temp.max() - cond_means_temp.min()
+        else:
+            surr_means = np.nan
+            surr_diffs = np.nan
                     
         resq.put((surr_diffs, surr_means))
                     
@@ -210,43 +207,54 @@ if SURR_TYPE is not None:
     log("Computing %d MF/FT/AR(1) surrogates in parallel using %d workers..." % (NUM_SURR, WORKERS))
     surr_diff = np.zeros((NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
     surr_mean = np.zeros_like(surr_diff)
-    # create queues for input and output
-    surr_completed = 0
-    jobQ = Queue()
-    resQ = Queue()
-    for i in range(NUM_SURR):
-        jobQ.put(1)
-    for i in range(WORKERS):
-        jobQ.put(None)
-    
-    workers = [Process(target = _analysis_surrogates, args = (sg, var, trend, IDX, jobQ, resQ)) for iota in range(WORKERS)]
-    
+    sg_temp = SurrogateField()
     t_start = datetime.now()
+    for lat in range(sg.lats.shape[0]):
+        for lon in range(sg.lons.shape[0]):
+            # create queues for input and output
+            surr_completed = 0
+            jobQ = Queue()
+            resQ = Queue()
+            for i in range(NUM_SURR):
+                jobQ.put(1)
+            for i in range(WORKERS):
+                jobQ.put(None)
 
-    log("Starting workers...")
-    for w in workers:
-        w.start()
-        
-    t_last = t_start
+            # create shared memory
+            # array_base = Array(ctypes.c_double, size_or_initializer)
+            sg_temp.lats = sg.lats[lat]
+            sg_temp.lons = sg.lons[lon]
+            sg_temp.data = sg.data[:, lat, lon]
+            sg_temp.time = sg.time
+            if SURR_TYPE == 'AR':
+                sg_temp.max_ord = sg.max_ord
+                sg_temp.residuals = sg.residuals[:, lat, lon]
+                sg_temp.model_grid = sg.model_grid[lat, lon]
 
-    while surr_completed < NUM_SURR:
-        # get result
-        surr_diffT, surr_meanT = resQ.get()
-        surr_diff[surr_completed, ...] = surr_diffT
-        surr_mean[surr_completed, ...] = surr_meanT
-        surr_completed += 1
-        
-        # time to go
-        t_now = datetime.now()
-        
-        if (t_now - t_last).total_seconds() > 60:
-            t_last = t_now
-            dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
-            log("PROGRESS: %d/%d complete, predicted completition at %s..."
-                   % (surr_completed, NUM_SURR, str(t_now+dt)))
-                   
-    for w in workers:
-        w.join()
+            workers = [Process(target = _analysis_surrogates, args = (sg_temp, var[:, lat, lon], trend[:, lat, lon], IDX, jobQ, resQ)) for iota in range(WORKERS)]
+            
+            t_last = datetime.now()
+
+            log("Starting workers for %d/%d lat and %d/%d lon..." % (lat, sg.lats.shape[0], lon, sg.lons.shape[0]))
+            for w in workers:
+                w.start()
+
+            while surr_completed < NUM_SURR:
+                # get result
+                surr_diffT, surr_meanT = resQ.get()
+                surr_diff[surr_completed, lat, lon] = surr_diffT
+                surr_mean[surr_completed, lat, lon] = surr_meanT
+                surr_completed += 1
+                t_now = datetime.now()
+                if (t_now - t_last).total_seconds() > 600:
+                    t_last = t_now
+                    dt = (t_now - t_start) / (lat*sg.lons.shape[0] + lon) * (np.prod(sg.data.shape[1:]) - (lat*sg.lons.shape[0] + lon))
+                    log("PROGRESS: %d/%d surrogates done on %d/%d grid point. Predicted completition at %s" % (surr_completed, NUM_SURR,
+                        lat*sg.lons.shape[0] + lon, np.prod(sg.data.shape[1:]), 
+                        str(t_now + dt)))
+                           
+            for w in workers:
+                w.join()
         
     log("Analysis on surrogates done after %s. Now saving data..." % (str(datetime.now() - t_start)))
     
