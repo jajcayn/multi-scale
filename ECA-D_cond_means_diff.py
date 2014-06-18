@@ -9,7 +9,6 @@ from src.data_class import load_ECA_D_data_daily
 from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
-import time
 import cPickle
 from multiprocessing import Pool
 
@@ -171,83 +170,66 @@ with open(fname, 'w') as f:
 # release the g object 
 del g
 
-
-def _analysis_surrogates(sf):
-    if SURR_TYPE == 'MF':
-        d = sf.construct_multifractal_surrogates(field = True)
-    elif SURR_TYPE == 'FT':
-        d = sf.construct_fourier_surrogates_spatial(field = True)
-    elif SURR_TYPE == 'AR':
-        d = sf.construct_surrogates_with_residuals(field = True)
-    d += trend
-    d *= var
-
-    return d
-
-def _cond_means_surrs(sdiff, smeans, di):
-    for d in di:
-        for lat in range(d.shape[1]):
-            for lon in range(d.shape[2]):
-                d = d[:, lat, lon]
-                if np.all(np.isnan(d)) == False:
-                    wave, _, _, _ = wvlt.continous_wavelet(d, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
-                    phase = np.arctan2(np.imag(wave), np.real(wave))
-                    del wave
-                    # subselect surr_data and phase
-                    d = d[IDX]
-                    phase = phase[0, IDX]
-                    cond_means_temp = np.zeros((8,))
-                    for i in range(cond_means_temp.shape[0]):
-                        ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-                        if MEANS:
-                            cond_means_temp[i] = np.mean(d[ndx])
-                        else:
-                            cond_means_temp[i] = np.var(d[ndx], ddof = 1)
-                    del phase
-                    smeans[surr_completed, lat, lon] = np.mean(cond_means_temp)
-                    sdiff[surr_completed, lat, lon] = cond_means_temp.max() - cond_means_temp.min()
-                else:
-                    smeans[surr_completed, lat, lon] = np.nan
-                    sdiff[surr_completed, lat, lon] = np.nan
-        global surr_completed
-        surr_completed += 1
-                    
-                    
 ## surrogates
 if SURR_TYPE is not None:
-    log("Computing %d MF/FT/AR(1) surrogates in parallel using %d workers..." % (NUM_SURR, WORKERS))
+    log("Computing %d %s surrogates in parallel using %d workers..." % (NUM_SURR, SURR_TYPE, WORKERS))
     surr_diff = np.zeros((NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
     surr_mean = np.zeros_like(surr_diff)
+    phase_bins = get_equidistant_bins()
     t_start = datetime.now()
     pool = Pool(WORKERS)
     t_last = t_start
-    CHUNKSIZE = 10
-    surr_requested = 0
-    while surr_completed < NUM_SURR:
+    
+    for surr_completed in range(NUM_SURR):
+        # create surrogates field
+        if SURR_TYPE == 'MF':
+            sg.construct_multifractal_surrogates()
+        elif SURR_TYPE == 'FT':
+            sg.construct_fourier_surrogates_spatial()
+        elif SURR_TYPE == 'AR':
+            sg.construct_surrogates_with_residuals()
+        sg.add_seasonality(0, var, trend)
 
-        todo = min(CHUNKSIZE, NUM_SURR - surr_requested)
-        if todo == 0:
-            time.sleep(1)
-            continue
+        # oscialltory modes
+        phase_surrs = np.zeros_like(sg.surr_data)
+        job_args = [ (i, j, s0, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
+        job_result = map_func(_get_oscillatory_modes, job_args)
+        del job_args
+        # map results
+        for i, j, ph in job_result:
+            phase_surrs[:, i, j] = ph
+        del job_result
 
-        pool.map_async(_analysis_surrogates, [sg]*todo, callback = lambda x: _cond_means_surrs(surr_diff, surr_mean, x))
-        surr_requested += todo
+        sg.surr_data = sg.surr_data[IDX, ...]
+        sg.time = sg.time[IDX]
+        phase_surrs = phase_surrs[IDX, ...]
 
+        job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
+        job_result = map_func(_get_cond_means, job_args)
+        del job_args, phase_surrs
+        # map results
+        for i, j, diff_t, mean_t in job_result:
+            surr_diff[surr_completed, i, j] = diff_t
+            surr_mean[surr_completed, i, j] = mean_t
+        del job_result
+
+        # time to go
         t_now = datetime.now()
-        if (t_now - t_last).total_seconds() > 60:
+        if (t_now - t_last).total_seconds() > 300:
             t_last = t_now
             dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
-            log("PROGRESS: %d/%d complete, predicted completition at %s" % (surr_completed, NUM_SURR, str(t_now + dt)))
+            log("PROGRESS: %d/%d surrogate done, predicted completition at %s" (surr_completed, NUM_SURR, str(t_now + dt)))
 
-    pool.close()
-    pool.join()
         
+    if pool is not None:
+        pool.close()
+        pool.join()
+        del pool
+
     log("Analysis on surrogates done after %s. Now saving data..." % (str(datetime.now() - t_start)))
     
     ## save file with surrogates
     if not MEANS: # from variance to standard deviation
-        difference_data = np.sqrt(difference_data)
-        mean_data = np.sqrt(mean_data)
         surr_diff = np.sqrt(surr_diff)
         surr_mean = np.sqrt(surr_mean)
     fname = ('result/ECA-D_%s_cond_%s_%ssurrogates_from_%s_16k.bin.bin' % ('SATA' if ANOMALISE else 'SAT', 
