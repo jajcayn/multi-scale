@@ -96,7 +96,6 @@ if SURR_TYPE is not None:
     _, var, trend = g.get_seasonality(True) # subtract mean, divide by std and subtract trend from data
     sg.copy_field(g) # copy standartised data to SurrogateField
     log("Surrogate fields created.")
-    surr_completed = 0
 
 
 
@@ -184,6 +183,7 @@ if SURR_TYPE is not None:
         # create surrogates field
         if SURR_TYPE == 'MF':
             sg.construct_multifractal_surrogates()
+            log(sg.surr_data.shape)
         elif SURR_TYPE == 'FT':
             sg.construct_fourier_surrogates_spatial()
         elif SURR_TYPE == 'AR':
