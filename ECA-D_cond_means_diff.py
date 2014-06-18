@@ -217,8 +217,9 @@ if SURR_TYPE is not None:
         t_now = datetime.now()
         if (t_now - t_last).total_seconds() > 300:
             t_last = t_now
-            dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
-            log("PROGRESS: %d/%d surrogate done, predicted completition at %s" (surr_completed, NUM_SURR, str(t_now + dt)))
+            dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed) if surr_completed > 0 else np.infty
+            log("PROGRESS: %d/%d surrogate done, predicted completition at %s" (surr_completed, NUM_SURR, 
+                str(t_now + dt) if surr_completed > 0 else str(dt)))
 
         
     if pool is not None:
