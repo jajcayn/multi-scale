@@ -57,7 +57,7 @@ def _get_cond_means(a):
     
 
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 16 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 20 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1960,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
@@ -177,14 +177,13 @@ if SURR_TYPE is not None:
     surr_mean = np.zeros_like(surr_diff)
     phase_bins = get_equidistant_bins()
     t_start = datetime.now()
-    pool = Pool(WORKERS)
     t_last = t_start
     
     for surr_completed in range(NUM_SURR):
+        pool = Pool(WORKERS)
         # create surrogates field
         if SURR_TYPE == 'MF':
             sg.construct_multifractal_surrogates(pool = pool)
-            log(sg.surr_data.shape)
         elif SURR_TYPE == 'FT':
             sg.construct_fourier_surrogates_spatial()
         elif SURR_TYPE == 'AR':
@@ -222,11 +221,10 @@ if SURR_TYPE is not None:
             log("PROGRESS: %d/%d surrogate done, predicted completition at %s" (surr_completed, NUM_SURR, 
                 str(t_now + dt) if surr_completed > 0 else str(dt)))
 
-        
-    if pool is not None:
-        pool.close()
-        pool.join()
-        del pool
+        if pool is not None:
+            pool.close()
+            pool.join()
+            del pool
 
     log("Analysis on surrogates done after %s. Now saving data..." % (str(datetime.now() - t_start)))
     
