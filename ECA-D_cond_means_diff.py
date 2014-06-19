@@ -184,11 +184,16 @@ if SURR_TYPE is not None:
         # create surrogates field
         if SURR_TYPE == 'MF':
             sg.construct_multifractal_surrogates(pool = pool)
+            pool.close()
+            pool.join()
+            pool = None
         elif SURR_TYPE == 'FT':
             sg.construct_fourier_surrogates_spatial()
         elif SURR_TYPE == 'AR':
             sg.construct_surrogates_with_residuals()
         sg.add_seasonality(0, var, trend)
+        if pool is None:
+            pool = Pool(WORKERS)
 
         # oscialltory modes
         phase_surrs = np.zeros_like(sg.surr_data)
