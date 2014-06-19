@@ -149,6 +149,7 @@ del job_result
 
 # if surrogate type is AR, exploit the pool to prepare the AR model
 if SURR_TYPE == 'AR':
+    log("Creating AR(1) model and computing residuals...")
     sg.prepare_AR_surrogates(pool)
 
 if pool is not None:

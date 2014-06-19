@@ -24,6 +24,71 @@ def _prepare_surrogates(a):
 
 
 
+def _compute_MF_surrogates(a):
+    i, j, ts, randomise_from_scale = a
+    if np.all(np.isnan(ts)) == False:
+        n = int(np.log2(ts.shape[0])) # time series length should be 2^n
+        n_real = np.log2(ts.shape[0])
+        
+        if n != n_real:
+            # if time series length is not 2^n
+            raise Exception("Time series length must be power of 2 (2^n).")
+            break
+        
+        # get coefficient from discrete wavelet transform, 
+        # it is a list of length n with numpy arrays as every object
+        coeffs = pywt.wavedec(ts, 'db1', level = n-1)
+        
+        # prepare output lists and append coefficients which will not be shuffled
+        coeffs_tilde = []
+        for j in range(randomise_from_scale):
+            coeffs_tilde.append(coeffs[j])
+    
+        shuffled_coeffs = []
+        for j in range(randomise_from_scale):
+            shuffled_coeffs.append(coeffs[j])
+        
+        # run for each desired scale
+        for j in range(randomise_from_scale, len(coeffs)):
+            
+            # get multiplicators for scale j
+            multiplicators = np.zeros_like(coeffs[j])
+            for k in range(coeffs[j-1].shape[0]):
+                if coeffs[j-1][k] == 0:
+                    print("**WARNING: some zero coefficients in DWT transform!")
+                    coeffs[j-1][k] = 1
+                multiplicators[2*k] = coeffs[j][2*k] / coeffs[j-1][k]
+                multiplicators[2*k+1] = coeffs[j][2*k+1] / coeffs[j-1][k]
+           
+            # shuffle multiplicators in scale j randomly
+            coef = np.zeros_like(multiplicators)
+            multiplicators = np.random.permutation(multiplicators)
+            
+            # get coefficients with tilde according to a cascade
+            for k in range(coeffs[j-1].shape[0]):
+                coef[2*k] = multiplicators[2*k] * coeffs_tilde[j-1][k]
+                coef[2*k+1] = multiplicators[2*k+1] * coeffs_tilde[j-1][k]
+            coeffs_tilde.append(coef)
+            
+            # sort original coefficients
+            coeffs[j] = np.sort(coeffs[j])
+            
+            # sort shuffled coefficients
+            idx = np.argsort(coeffs_tilde[j])
+            
+            # finally, rearange original coefficient according to coefficient with tilde
+            shuffled_coeffs.append(coeffs[j][idx])
+        
+        # return randomised time series as inverse discrete wavelet transform
+        mf_surr = pywt.waverec(shuffled_coeffs, 'db1')
+
+    else:
+        mf_surr = np.nan
+
+    return (i, j, mf_surr)
+
+
+
 
 class SurrogateField(DataField):
     """
@@ -135,7 +200,7 @@ class SurrogateField(DataField):
     
         
         
-    def construct_multifractal_surrogates(self, randomise_from_scale = 2):
+    def construct_multifractal_surrogates(self, pool = None, randomise_from_scale = 2):
         """
         Constructs multifractal surrogates (independent shuffling of the scale-specific coefficients,
         preserving so-called multifractal structure - hierarchical process exhibiting information flow
@@ -145,6 +210,11 @@ class SurrogateField(DataField):
         """
         
         if self.data != None:
+
+            if pool == None:
+                map_func = map
+            else:
+                map_func = pool.map
             
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
@@ -155,69 +225,12 @@ class SurrogateField(DataField):
                 self.data = self.data[:, np.newaxis, np.newaxis]
             
             self.surr_data = np.zeros_like(self.data)
+
+            job_data = [ (i, j, self.data[:, i, j], randomise_from_scale) for i in range(num_lats) for j in range(num_lons) ]
+            job_results = map_func(_compute_MF_surrogates, job_data)
             
-            for lat in range(num_lats):
-                for lon in range(num_lons):
-
-                    if np.all(np.isnan(self.data[:, lat, lon])) == False:
-
-                        n = int(np.log2(self.data.shape[0])) # time series length should be 2^n
-                        n_real = np.log2(self.data.shape[0])
-                        
-                        if n != n_real:
-                            # if time series length is not 2^n
-                            raise Exception("Time series length must be power of 2 (2^n).")
-                            break
-                        
-                        # get coefficient from discrete wavelet transform, 
-                        # it is a list of length n with numpy arrays as every object
-                        coeffs = pywt.wavedec(self.data[:, lat, lon], 'db1', level = n-1)
-                        
-                        # prepare output lists and append coefficients which will not be shuffled
-                        coeffs_tilde = []
-                        for j in range(randomise_from_scale):
-                            coeffs_tilde.append(coeffs[j])
-                    
-                        shuffled_coeffs = []
-                        for j in range(randomise_from_scale):
-                            shuffled_coeffs.append(coeffs[j])
-                        
-                        # run for each desired scale
-                        for j in range(randomise_from_scale, len(coeffs)):
-                            
-                            # get multiplicators for scale j
-                            multiplicators = np.zeros_like(coeffs[j])
-                            for k in range(coeffs[j-1].shape[0]):
-                                if coeffs[j-1][k] == 0:
-                                    print("**WARNING: some zero coefficients in DWT transform!")
-                                    coeffs[j-1][k] = 1
-                                multiplicators[2*k] = coeffs[j][2*k] / coeffs[j-1][k]
-                                multiplicators[2*k+1] = coeffs[j][2*k+1] / coeffs[j-1][k]
-                           
-                            # shuffle multiplicators in scale j randomly
-                            coef = np.zeros_like(multiplicators)
-                            multiplicators = np.random.permutation(multiplicators)
-                            
-                            # get coefficients with tilde according to a cascade
-                            for k in range(coeffs[j-1].shape[0]):
-                                coef[2*k] = multiplicators[2*k] * coeffs_tilde[j-1][k]
-                                coef[2*k+1] = multiplicators[2*k+1] * coeffs_tilde[j-1][k]
-                            coeffs_tilde.append(coef)
-                            
-                            # sort original coefficients
-                            coeffs[j] = np.sort(coeffs[j])
-                            
-                            # sort shuffled coefficients
-                            idx = np.argsort(coeffs_tilde[j])
-                            
-                            # finally, rearange original coefficient according to coefficient with tilde
-                            shuffled_coeffs.append(coeffs[j][idx])
-                        
-                        # return randomised time series as inverse discrete wavelet transform
-                        self.surr_data[:, lat, lon] = pywt.waverec(shuffled_coeffs, 'db1')
-                    
-                    else:
-                        self.surr_data[:, lat, lon] = np.nan
+            for i, j, surr in job_results:
+                self.surr_data[:, i, j] = surr
             
             # squeeze single-dimensional entries (e.g. station data)
             self.surr_data = np.squeeze(self.surr_data)
