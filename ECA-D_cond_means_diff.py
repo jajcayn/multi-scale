@@ -59,7 +59,7 @@ def _get_cond_means(a):
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
 WORKERS = 20 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
-START_DATE = date(1960,1,1)
+START_DATE = date(1950,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 MEANS = True # if True conditional means will be evaluated, if False conditional variance
@@ -215,7 +215,7 @@ if SURR_TYPE is not None:
 
         # time to go
         t_now = datetime.now()
-        if ((t_now - t_last).total_seconds() > 300) and surr_completed > 0:
+        if ((t_now - t_last).total_seconds() > 600) and surr_completed > 0:
             t_last = t_now
             dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
             log("PROGRESS: %d/%d surrogate done, predicted completition at %s" (surr_completed, NUM_SURR, 
