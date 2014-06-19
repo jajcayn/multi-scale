@@ -83,7 +83,7 @@ class SurrogateField(DataField):
         
 
 
-    def construct_fourier_surrogates(self, field = None):
+    def construct_fourier_surrogates(self):
         """
         Constructs Fourier Transform (FT) surrogates (independent realizations which preserve
         linear structure and covariance structure)
@@ -103,17 +103,14 @@ class SurrogateField(DataField):
             cxf = xf * np.exp(1j * angle[:, np.newaxis, np.newaxis])
             
             # return randomised time series in time domain
-            if field is None:
-                self.surr_data = np.fft.irfft(cxf, axis = 0)
-            else:
-                return np.fft.irfft(cxf, axis = 0)
-            
+            self.surr_data = np.fft.irfft(cxf, axis = 0)
+           
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
         
         
         
-    def construct_fourier_surrogates_spatial(self, field = None):
+    def construct_fourier_surrogates_spatial(self):
         """
         Constructs Fourier Transform (FT) surrogates (independent realizations which preserve
         linear structure but not covariance structure - shuffles also along spatial dimensions)
@@ -131,17 +128,14 @@ class SurrogateField(DataField):
             
             cxf = xf * np.exp(1j * angle)
             
-            if field is None:
-                self.surr_data = np.fft.irfft(cxf, axis = 0)
-            else:
-                return np.fft.irfft(cxf, axis = 0)
+            self.surr_data = np.fft.irfft(cxf, axis = 0)
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
     
         
         
-    def construct_multifractal_surrogates(self, randomise_from_scale = 2, field = None):
+    def construct_multifractal_surrogates(self, randomise_from_scale = 2):
         """
         Constructs multifractal surrogates (independent shuffling of the scale-specific coefficients,
         preserving so-called multifractal structure - hierarchical process exhibiting information flow
@@ -160,7 +154,7 @@ class SurrogateField(DataField):
                 num_lons = 1
                 self.data = self.data[:, np.newaxis, np.newaxis]
             
-            surr_data_temp = np.zeros_like(self.data)
+            self.surr_data = np.zeros_like(self.data)
             
             for lat in range(num_lats):
                 for lon in range(num_lons):
@@ -220,19 +214,14 @@ class SurrogateField(DataField):
                             shuffled_coeffs.append(coeffs[j][idx])
                         
                         # return randomised time series as inverse discrete wavelet transform
-                        surr_data_temp[:, lat, lon] = pywt.waverec(shuffled_coeffs, 'db1')
+                        self.surr_data[:, lat, lon] = pywt.waverec(shuffled_coeffs, 'db1')
                     
                     else:
-                        surr_data_temp[:, lat, lon] = np.nan
+                        self.surr_data[:, lat, lon] = np.nan
             
             # squeeze single-dimensional entries (e.g. station data)
-            surr_data_temp = np.squeeze(self.surr_data)
+            self.surr_data = np.squeeze(self.surr_data)
             self.data = np.squeeze(self.data)
-
-            if field is None:
-                self.surr_data = surr_data_temp
-            else:
-                return surr_data_temp
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
@@ -288,7 +277,7 @@ class SurrogateField(DataField):
         
         
         
-    def construct_surrogates_with_residuals(self, field = None):
+    def construct_surrogates_with_residuals(self):
         """
         Constructs a new surrogate time series from AR(k) model.
         Adapted from script by Vejmelka -- https://github.com/vejmelkam/ndw-climate
@@ -304,7 +293,7 @@ class SurrogateField(DataField):
                 num_lons = 1
             num_tm_s = self.time.shape[0] - self.max_ord
             
-            surr_data_temp = np.zeros((num_tm_s, num_lats, num_lons))
+            self.surr_data = np.zeros((num_tm_s, num_lats, num_lons))
             
             r = np.zeros((num_tm_s, 1), dtype = np.float64)
             
@@ -314,16 +303,11 @@ class SurrogateField(DataField):
                         ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
                         r[ndx, 0] = self.residuals[:, i, j]
         
-                        surr_data_temp[:, i, j] = self.model_grid[i, j].simulate_with_residuals(r)[:, 0]
+                        self.surr_data[:, i, j] = self.model_grid[i, j].simulate_with_residuals(r)[:, 0]
                     else:
-                        surr_data_temp[:, i, j] = np.nan
+                        self.surr_data[:, i, j] = np.nan
                     
-            surr_data_temp = np.squeeze(self.surr_data)
-
-            if field is None:
-                self.surr_data = surr_data_temp
-            else:
-                return surr_data_temp
+            self.surr_data = np.squeeze(self.surr_data)
 
         else:
            raise Exception("The AR(k) model is not simulated yet. First prepare surrogates!") 
