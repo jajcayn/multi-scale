@@ -178,12 +178,12 @@ if SURR_TYPE is not None:
     phase_bins = get_equidistant_bins()
     t_start = datetime.now()
     t_last = t_start
+    pool = Pool(WORKERS)
     
     for surr_completed in range(NUM_SURR):
-        pool = Pool(WORKERS)
         # create surrogates field
         if SURR_TYPE == 'MF':
-            sg.construct_multifractal_surrogates()
+            sg.construct_multifractal_surrogates(pool = pool)
         elif SURR_TYPE == 'FT':
             sg.construct_fourier_surrogates_spatial()
         elif SURR_TYPE == 'AR':
@@ -193,7 +193,7 @@ if SURR_TYPE is not None:
         # oscialltory modes
         phase_surrs = np.zeros_like(sg.surr_data)
         job_args = [ (i, j, s0, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
-        job_result = map_func(_get_oscillatory_modes, job_args)
+        job_result = pool.map(_get_oscillatory_modes, job_args)
         del job_args
         # map results
         for i, j, ph in job_result:
@@ -205,7 +205,7 @@ if SURR_TYPE is not None:
         phase_surrs = phase_surrs[IDX, ...]
 
         job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
-        job_result = map_func(_get_cond_means, job_args)
+        job_result = pool.map(_get_cond_means, job_args)
         del job_args, phase_surrs
         # map results
         for i, j, diff_t, mean_t in job_result:
@@ -221,10 +221,10 @@ if SURR_TYPE is not None:
             log("PROGRESS: %d/%d surrogate done, predicted completition at %s" (surr_completed, NUM_SURR, 
                 str(t_now + dt) if surr_completed > 0 else str(dt)))
 
-        if pool is not None:
-            pool.close()
-            pool.join()
-            del pool
+    if pool is not None:
+        pool.close()
+        pool.join()
+        del pool
 
     log("Analysis on surrogates done after %s. Now saving data..." % (str(datetime.now() - t_start)))
     
