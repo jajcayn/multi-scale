@@ -183,7 +183,7 @@ if SURR_TYPE is not None:
     for surr_completed in range(NUM_SURR):
         # create surrogates field
         if SURR_TYPE == 'MF':
-            sg.construct_multifractal_surrogates()
+            sg.construct_multifractal_surrogates(pool = pool)
             log(sg.surr_data.shape)
         elif SURR_TYPE == 'FT':
             sg.construct_fourier_surrogates_spatial()
