@@ -33,7 +33,6 @@ def _compute_MF_surrogates(a):
         if n != n_real:
             # if time series length is not 2^n
             raise Exception("Time series length must be power of 2 (2^n).")
-            break
         
         # get coefficient from discrete wavelet transform, 
         # it is a list of length n with numpy arrays as every object
