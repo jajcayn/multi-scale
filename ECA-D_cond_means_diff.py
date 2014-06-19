@@ -201,7 +201,6 @@ if SURR_TYPE is not None:
         del job_result
 
         sg.surr_data = sg.surr_data[IDX, ...]
-        sg.time = sg.time[IDX]
         phase_surrs = phase_surrs[IDX, ...]
 
         job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
