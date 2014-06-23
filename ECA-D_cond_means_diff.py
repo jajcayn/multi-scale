@@ -59,11 +59,11 @@ def _get_cond_means(a):
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
 WORKERS = 20 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
-START_DATE = date(1950,1,1)
+START_DATE = date(1960,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 MEANS = True # if True conditional means will be evaluated, if False conditional variance
-SURR_TYPE = 'MF' # None, for data, MF, FT or AR
+SURR_TYPE = 'AR' # None, for data, MF, FT or AR
 NUM_SURR = 1000 # number of surrogates to be evaluated
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
@@ -217,7 +217,7 @@ if SURR_TYPE is not None:
         if ((t_now - t_last).total_seconds() > 600) and surr_completed > 0:
             t_last = t_now
             dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
-            log("PROGRESS: %d/%d surrogate done, predicted completition at %s" (surr_completed, NUM_SURR, 
+            log("PROGRESS: %d/%d surrogate done, predicted completition at %s" % (surr_completed, NUM_SURR, 
                 str(t_now + dt)))
 
     if pool is not None:
@@ -231,7 +231,7 @@ if SURR_TYPE is not None:
     if not MEANS: # from variance to standard deviation
         surr_diff = np.sqrt(surr_diff)
         surr_mean = np.sqrt(surr_mean)
-    fname = ('result/ECA-D_%s_cond_%s_%ssurrogates_from_%s_16k.bin.bin' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_%s_cond_%s_%ssurrogates_from_%s_16k.bin' % ('SATA' if ANOMALISE else 'SAT', 
              'means' if MEANS else 'std', SURR_TYPE, str(START_DATE)))
     with open(fname, 'w') as f:
         cPickle.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
