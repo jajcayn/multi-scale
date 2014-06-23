@@ -57,7 +57,7 @@ def _compute_FT_surrogates(a):
 
 
 def _compute_MF_surrogates(a):
-    i, j, ts, randomise_from_scale = a
+    i, l, ts, randomise_from_scale = a
     if np.all(np.isnan(ts)) == False:
         n = int(np.log2(ts.shape[0])) # time series length should be 2^n
         n_real = np.log2(ts.shape[0])
@@ -115,8 +115,8 @@ def _compute_MF_surrogates(a):
 
     else:
         mf_surr = np.nan
-
-    return (i, j, mf_surr)
+        
+    return (i, l, mf_surr)
 
 
 
@@ -192,6 +192,14 @@ class SurrogateField(DataField):
             else:
                 map_func = pool
                 
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+            else:
+                num_lats = 1
+                num_lons = 1
+                self.data = self.data[:, np.newaxis, np.newaxis]
+                
             # generate uniformly distributed random angles
             a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
             angle = np.random.uniform(0, 2 * np.pi, (a.shape[0],))
@@ -200,13 +208,17 @@ class SurrogateField(DataField):
             angle[0] = 0
             del a
             
-            job_data = [ (i, j, self.data[:, i, j], angle) for i in range(self.lats.shape[0]) for j in range(self.lons.shape[0]) ]
+            job_data = [ (i, j, self.data[:, i, j], angle) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_compute_FT_surrogates, job_data)
             
             self.surr_data = np.zeros_like(self.data)
             
             for i, j, surr in job_results:
                 self.surr_data[:, i, j] = surr
+                
+            # squeeze single-dimensional entries (e.g. station data)
+            self.surr_data = np.squeeze(self.surr_data)
+            self.data = np.squeeze(self.data)
            
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
@@ -226,20 +238,32 @@ class SurrogateField(DataField):
                 map_func = map
             else:
                 map_func = pool
+                
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+            else:
+                num_lats = 1
+                num_lons = 1
+                self.data = self.data[:, np.newaxis, np.newaxis]
             
             # same as above except generate random angles along all dimensions of input data
             a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
-            angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], self.lats.shape[0], self.lons.shape[0]))
+            angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_lats, num_lons))
             angle[0, ...] = 0
             del a
             
-            job_data = [ (i, j, self.data[:, i, j], angle[:, i, j]) for i in range(self.lats.shape[0]) for j in range(self.lons.shape[0]) ]
+            job_data = [ (i, j, self.data[:, i, j], angle[:, i, j]) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_compute_FT_surrogates, job_data)
             
             self.surr_data = np.zeros_like(self.data)
             
             for i, j, surr in job_results:
                 self.surr_data[:, i, j] = surr
+                
+            # squeeze single-dimensional entries (e.g. station data)
+            self.surr_data = np.squeeze(self.surr_data)
+            self.data = np.squeeze(self.data)
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")

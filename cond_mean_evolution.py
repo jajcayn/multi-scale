@@ -35,11 +35,12 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
         ax1.set_ylabel('difference in cond mean in temperature [$^{\circ}$C]', size = 14)
     elif not MEANS:
         ax1.set_ylabel('difference in cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-    year_diff = np.round((last_mid_year - first_mid_year) / 10)
-    print last_mid_year, first_mid_year, year_diff
-    xnames = np.arange(first_mid_year, last_mid_year, year_diff)
-    print xnames
-    plt.xticks(np.linspace(0, cnt, len(xnames)), xnames, rotation = 30)
+#    year_diff = np.round((last_mid_year - first_mid_year) / 10)
+#    print last_mid_year, first_mid_year, year_diff
+#    xnames = np.arange(first_mid_year, last_mid_year, year_diff)
+#    print xnames
+#    plt.xticks(np.linspace(0, cnt, len(xnames)), xnames, rotation = 30)
+    plt.xticks(np.arange(0, cnt+8, 8), np.arange(first_mid_year, last_mid_year+8, 8), rotation = 30)
     ax2 = ax1.twinx()
     if len(meanvars) > 3:
         ax2.plot(meanvars, color = '#CA4F17', linewidth = 2, figure = fig) # color = '#CA4F17'
@@ -100,13 +101,13 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 16
 NUM_SURR = 1000 # how many surrs will be used to evaluate
-MF_SURR = True
-diff_ax = (0, 2)
-mean_ax = (-1, 1.5)
+SURR_TYPE = 'MF'
+diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
+mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
 
 
 ## loading data
-g = load_station_data('TG_STAID000027.txt', date(1830,1,1), date(2014,1,1), ANOMALISE)
+g = load_station_data('TG_STAID000027.txt', date(1834,7,28), date(2014,1,1), ANOMALISE)
 g_working = DataField()
 g_surrs = DataField()
 
@@ -120,7 +121,7 @@ s0 = period / fourier_factor # get scale
 
 
 cond_means = np.zeros((8,))
-to_wavelet = WINDOW_LENGTH + int(8 * y)
+to_wavelet = 32768 # 16384 or 32768
 
 def get_equidistant_bins():
     return np.array(np.linspace(-np.pi, np.pi, 9))
@@ -128,14 +129,17 @@ def get_equidistant_bins():
 
 
 def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq):
-#    mean, var, trend = a
+    mean, var, trend = a
     while jobq.get() is not None:
-        sg.construct_surrogates_with_residuals()
-#        if MF_SURR:
-#            sg.construct_multifractal_surrogates()
-#        else:
-#            sg.construct_fourier_surrogates_spatial()
-#        sg.add_seasonality(mean, var, trend)
+        if SURR_TYPE == 'MF':
+            sg.construct_multifractal_surrogates()
+            sg.add_seasonality(mean, var, trend)
+        elif SURR_TYPE == 'FT':
+            sg.construct_fourier_surrogates_spatial()
+            sg.add_seasonality(mean, var, trend)
+        elif SURR_TYPE == 'AR':
+            sg.construct_surrogates_with_residuals()
+            sg.add_seasonality(mean[:-1, ...], var[:-1, ...], trend[:-1, ...])
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave))
         _, _, idx = g_temp.get_data_of_precise_length('16k', start_cut, None, False)
@@ -169,7 +173,7 @@ difference_95perc = []
 mean_95perc = []
 
 
-start_year = date.fromordinal(g.time[0]).year
+start_year = date.fromordinal(g.time[0]).year + 4
 sm = date.fromordinal(g.time[0]).month
 sd = date.fromordinal(g.time[0]).day
 
@@ -181,17 +185,17 @@ first_mid_year = date.fromordinal(g.time[(idx[1] - idx[0])/2]).year
 
 
 while end_idx < g.data.shape[0]:
-    cnt += 1
     
     # data
     g_working.data = g.data[start_idx : end_idx].copy()
     g_working.time = g.time[start_idx : end_idx].copy()
     if np.all(np.isnan(g_working.data) == False):
-        wave, _, _, _ = wavelet_analysis.continous_wavelet(g_working.data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        wave, _, _, _ = wavelet_analysis.continous_wavelet(g_working.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
-        start_cut = date.fromordinal(g.time[start_idx + 4*y])
+        start_cut = date(start_year+cnt*WINDOW_SHIFT, sm, sd)
         idx = g_working.get_data_of_precise_length('16k', start_cut, None, True)
-        print 'data ', g_working.get_date_from_ndx(0), ' - ', g_working.get_date_from_ndx(-1)
+        print 'data ', g.get_date_from_ndx(start_idx), ' - ', g.get_date_from_ndx(end_idx)
+        print 'cut from ', start_cut, ' to ', g_working.get_date_from_ndx(-1)
         last_mid_year = date.fromordinal(g_working.time[(idx[1] - idx[0])/2]).year
         phase = phase[0, idx[0] : idx[1]]
         phase_bins = get_equidistant_bins() # equidistant bins
@@ -210,13 +214,10 @@ while end_idx < g.data.shape[0]:
     # surrogates
     if NUM_SURR != 0:
         surr_completed = 0
-        surr_date = date(start_year + 5*cnt/7, sm, sd) # POTSDAM 5*cnt/11, PRG/STHLM 5*cnt/7
         diffs = np.zeros((NUM_SURR,))
         mean_vars = np.zeros_like(diffs)
-        g_surrs.data, g_surrs.time, _ = g.get_data_of_precise_length('32k', surr_date, None, COPY = False)
-        print 'surrs ', g_surrs.get_date_from_ndx(0), ' - ', g_surrs.get_date_from_ndx(-1)
-        # g_surrs.data = g.data[start_idx : end_idx].copy()
-        # g_surrs.time = g.time[start_idx : end_idx].copy()
+        g_surrs.data = g.data[start_idx : end_idx].copy()
+        g_surrs.time = g.time[start_idx : end_idx].copy()
         if np.all(np.isnan(g_surrs.data) == False):
             # construct the job queue
             jobQ = Queue()
@@ -225,11 +226,11 @@ while end_idx < g.data.shape[0]:
                 jobQ.put(1)
             for i in range(WORKERS):
                 jobQ.put(None)
-#            a = g_surrs.get_seasonality(DETREND = True)
+            a = g_surrs.get_seasonality(DETREND = True)
             sg = SurrogateField()
             sg.copy_field(g_surrs)
-            sg.prepare_AR_surrogates()
-            a = None
+            if SURR_TYPE == 'AR':
+                sg.prepare_AR_surrogates()
             workers = [Process(target = _cond_difference_surrogates, args = (sg, g_surrs, a, start_cut, jobQ, resQ)) for iota in range(WORKERS)]
             for w in workers:
                 w.start()
@@ -260,8 +261,9 @@ while end_idx < g.data.shape[0]:
             difference_surr_std.append(0)
             meanvar_surr.append(0)
             meanvar_surr_std.append(0)
+    cnt += 1
 
-    start_idx = g.find_date_ndx(date(start_year + WINDOW_SHIFT*cnt, sm, sd))
+    start_idx = g.find_date_ndx(date(start_year - 4 + WINDOW_SHIFT*5*cnt/7, sm, sd))
     end_idx = start_idx + to_wavelet
 
 print("[%s] Wavelet analysis on data done." % (str(datetime.now())))
@@ -272,14 +274,7 @@ mean_95perc = np.array(mean_95perc)
 
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
-fn = ("debug/PRG_%d_surr_reanalysis-like_window_" % NUM_SURR)
-if not MEANS:
-    fn += 'var_'
-#if MF_SURR:
-#    fn += 'MF_REWORK.png'
-#else:
-#    fn += 'FT_REWORK.png'
-fn += 'AR1_REWORK.png'
+fn = ("debug/PRG_%s_%d_%ssurr_32to16k_window.png" % ('means' if MEANS else 'var', NUM_SURR, SURR_TYPE))
 
 render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
