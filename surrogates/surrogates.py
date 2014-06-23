@@ -190,7 +190,7 @@ class SurrogateField(DataField):
             if pool == None:
                 map_func = map
             else:
-                map_func = pool
+                map_func = pool.map
                 
             # generate uniformly distributed random angles
             a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
@@ -225,7 +225,7 @@ class SurrogateField(DataField):
             if pool == None:
                 map_func = map
             else:
-                map_func = pool
+                map_func = pool.map
             
             # same as above except generate random angles along all dimensions of input data
             a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
