@@ -190,7 +190,7 @@ class SurrogateField(DataField):
             if pool == None:
                 map_func = map
             else:
-                map_func = pool
+                map_func = pool.map
                 
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
@@ -237,6 +237,7 @@ class SurrogateField(DataField):
             if pool == None:
                 map_func = map
             else:
+<<<<<<< HEAD
                 map_func = pool
                 
             if self.data.ndim > 1:
@@ -246,6 +247,9 @@ class SurrogateField(DataField):
                 num_lats = 1
                 num_lons = 1
                 self.data = self.data[:, np.newaxis, np.newaxis]
+=======
+                map_func = pool.map
+>>>>>>> 481345700e3dc5a5b02b532949cbd4282c28a0b0
             
             # same as above except generate random angles along all dimensions of input data
             a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
