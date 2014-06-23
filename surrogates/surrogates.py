@@ -21,7 +21,39 @@ def _prepare_surrogates(a):
         v = None
         r = np.nan
     return (i, j, v, r) 
+    
+    
+    
+def _compute_AR_surrogates(a):
+    i, j, res, model, num_tm_s = a
+    r = np.zeros((num_tm_s, 1), dtype = np.float64)       
+    if np.all(np.isnan(res)) == False:
+        ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
+        r[ndx, 0] = res
 
+        ar_surr = model.simulate_with_residuals(r)[:, 0]
+    else:
+        ar_surr = np.nan
+        
+    return (i, j, ar_surr)
+    
+    
+    
+def _compute_FT_surrogates(a):
+    i, j, data, angle = a
+            
+    # transform the time series to Fourier domain
+    xf = np.fft.rfft(data, axis = 0)
+     
+    # randomise the time series with random phases       
+    cxf = xf * np.exp(1j * angle)
+    
+    # return randomised time series in time domain
+    ft_surr = np.fft.irfft(cxf, axis = 0)
+    
+    return (i, j, ft_surr)
+    
+    
 
 
 def _compute_MF_surrogates(a):
@@ -147,34 +179,41 @@ class SurrogateField(DataField):
         
 
 
-    def construct_fourier_surrogates(self):
+    def construct_fourier_surrogates(self, pool = None):
         """
         Constructs Fourier Transform (FT) surrogates (independent realizations which preserve
         linear structure and covariance structure)
         """
         
         if self.data != None:
-            # transform the time series to Fourier domain
-            xf = np.fft.rfft(self.data, axis = 0)
             
+            if pool == None:
+                map_func = map
+            else:
+                map_func = pool
+                
             # generate uniformly distributed random angles
-            angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
+            a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
+            angle = np.random.uniform(0, 2 * np.pi, (a.shape[0],))
             
             # set the slowest frequency to zero, i.e. not to be randomised
             angle[0] = 0
+            del a
             
-            # randomise the time series with random phases
-            cxf = xf * np.exp(1j * angle[:, np.newaxis, np.newaxis])
+            job_data = [ (i, j, self.data[:, i, j], angle) for i in range(self.lats.shape[0]) for j in range(self.lons.shape[0]) ]
+            job_results = map_func(_compute_FT_surrogates, job_data)
             
-            # return randomised time series in time domain
-            self.surr_data = np.fft.irfft(cxf, axis = 0)
+            self.surr_data = np.zeros_like(self.data)
+            
+            for i, j, surr in job_results:
+                self.surr_data[:, i, j] = surr
            
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
         
         
         
-    def construct_fourier_surrogates_spatial(self):
+    def construct_fourier_surrogates_spatial(self, pool = None):
         """
         Constructs Fourier Transform (FT) surrogates (independent realizations which preserve
         linear structure but not covariance structure - shuffles also along spatial dimensions)
@@ -183,16 +222,24 @@ class SurrogateField(DataField):
         
         if self.data != None:
             
-            xf = np.fft.rfft(self.data, axis = 0)
+            if pool == None:
+                map_func = map
+            else:
+                map_func = pool
             
             # same as above except generate random angles along all dimensions of input data
-            angle = np.random.uniform(0, 2 * np.pi, xf.shape)
-            
+            a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
+            angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], self.lats.shape[0], self.lons.shape[0]))
             angle[0, ...] = 0
+            del a
             
-            cxf = xf * np.exp(1j * angle)
+            job_data = [ (i, j, self.data[:, i, j], angle[:, i, j]) for i in range(self.lats.shape[0]) for j in range(self.lons.shape[0]) ]
+            job_results = map_func(_compute_FT_surrogates, job_data)
             
-            self.surr_data = np.fft.irfft(cxf, axis = 0)
+            self.surr_data = np.zeros_like(self.data)
+            
+            for i, j, surr in job_results:
+                self.surr_data[:, i, j] = surr
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
@@ -289,13 +336,18 @@ class SurrogateField(DataField):
         
         
         
-    def construct_surrogates_with_residuals(self):
+    def construct_surrogates_with_residuals(self, pool = None):
         """
         Constructs a new surrogate time series from AR(k) model.
         Adapted from script by Vejmelka -- https://github.com/vejmelkam/ndw-climate
         """
         
         if self.model_grid != None:
+            
+            if pool == None:
+                map_func = map
+            else:
+                map_func = pool.map
             
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
@@ -305,19 +357,13 @@ class SurrogateField(DataField):
                 num_lons = 1
             num_tm_s = self.time.shape[0] - self.max_ord
             
+            job_data = [ (i, j, self.residuals[:, i, j], self.model_grid[i, j], num_tm_s) for i in range(num_lats) for j in range(num_lons) ]
+            job_results = map_func(_compute_AR_surrogates, job_data)
+            
             self.surr_data = np.zeros((num_tm_s, num_lats, num_lons))
             
-            r = np.zeros((num_tm_s, 1), dtype = np.float64)
-            
-            for i in range(num_lats):
-                for j in range(num_lons):
-                    if np.all(np.isnan(self.residuals[:, i, j])) == False:
-                        ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
-                        r[ndx, 0] = self.residuals[:, i, j]
-        
-                        self.surr_data[:, i, j] = self.model_grid[i, j].simulate_with_residuals(r)[:, 0]
-                    else:
-                        self.surr_data[:, i, j] = np.nan
+            for i, j, surr in job_results:
+                self.surr_data[:, i, j] = surr
                     
             self.surr_data = np.squeeze(self.surr_data)
 
