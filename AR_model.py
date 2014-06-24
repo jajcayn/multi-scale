@@ -1,15 +1,15 @@
 """
-created on May 20, 2014
+created on June 24, 2014
 
 @author: Nikola Jajcay
 """
 
 from src import wavelet_analysis
-from src.data_class import load_station_data, DataField
+from src.data_class import DataField, load_station_data
 from surrogates.surrogates import SurrogateField
 import numpy as np
-from datetime import datetime, date
 import matplotlib.pyplot as plt
+from datetime import date, datetime
 from multiprocessing import Process, Queue
 
 
@@ -29,7 +29,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
             for pos in np.where(percentil[:, 0] == True)[0]:
                 ax1.plot(pos, diffs[0][pos], 'o', markersize = 8, color = '#403A37')
     #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
-    ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
+    #ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
     ax1.set_xlabel('middle year of %.2f-year wide window' % (WINDOW_LENGTH / 365.25), size = 14)
     if MEANS:
         ax1.set_ylabel('difference in cond mean in temperature [$^{\circ}$C]', size = 14)
@@ -79,9 +79,9 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
         tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     #plt.title(tit)
     if MEANS:
-        tit = ('Evolution of difference in cond means temp SATA -- %s \n' % g.location)
+        tit = ('Evolution of difference in cond means -- AR(%d) model with coeffs: %s \n' % (k, str(a_coeffs)))
     else:
-        tit = ('Evolution of difference in cond variance in temp SATA -- %s \n' % g.location)
+        tit = ('Evolution of difference in cond variance -- AR(%d) model with coeffs: %s \n' % (k, str(a_coeffs)))
     tit += subtit
     plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
@@ -90,28 +90,59 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
         plt.savefig(fname)
     else:
         plt.show()
-        
-        
-        
-        
+
+
+"""
+construct univariate AR(k) model in form of X(t) = SUM_k a_k * X(t-k) + epsilon 
+"""
+
+k = 2 # model order
+TS_LEN = 16384 # length of the time series
+SIGMA_NOISE = 1 # standard deviation for noise, which is supposed to be Gaussian with mean 0
+RANDOM_COEFFS = False
+A_COEFFS = [0.7, 0.25] # list of coefficients, should be length of k
+
+## -----------------
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 13462 # 13462
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-MEANS = False # if True, compute conditional means, if False, compute conditional variance
+MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 4
-NUM_SURR = 1000 # how many surrs will be used to evaluate
+NUM_SURR = 10 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
-diff_ax = (1, 8) # means -> 0, 2, var -> 1, 8
-mean_ax = (9, 18) # means -> -1, 1.5, var -> 9, 18
+diff_ax = (0.5, 3) # means -> 0, 2, var -> 1, 8
+mean_ax = (-1, 1) # means -> -1, 1.5, var -> 9, 18
 
 
-## loading data
 g = load_station_data('TG_STAID000027.txt', date(1834,7,28), date(2014,1,1), ANOMALISE)
 g_working = DataField()
 g_surrs = DataField()
 
+TS_LEN = g.data.shape[0]
 
+
+# map coeffs to numpy array
+if RANDOM_COEFFS:
+    A_COEFFS = []
+    for i in range(k):
+        A_COEFFS.append((2*np.random.rand(1) - 1)[0])
+a_coeffs = np.array(A_COEFFS)
+
+# initialize first k time points to noise
+ts = np.zeros((TS_LEN,))
+for i in range(k):
+    ts[i] = np.random.normal(0, SIGMA_NOISE, 1)
+
+# construct time series as AR(k) model
+for i in range(k,TS_LEN):
+    for j in range(k):
+        ts[i] += a_coeffs[j] * ts[i-j-1]
+    ts[i] += np.random.normal(0, SIGMA_NOISE, 1)
+    
+print("**WARNING: USING AR(%d) MODEL INSTEAD OF DATA (coeffs are %s)" % (k, str(a_coeffs)))    
+g.data = ts
+    
 print("[%s] Wavelet analysis in progress with %d year window shifted by %d year(s)..." % (str(datetime.now()), WINDOW_LENGTH, WINDOW_SHIFT))
 k0 = 6. # wavenumber of Morlet wavelet used in analysis
 y = 365.25 # year in days
@@ -274,17 +305,12 @@ mean_95perc = np.array(mean_95perc)
 
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
-fn = ("debug/PRG_%s_%d_%ssurr_16to14k_window.png" % ('means' if MEANS else 'var', NUM_SURR, SURR_TYPE))
+fn = ("debug/AR%d_model_%s_%d_%ssurr_16to14k_window.png" % (k, 'means' if MEANS else 'var', NUM_SURR, SURR_TYPE))
 
 render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
         percentil = where_percentil, fname = fn)
-
-
-
-
-
-
-
+    
+    
 
 
