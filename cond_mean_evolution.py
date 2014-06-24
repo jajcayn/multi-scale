@@ -99,7 +99,7 @@ PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 16384 # 13462
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 16
+WORKERS = 2
 NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
@@ -181,7 +181,7 @@ start_idx = 0
 end_idx = to_wavelet
 
 _, _, idx = g.get_data_of_precise_length('16k', date.fromordinal(g.time[4*y]), None, False)
-first_mid_year = date.fromordinal(g.time[(idx[1] - idx[0])/2]).year
+first_mid_year = date.fromordinal(g.time[idx[0]+8192]).year
 
 
 while end_idx < g.data.shape[0]:
@@ -196,7 +196,7 @@ while end_idx < g.data.shape[0]:
         idx = g_working.get_data_of_precise_length('16k', start_cut, None, True)
         print 'data ', g.get_date_from_ndx(start_idx), ' - ', g.get_date_from_ndx(end_idx)
         print 'cut from ', start_cut, ' to ', g_working.get_date_from_ndx(-1)
-        last_mid_year = date.fromordinal(g_working.time[(idx[1] - idx[0])/2]).year
+        last_mid_year = date.fromordinal(g_working.time[idx[0]+8192]).year
         phase = phase[0, idx[0] : idx[1]]
         phase_bins = get_equidistant_bins() # equidistant bins
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
