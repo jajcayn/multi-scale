@@ -29,7 +29,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
             for pos in np.where(percentil[:, 0] == True)[0]:
                 ax1.plot(pos, diffs[0][pos], 'o', markersize = 8, color = '#403A37')
     #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
-    #ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
+    ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
     ax1.set_xlabel('middle year of %.2f-year wide window' % (WINDOW_LENGTH / 365.25), size = 14)
     if MEANS:
         ax1.set_ylabel('difference in cond mean in temperature [$^{\circ}$C]', size = 14)
@@ -95,7 +95,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
 """
 construct univariate AR(k) model in form of X(t) = SUM_k a_k * X(t-k) + epsilon 
 """
-
+np.random.seed()
 k = 2 # model order
 TS_LEN = 16384 # length of the time series
 SIGMA_NOISE = 1 # standard deviation for noise, which is supposed to be Gaussian with mean 0
@@ -105,13 +105,13 @@ A_COEFFS = [0.7, 0.25] # list of coefficients, should be length of k
 ## -----------------
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 13462 # 13462
+WINDOW_LENGTH = 16384 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 4
-NUM_SURR = 10 # how many surrs will be used to evaluate
+NUM_SURR = 50 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
-diff_ax = (0.5, 3) # means -> 0, 2, var -> 1, 8
+diff_ax = (0, 8) # means -> 0, 2, var -> 1, 8
 mean_ax = (-1, 1) # means -> -1, 1.5, var -> 9, 18
 
 
@@ -140,6 +140,9 @@ for i in range(k,TS_LEN):
         ts[i] += a_coeffs[j] * ts[i-j-1]
     ts[i] += np.random.normal(0, SIGMA_NOISE, 1)
     
+ts[TS_LEN/4:TS_LEN/2] *= 3
+ts[TS_LEN/2:3*TS_LEN/4] /= 2
+    
 print("**WARNING: USING AR(%d) MODEL INSTEAD OF DATA (coeffs are %s)" % (k, str(a_coeffs)))    
 g.data = ts
     
@@ -152,7 +155,7 @@ s0 = period / fourier_factor # get scale
 
 
 cond_means = np.zeros((8,))
-to_wavelet = 16384 # 16384 or 32768
+to_wavelet = 16384 if WINDOW_LENGTH < 16000 else 32768
 
 def get_equidistant_bins():
     return np.array(np.linspace(-np.pi, np.pi, 9))
@@ -293,8 +296,10 @@ while end_idx < g.data.shape[0]:
             meanvar_surr.append(0)
             meanvar_surr_std.append(0)
     cnt += 1
-
-    start_idx = g.find_date_ndx(date(start_year - 4 + WINDOW_SHIFT*cnt, sm, sd))
+    if WINDOW_LENGTH > 16000:
+        start_idx = g.find_date_ndx(date(start_year - 4 + WINDOW_SHIFT*5*cnt/7, sm, sd))
+    else:
+        start_idx = g.find_date_ndx(date(start_year - 4 + WINDOW_SHIFT*cnt, sm, sd))
     end_idx = start_idx + to_wavelet
 
 print("[%s] Wavelet analysis on data done." % (str(datetime.now())))
@@ -305,7 +310,8 @@ mean_95perc = np.array(mean_95perc)
 
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
-fn = ("debug/AR%d_model_%s_%d_%ssurr_16to14k_window.png" % (k, 'means' if MEANS else 'var', NUM_SURR, SURR_TYPE))
+fn = ("debug/AR%d_model_coef_%.2fand%.2f_*3from_quater_to_half_div2_after_%s_%d_%ssurr_%s_window.png" % (k, a_coeffs[0], 
+        a_coeffs[1], 'means' if MEANS else 'var', NUM_SURR, SURR_TYPE, '32to16k' if WINDOW_LENGTH > 16000 else '16to14k'))
 
 render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 

@@ -13,7 +13,7 @@ import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue
 
 
-def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = None):
+def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = None, fname = None):
     fig, ax1 = plt.subplots(figsize=(11,8))
     if len(diffs) > 3:
         ax1.plot(diffs, color = '#403A37', linewidth = 2, figure = fig)
@@ -41,29 +41,41 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
 #    print xnames
 #    plt.xticks(np.linspace(0, cnt, len(xnames)), xnames, rotation = 30)
     plt.xticks(np.arange(0, cnt+8, 8), np.arange(first_mid_year, last_mid_year+8, 8), rotation = 30)
-    ax2 = ax1.twinx()
-    if len(meanvars) > 3:
-        ax2.plot(meanvars, color = '#CA4F17', linewidth = 2, figure = fig) # color = '#CA4F17'
-    else:
-        p4, = ax2.plot(meanvars[1], color = '#64C4A0', linewidth = 1.5, figure = fig)
-        if stds is not None:
-            ax2.plot(meanvars[1] + stds[1], color = '#64C4A0', linewidth = 0.7, figure = fig)
-            ax2.plot(meanvars[1] - stds[1], color = '#64C4A0', linewidth = 0.7, figure = fig)
-            ax2.fill_between(np.arange(0,diffs[1].shape[0],1), meanvars[1] + stds[1], meanvars[1] - stds[1],
-                             facecolor = "#64C4A0", alpha = 0.5)
-        p3, = ax2.plot(meanvars[0], color = '#CA4F17', linewidth = 2, figure = fig)
-        if percentil != None:
-            for pos in np.where(percentil[:, 1] == True)[0]:
-                ax2.plot(pos, meanvars[0][pos], 'o', markersize = 8, color = '#CA4F17')
-    if MEANS:
-        ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
-    elif not MEANS:
-        ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-    ax2.axis([0, cnt-1, mean_ax[0], mean_ax[1]])
-    for tl in ax2.get_yticklabels():
-        tl.set_color('#CA4F17')
-    if len(diffs) < 3:
-        plt.legend([p1, p2, p3, p4], ["difference DATA", "difference SURROGATE mean", "mean DATA", "mean SURROGATE mean"], loc = 2)
+    if not PLOT_PHASE:
+        ax2 = ax1.twinx()
+        if len(meanvars) > 3:
+            ax2.plot(meanvars, color = '#CA4F17', linewidth = 2, figure = fig) # color = '#CA4F17'
+        else:
+            p4, = ax2.plot(meanvars[1], color = '#64C4A0', linewidth = 1.5, figure = fig)
+            if stds is not None:
+                ax2.plot(meanvars[1] + stds[1], color = '#64C4A0', linewidth = 0.7, figure = fig)
+                ax2.plot(meanvars[1] - stds[1], color = '#64C4A0', linewidth = 0.7, figure = fig)
+                ax2.fill_between(np.arange(0,diffs[1].shape[0],1), meanvars[1] + stds[1], meanvars[1] - stds[1],
+                                 facecolor = "#64C4A0", alpha = 0.5)
+            p3, = ax2.plot(meanvars[0], color = '#CA4F17', linewidth = 2, figure = fig)
+            if percentil != None:
+                for pos in np.where(percentil[:, 1] == True)[0]:
+                    ax2.plot(pos, meanvars[0][pos], 'o', markersize = 8, color = '#CA4F17')
+        if MEANS:
+            ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
+        elif not MEANS:
+            ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
+        ax2.axis([0, cnt-1, mean_ax[0], mean_ax[1]])
+        for tl in ax2.get_yticklabels():
+            tl.set_color('#CA4F17')
+        if len(diffs) < 3:
+            plt.legend([p1, p2, p3, p4], ["difference DATA", "difference SURROGATE mean", "mean DATA", "mean SURROGATE mean"], loc = 2)
+
+    elif PLOT_PHASE:
+        ax2 = ax1.twinx().twiny()
+        p3, = ax2.plot(phase, color = '#CA4F17', linewidth = 1.25, figure = fig)
+        ax2.set_ylabel('phase of wavelet in window [rad]', size = 14)
+        ax2.axis([0, phase.shape[0], -2*np.pi, 2*np.pi])
+        for tl in ax2.get_yticklabels():
+            tl.set_color('#CA4F17')
+        for tl in ax2.get_xticklabels():
+            tl.set_color('#CA4F17')
+        plt.legend([p1, p2, p3], ["difference DATA", "difference SURROGATE mean", "phase DATA"], loc = 2)
     tit = 'SURR: Evolution of difference in cond'
     if MEANS:
         tit += ' mean in temp, '
@@ -96,14 +108,16 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, fname = 
         
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 13462 # 13462
+WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-MEANS = False # if True, compute conditional means, if False, compute conditional variance
+MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 4
-NUM_SURR = 1000 # how many surrs will be used to evaluate
+NUM_SURR = 10 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
-diff_ax = (1, 8) # means -> 0, 2, var -> 1, 8
-mean_ax = (9, 18) # means -> -1, 1.5, var -> 9, 18
+diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
+mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
+PLOT_PHASE = True
+BEGIN = False # if True, phase will be rewritten as in the beggining, otherwise as in the end
 
 
 ## loading data
@@ -121,7 +135,7 @@ s0 = period / fourier_factor # get scale
 
 
 cond_means = np.zeros((8,))
-to_wavelet = 16384 # 16384 or 32768
+to_wavelet = 16384 if WINDOW_LENGTH < 16000 else 32768
 
 def get_equidistant_bins():
     return np.array(np.linspace(-np.pi, np.pi, 9))
@@ -182,7 +196,10 @@ end_idx = to_wavelet
 
 _, _, idx = g.get_data_of_precise_length(WINDOW_LENGTH, date.fromordinal(g.time[4*y]), None, False)
 first_mid_year = date.fromordinal(g.time[idx[0]+WINDOW_LENGTH/2]).year
-
+if PLOT_PHASE:
+    phase_total = []
+if PLOT_PHASE and not BEGIN:
+    last_day = g.get_date_from_ndx(4*y)
 
 while end_idx < g.data.shape[0]:
     
@@ -193,11 +210,22 @@ while end_idx < g.data.shape[0]:
         wave, _, _, _ = wavelet_analysis.continous_wavelet(g_working.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
         start_cut = date(start_year+cnt*WINDOW_SHIFT, sm, sd)
-        idx = g_working.get_data_of_precise_length(WINDOW_LENGTH, start_cut, None, True) # 16k or 13462
+        idx = g_working.get_data_of_precise_length(WINDOW_LENGTH, start_cut, None, True)
         print 'data ', g.get_date_from_ndx(start_idx), ' - ', g.get_date_from_ndx(end_idx)
         print 'cut from ', start_cut, ' to ', g_working.get_date_from_ndx(-1)
         last_mid_year = date.fromordinal(g_working.time[WINDOW_LENGTH/2]).year
         phase = phase[0, idx[0] : idx[1]]
+        if PLOT_PHASE and BEGIN:
+            phase_till = date(start_year+(cnt+1)*WINDOW_SHIFT, sm, sd)
+            ndx = g_working.find_date_ndx(phase_till)
+            if ndx != None:
+                phase_total.append(phase[:ndx])
+            else:
+                phase_total.append(phase)
+        if PLOT_PHASE and not BEGIN:
+            ndx = g_working.find_date_ndx(last_day)
+            phase_total.append(phase[ndx:])
+            last_day = g_working.get_date_from_ndx(-1)
         phase_bins = get_equidistant_bins() # equidistant bins
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
@@ -263,7 +291,10 @@ while end_idx < g.data.shape[0]:
             meanvar_surr_std.append(0)
     cnt += 1
 
-    start_idx = g.find_date_ndx(date(start_year - 4 + WINDOW_SHIFT*cnt, sm, sd))
+    if WINDOW_LENGTH > 16000:
+        start_idx = g.find_date_ndx(date(start_year - 4 + WINDOW_SHIFT*5*cnt/7, sm, sd))
+    else:
+        start_idx = g.find_date_ndx(date(start_year - 4 + WINDOW_SHIFT*cnt, sm, sd))
     end_idx = start_idx + to_wavelet
 
 print("[%s] Wavelet analysis on data done." % (str(datetime.now())))
@@ -274,12 +305,20 @@ mean_95perc = np.array(mean_95perc)
 
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
-fn = ("debug/PRG_%s_%d_%ssurr_16to14k_window.png" % ('means' if MEANS else 'var', NUM_SURR, SURR_TYPE))
+if PLOT_PHASE:
+    phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
-render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
-        subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
-        percentil = where_percentil, fname = fn)
+fn = ("debug/PRG_%s_%d_%ssurr_%sk_window%s.png" % ('means' if MEANS else 'var', 
+        NUM_SURR, SURR_TYPE, '16to14' if WINDOW_LENGTH < 16000 else '32to16', '_phase' if PLOT_PHASE else ''))
 
+if PLOT_PHASE:
+    render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
+            subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
+            percentil = where_percentil, phase = phase_tot, fname = fn)
+else:
+    render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
+            subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
+            percentil = where_percentil, fname = fn)
 
 
 
