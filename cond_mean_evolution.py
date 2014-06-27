@@ -108,11 +108,11 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
         
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 16384 # 13462, 16384
+WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 4
-NUM_SURR = 10 # how many surrs will be used to evaluate
+WORKERS = 10
+NUM_SURR = 100 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
 mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
@@ -218,8 +218,8 @@ while end_idx < g.data.shape[0]:
         if PLOT_PHASE and BEGIN:
             phase_till = date(start_year+(cnt+1)*WINDOW_SHIFT, sm, sd)
             ndx = g_working.find_date_ndx(phase_till)
-            print ndx
-            if ndx != None and cnt < 125:
+            cnt_lim = 134 if WINDOW_LENGTH < 16000 else 125
+            if ndx != None and cnt < cnt_lim:
                 phase_total.append(phase[:ndx])
             else:
                 phase_total.append(phase)
