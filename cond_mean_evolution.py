@@ -143,15 +143,15 @@ PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 16384 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 4
-NUM_SURR = 10 # how many surrs will be used to evaluate
+WORKERS = 16
+NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
 mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
 PLOT = False
 PLOT_PHASE = True
 BEGIN = True # if True, phase will be rewritten as in the beggining, otherwise as in the end
-PHASE_ANALYSIS_YEAR = 1964 # year of detailed analysis - phase and bins, or None
+PHASE_ANALYSIS_YEAR = 1960 # year of detailed analysis - phase and bins, or None
 
 
 
@@ -330,7 +330,7 @@ while end_idx < g.data.shape[0]:
             meanvar_surr.append(0)
             meanvar_surr_std.append(0)
             
-    if PHASE_ANALYSIS_YEAR == last_mid_year:
+    if PHASE_ANALYSIS_YEAR < last_mid_year:
         # (bins, cond_means, cond_means_surr, phase, dates, subtit = '', fname = None):
         fn = ('debug/detail/%d_%s_phase_bins_time_point.png' % (last_mid_year, '32to16' if WINDOW_LENGTH > 16000 else '16to14'))
         render_phase_and_bins(phase_bins, cond_means, cond_means_surrs, phase,

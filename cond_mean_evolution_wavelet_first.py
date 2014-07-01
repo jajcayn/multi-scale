@@ -138,13 +138,13 @@ PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 3
-NUM_SURR = 100 # how many surrs will be used to evaluate
+WORKERS = 16
+NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF' # MF, FT, AR
 diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
 mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
 PLOT_PHASE = True
-PHASE_ANALYSIS_YEAR = 1964 # year of detailed analysis - phase and bins, or None
+PHASE_ANALYSIS_YEAR = 1986 # year of detailed analysis - phase and bins, or None
 
 
 ## loading data
@@ -204,7 +204,7 @@ while end < g.data.shape[0]:
 #    print last_mid_year, cond_means
     difference_data.append(cond_means.max() - cond_means.min()) # append difference to list    
     meanvar_data.append(np.mean(cond_means))
-    if last_mid_year == PHASE_ANALYSIS_YEAR-1:
+    if last_mid_year == PHASE_ANALYSIS_YEAR:
         plot_vars.append(phase_bins)
         plot_vars.append(cond_means.copy())
         plot_vars.append(phase_temp.copy())
@@ -269,7 +269,7 @@ def _cond_difference_surrogates(sg, a, jobq, resq):
                     cond_means[i] = np.mean(surr_temp[ndx])
                 else:
                     cond_means[i] = np.var(surr_temp[ndx], ddof = 1)
-            if PHASE_ANALYSIS_YEAR-1 == last_mid_year:
+            if PHASE_ANALYSIS_YEAR == last_mid_year:
                 cond_means_out = cond_means.copy()
             difference_surr.append(cond_means.max() - cond_means.min()) # append difference to list    
             meanvar_surr.append(np.mean(cond_means))
