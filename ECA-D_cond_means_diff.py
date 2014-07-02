@@ -164,8 +164,8 @@ if not MEANS: # from variance to standard deviation
     mean_data = np.sqrt(mean_data)
 fname = ('result/ECA-D_%s_cond_%s_data_from_%s_16k.bin' % ('SATA' if ANOMALISE else 'SAT', 
          'means' if MEANS else 'std', str(START_DATE)))
-with open(fname, 'w') as f:
-    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data}, f)
+with open(fname, 'wb') as f:
+    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data}, f, protocol = cPickle.HIGHEST_PROTOCOL)
     
 # release the g object 
 del g
@@ -235,9 +235,9 @@ if SURR_TYPE is not None:
         surr_mean = np.sqrt(surr_mean)
     fname = ('result/ECA-D_%s_cond_%s_%ssurrogates_from_%s_16k.bin' % ('SATA' if ANOMALISE else 'SAT', 
              'means' if MEANS else 'std', SURR_TYPE, str(START_DATE)))
-    with open(fname, 'w') as f:
+    with open(fname, 'wb') as f:
         cPickle.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
-                      'surrogates_type' : SURR_TYPE}, f)
+                      'surrogates_type' : SURR_TYPE}, f, protocol = cPickle.HIGHEST_PROTOCOL)
                       
 log("Saved.")
 if LOG:
