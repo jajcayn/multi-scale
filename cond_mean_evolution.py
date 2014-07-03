@@ -143,20 +143,20 @@ PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 16384 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 16
-NUM_SURR = 1000 # how many surrs will be used to evaluate
+WORKERS = 4
+NUM_SURR = 100 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
 mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
-PLOT = False
-PLOT_PHASE = True
+PLOT = True
+PLOT_PHASE = False
 BEGIN = True # if True, phase will be rewritten as in the beggining, otherwise as in the end
 PHASE_ANALYSIS_YEAR = 1960 # year of detailed analysis - phase and bins, or None
 
 
 
 ## loading data
-g = load_station_data('TG_STAID000027.txt', date(1834,7,28), date(2014,1,1), ANOMALISE)
+g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), ANOMALISE)
 g_working = DataField()
 g_surrs = DataField()
 
