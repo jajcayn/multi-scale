@@ -11,6 +11,7 @@ import numpy as np
 from datetime import datetime, date
 import cPickle
 from multiprocessing import Pool
+import hickle as hkl
 
 
 
@@ -63,7 +64,7 @@ START_DATE = date(1960,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 MEANS = True # if True conditional means will be evaluated, if False conditional variance
-SURR_TYPE = 'AR' # None, for data, MF, FT or AR
+SURR_TYPE = 'MF' # None, for data, MF, FT or AR
 NUM_SURR = 1000 # number of surrogates to be evaluated
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
@@ -79,8 +80,6 @@ def log(msg):
         log_file.flush()
     else:
         print("[%s] %s" % (str(datetime.now()), msg))
-
-np.random.seed()
 
 ## load and prepare data
 g = load_ECA_D_data_daily('tg_0.25deg_reg_v10.0.nc', 'tg', date(1950,1,1), date(2014,1,1), 
@@ -162,10 +161,11 @@ log("Analysis on data done. Saving file...")
 if not MEANS: # from variance to standard deviation
     difference_data = np.sqrt(difference_data)
     mean_data = np.sqrt(mean_data)
-fname = ('result/ECA-D_%s_cond_%s_data_from_%s_16k.bin' % ('SATA' if ANOMALISE else 'SAT', 
+fname = ('result/ECA-D_%s_cond_%s_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
          'means' if MEANS else 'std', str(START_DATE)))
-with open(fname, 'wb') as f:
+with open(fname + '.bin', 'wb') as f:
     cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data}, fname + '.hkl', mode = 'w')
     
 # release the g object 
 del g
@@ -233,28 +233,14 @@ if SURR_TYPE is not None:
     if not MEANS: # from variance to standard deviation
         surr_diff = np.sqrt(surr_diff)
         surr_mean = np.sqrt(surr_mean)
-    fname = ('result/ECA-D_%s_cond_%s_%ssurrogates_from_%s_16k.bin' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_%s_cond_%s_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
              'means' if MEANS else 'std', SURR_TYPE, str(START_DATE)))
-    with open(fname, 'wb') as f:
+    with open(fname + '.bin', 'wb') as f:
         cPickle.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
                       'surrogates_type' : SURR_TYPE}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+    hkl.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
+                      'surrogates_type' : SURR_TYPE}, fname + '.hkl', mode = 'w')
                       
 log("Saved.")
 if LOG:
     log_file.close()
-        
-        
-
-
-
-
-        
-
-
-    
-    
-    
-    
-    
-    
-    

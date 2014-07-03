@@ -1,18 +1,18 @@
-import cPickle
 import numpy as np
 import marshal
+import hickle as hkl
 
 
-a = np.random.rand(1000, 500, 200)
-b = np.random.rand(1000, 500, 200)
+a = np.random.rand(1000, 500, 200).astype(np.float64)
+b = np.random.rand(1000, 500, 200).astype(np.float64)
 
-pickle = True
+load = True
 
-if pickle:
-    with open('pickle_test.bin', 'wb') as f:
-        cPickle.dump({'a' : a, 'b' : b}, f, protocol=cPickle.HIGHEST_PROTOCOL)
+if not load:
+    hkl.dump({'a' : a, 'b' : b}, 'test_hickle.hkl', mode = 'w')
 else:
-    with open('marhsal_test.bin', 'wb') as f:
-        marshal.dump({'a' : a, 'b' : b}, f)
+    data = hkl.load('test_hickle.hkl')
+
+print data['a'].shape, data['b'].shape
 
 
