@@ -52,5 +52,11 @@ phase_bins = get_equidistant_bins()
 for i in range(phase_bins.shape[0] - 1):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
     ## do stuff!!
+    ## for each bin count: positive extremes (>2sigma, >3sigma, >4sigma as cumulative bar plot)
+    ##                     negative extremes (same)
+    ##                     heat-waves as percentil (90, 95)
+    ##                     cold-waves - same
+    ##                     scaling - avg differences between n=1,..,90 days as log plot
+    ##                     scaling as normal plot
 
 
