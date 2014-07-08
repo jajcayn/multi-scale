@@ -25,7 +25,7 @@ def _get_oscillatory_modes(a):
     Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
     """
     i, j, s0, data = a
-    if np.all(np.isnan(data)) == False:
+    if not np.all(np.isnan(data)):
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
         phase = np.arctan2(np.imag(wave), np.real(wave))
     else:
@@ -40,13 +40,13 @@ def _get_cond_means(a):
     """
     i, j, phase, data, phase_bins = a
     cond_means_temp = np.zeros((8,))
-    if np.all(np.isnan(phase)) == False:
-        for i in range(cond_means_temp.shape[0]):
-            ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
+    if not np.all(np.isnan(phase)):
+        for iota in range(cond_means_temp.shape[0]):
+            ndx = ((phase >= phase_bins[iota]) & (phase <= phase_bins[iota+1]))
             if MEANS:
-                cond_means_temp[i] = np.mean(data[ndx])
+                cond_means_temp[iota] = np.mean(data[ndx])
             else:
-                cond_means_temp[i] = np.var(data[ndx], ddof = 1)
+                cond_means_temp[iota] = np.var(data[ndx], ddof = 1)
         diff_temp = cond_means_temp.max() - cond_means_temp.min()
         mean_temp = np.mean(cond_means_temp)
     else:
@@ -64,7 +64,7 @@ START_DATE = date(1960,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 MEANS = True # if True conditional means will be evaluated, if False conditional variance
-SURR_TYPE = 'FT' # None, for data, MF, FT or AR
+SURR_TYPE = 'MF' # None, for data, MF, FT or AR
 NUM_SURR = 1000 # number of surrogates to be evaluated
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
@@ -94,6 +94,7 @@ if SURR_TYPE is not None:
     log("De-seasonalising the data and copying to surrogate field...")
     _, var, trend = g.get_seasonality(True) # subtract mean, divide by std and subtract trend from data
     sg.copy_field(g) # copy standartised data to SurrogateField
+    g.return_seasonality(0, var, trend) # return seasonality to data
     log("Surrogate fields created.")
 
 
@@ -164,8 +165,10 @@ if not MEANS: # from variance to standard deviation
 fname = ('result/ECA-D_%s_cond_%s_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
          'means' if MEANS else 'std', str(START_DATE)))
 with open(fname + '.bin', 'wb') as f:
-    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data}, f, protocol = cPickle.HIGHEST_PROTOCOL)
-hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data}, fname + '.hkl', mode = 'w')
+    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data,
+                   'lats' : g.lats, 'lons' : g.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
+           'lats' : g.lats, 'lons' : g.lons}, fname + '.hkl', mode = 'w')
     
 # release the g object 
 del g

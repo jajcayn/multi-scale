@@ -13,7 +13,7 @@ from var_model import VARModel
 
 def _prepare_surrogates(a):
     i, j, order_range, crit, ts = a
-    if np.any(np.isnan(ts)) == False:
+    if not np.any(np.isnan(ts)):
         v = VARModel()
         v.estimate(ts, order_range, True, crit, None)
         r = v.compute_residuals(ts)
@@ -27,7 +27,7 @@ def _prepare_surrogates(a):
 def _compute_AR_surrogates(a):
     i, j, res, model, num_tm_s = a
     r = np.zeros((num_tm_s, 1), dtype = np.float64)       
-    if np.all(np.isnan(res)) == False:
+    if not np.all(np.isnan(res)):
         ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
         r[ndx, 0] = res
 
@@ -58,7 +58,7 @@ def _compute_FT_surrogates(a):
 
 def _compute_MF_surrogates(a):
     i, l, ts, randomise_from_scale = a
-    if np.all(np.isnan(ts)) == False:
+    if not np.all(np.isnan(ts)):
         n = int(np.log2(ts.shape[0])) # time series length should be 2^n
         n_real = np.log2(ts.shape[0])
         
