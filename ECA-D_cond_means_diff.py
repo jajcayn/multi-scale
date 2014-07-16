@@ -61,7 +61,7 @@ def _get_cond_means(a):
     
 
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 12 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 22 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
