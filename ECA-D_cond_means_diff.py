@@ -58,9 +58,9 @@ def _get_cond_means(a):
     
 
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 20 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 12 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
-START_DATE = date(1960,1,1)
+START_DATE = date(1958,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 MEANS = True # if True conditional means will be evaluated, if False conditional variance
