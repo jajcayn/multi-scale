@@ -562,6 +562,28 @@ class DataField:
             raise Exception('The data are already monthly values.')
         else:
             raise Exception('Unknown temporal sampling in the field.')
+            
+            
+        
+    def average_to_daily(self):
+        """
+        Averages the 6-hourly values (e.g. ERA-40 basic sampling) into daily.
+        """        
+        
+        delta = self.time[1] - self.time[0]
+        if delta < 1:
+            # data
+            d = np.zeros([self.data.shape[0] / 4] + self.get_spatial_dims())
+            t = np.zeros(self.time.shape[0] / 4)
+            for i in range(d.shape[0]):
+                d[i, ...] = np.mean(self.data[4*i : 4*i+3, ...], axis = 0)
+                t[i] = self.time[4*i]
+                
+            self.data = d
+            self.time = t
+        
+        else:
+            raise Exception('No sub-daily values, you can average to daily only values with finer time sampling.')
         
         
         
