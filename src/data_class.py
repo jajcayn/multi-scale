@@ -9,6 +9,7 @@ from netCDF4 import Dataset
 from datetime import date, timedelta, datetime
 import csv
 from os.path import split
+import os
 from distutils.version import LooseVersion
 
 
@@ -739,7 +740,81 @@ def load_NCEP_data_monthly(filename, varname, start_date, end_date, lats, lons, 
            year[0], day[-1], month[-1], year[-1]))
 
     return g
-
+    
+    
+    
+def load_ERA_data_daily(filename, varname, start_date, end_date, lats, lons, anom, parts = 1, logger_function = None):
+    """
+    Data loader for daily ERA-40 / ERA-Interim data.
+    If more than one file, filename should be all letters they have got in common without suffix.
+    """
+    
+    if logger_function is None:
+        def logger(msg):
+            print("[%s] %s" % (str(datetime.now()), msg))
+    else:
+        logger = logger_function
+        
+    logger("Loading daily ERA-40 / ERA-Interim data...")
+    
+    if parts == 1:
+        path, name = split(filename)
+        if path != '':
+            path += '/'
+            g = DataField(data_folder = path)
+        else:
+            g = DataField()
+        g.load(name, varname, dataset = 'ERA-40', print_prog = False)
+        
+    else:
+        fnames = []
+        glist = []
+        Ndays = 0
+        path, name = split(filename)
+        if path != '':
+            path += '/'
+        else:
+            path = '../data'
+        for root, _, files in os.walk(path):
+            if root == path:
+                for f in files:
+                    if name in f:
+                        fnames.append(f)
+        if parts != len(fnames): 
+            logger("Something went wrong since %d files matching your filename were found instead of %d." % (len(fnames), parts))
+            raise Exception('Check your files and enter correct number of files you want to load.')
+        for f in fnames:
+            g = DataField(data_folder = path + '/')                
+            g.load(f, varname, dataset = 'ERA-40', print_prog = False)
+            Ndays += g.time.shape[0]
+            glist.append(g)
+            
+        data = np.zeros((Ndays, len(glist[0].lats), len(glist[0].lons)))
+        time = np.zeros((Ndays,))
+        n = 0
+        for g in glist:
+            Ndays_i = len(g.time)
+            data[n:Ndays_i + n, ...] = g.data
+            time[n:Ndays_i + n] = g.time
+            n += Ndays_i
+        g = DataField(data = data, lons = glist[0].lons, lats = glist[0].lats, time = time)
+        del glist
+        
+    ## add check for unique - np.unique(g.time) == g.time should be true
+        
+    logger("** loaded")
+    g.select_date(start_date, end_date)
+    g.select_lat_lon(lats, lons)
+    g.average_to_daily()
+    if anom:
+        logger("** anomalising")
+        g.anomalise()
+    day, month, year = g.extract_day_month_year()
+    logger("ERA-40 / ERA-Interim data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+        % (str(g.data.shape), day[0], month[0], 
+           year[0], day[-1], month[-1], year[-1])) 
+           
+    return g
 
 
 def load_ECA_D_data_daily(filename, varname, start_date, end_date, lats, lons, anom, logger_function = None):

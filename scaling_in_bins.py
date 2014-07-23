@@ -195,15 +195,11 @@ g = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), 
 tg_sat = g.copy_data()
 # anomalise to obtain SATA data
 g.anomalise()
-# the same with TX and TN
+
 
 g_max = load_station_data('TX_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
-tx_sat = g_max.copy_data()
-g_max.anomalise()
 
 g_min = load_station_data('TN_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
-tn_sat = g_min.copy_data()
-g_min.anomalise()
 
 g_temp = DataField()
 
@@ -225,7 +221,7 @@ g_max.data = g_max.data[start : end]
 g_max.time = g_max.time[start : end]
 g_min.data = g_min.data[start : end]
 g_min.time = g_min.time[start : end]
-
+tg_sat = tg_sat[start : end]
 
 
 # wavelet
@@ -244,11 +240,12 @@ g_max.data = g_max.data[idx[0] : idx[1]]
 g_max.time = g_max.time[idx[0] : idx[1]]
 g_min.data = g_min.data[idx[0] : idx[1]]
 g_min.time = g_min.time[idx[0] : idx[1]]
-sigma_max = np.nanstd(g.data, axis = 0, ddof = 1)
-sigma_min = np.nanstd(g.data, axis = 0, ddof = 1)
-temp_max = g_max.data.copy()
+tg_sat = tg_sat[idx[0] : idx[1]]
 
 # get sigma for extremes
+sigma_max = np.nanstd(tg_sat, axis = 0, ddof = 1)
+sigma_min = np.nanstd(tg_sat, axis = 0, ddof = 1)
+
 
 # prepare result matrix
 result = np.zeros((8, 18)) # bin no. x result no. (DJF, MAM, JJA, SON)
@@ -280,40 +277,41 @@ for i in range(phase_bins.shape[0] - 1):
     time_temp = g.time[ndx].copy()
     max_temp = g_max.data[ndx].copy()
     min_temp = g_min.data[ndx].copy()
+    tg_sat_temp = tg_sat[ndx].copy()
     
     if not JUST_SCALING:
         g_temp.time = time_temp.copy()
         _, m, _ = g_temp.extract_day_month_year()
         # positive extremes - 2sigma
-        g_e = np.greater_equal(data_temp, 2 * sigma_max)
+        g_e = np.greater_equal(tg_sat_temp, np.mean(tg_sat) + 2 * sigma_max)
         result[i, 0] = np.sum((m[g_e] == 12) | (m[g_e] <= 2)) # DJF
         result[i, 1] = np.sum((m[g_e] > 2) & (m[g_e] <= 5)) # MAM
         result[i, 2] = np.sum((m[g_e] > 5) & (m[g_e] <= 8)) # JJA
         result[i, 3] = np.sum((m[g_e] > 8) & (m[g_e] <= 11)) # SON
         # positive extremes - 3sigma
-        g_e = np.greater_equal(data_temp, 3 * sigma_max)
+        g_e = np.greater_equal(tg_sat_temp, np.mean(tg_sat) + 3 * sigma_max)
         result[i, 4] = np.sum((m[g_e] == 12) | (m[g_e] <= 2)) # DJF
         result[i, 5] = np.sum((m[g_e] > 2) & (m[g_e] <= 5)) # MAM
         result[i, 6] = np.sum((m[g_e] > 5) & (m[g_e] <= 8)) # JJA
         result[i, 7] = np.sum((m[g_e] > 8) & (m[g_e] <= 11)) # SON
         # negative extremes - 2sigma
-        l_e = np.less_equal(data_temp, -2 * sigma_min)
+        l_e = np.less_equal(tg_sat_temp, np.mean(tg_sat) - 2 * sigma_min)
         result[i, 8] = np.sum((m[l_e] == 12) | (m[l_e] <= 2)) # DJF
         result[i, 9] = np.sum((m[l_e] > 2) & (m[l_e] <= 5)) # MAM
         result[i, 10] = np.sum((m[l_e] > 5) & (m[l_e] <= 8)) # JJA
         result[i, 11] = np.sum((m[l_e] > 8) & (m[l_e] <= 11)) # SON
         # negative extremes - 3sigma
-        l_e = np.less_equal(data_temp, -3 * sigma_min)
+        l_e = np.less_equal(tg_sat_temp, np.mean(tg_sat) - 3 * sigma_min)
         result[i, 12] = np.sum((m[l_e] == 12) | (m[l_e] <= 2)) # DJF
         result[i, 13] = np.sum((m[l_e] > 2) & (m[l_e] <= 5)) # MAM
         result[i, 14] = np.sum((m[l_e] > 5) & (m[l_e] <= 8)) # JJA
         result[i, 15] = np.sum((m[l_e] > 8) & (m[l_e] <= 11)) # SON
         for iota in range(data_temp.shape[0]-5):
             # heat waves
-            if np.all(data_temp[iota : iota+5] > 0.8*max_temp[iota : iota+5]):
+            if np.all(tg_sat_temp[iota : iota+5] > 0.8*max_temp[iota : iota+5]):
                 result[i, 16] += 1
             # cold waves
-            if np.all(data_temp[iota : iota+5] < 0.8*min_temp[iota : iota+5]):
+            if np.all(tg_sat_temp[iota : iota+5] < 1.2*min_temp[iota : iota+5]):
                 result[i, 17] += 1
                 
         # histo of HW/CW
@@ -321,9 +319,9 @@ for i in range(phase_bins.shape[0] - 1):
         heat_w = {}
         cold_w = {}
         while iota < data_temp.shape[0]:
-            if get_percentil_exceedance(data_temp[iota], g_max.data, 80, True):
+            if get_percentil_exceedance(tg_sat_temp[iota], g_max.data, 80, True):
                 lag = 0
-                while get_percentil_exceedance(data_temp[iota+lag], g_max.data, 80, True):
+                while get_percentil_exceedance(tg_sat_temp[iota+lag], g_max.data, 80, True):
                     if time_temp[iota+lag] - time_temp[iota+lag-1] == 1:
                         if iota+lag+1 < data_temp.shape[0]:
                             lag += 1
@@ -336,9 +334,9 @@ for i in range(phase_bins.shape[0] - 1):
                     add_value_dict(heat_w, lag)
                 iota += lag
                 
-            elif get_percentil_exceedance(data_temp[iota], g_min.data, 80, False):
+            elif get_percentil_exceedance(tg_sat_temp[iota], g_min.data, 80, False):
                 lag = 0
-                while get_percentil_exceedance(data_temp[iota+lag], g_min.data, 80, False):
+                while get_percentil_exceedance(tg_sat_temp[iota+lag], g_min.data, 80, False):
                     if time_temp[iota+lag] - time_temp[iota+lag-1] == 1:
                         if iota+lag+1 < data_temp.shape[0]:
                             lag += 1
@@ -401,7 +399,7 @@ if JUST_SCALING:
 
 if PLOT:
     if not JUST_SCALING:
-        fname = ('debug/scaling_extremes_%d_%sk_window.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))
+        fname = ('debug/scaling_extremes_%d_%sk_window_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))
         render_extremes_and_scaling_in_bins(result, hw, cw, fname)
     else:
         fname = ('debug/scaling_min_max_%d_%sk_window.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))
