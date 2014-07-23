@@ -257,8 +257,17 @@ class DataField:
                 print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
             if self.missing.shape[0] != 0:
                 print("** WARNING: There were some missing values! To be precise, %d missing values were found!" % (self.missing.shape[0]))
-                        
+                  
+                  
+                  
+    def copy_data(self):
+        """
+        Returns the copy of data.
+        """              
+        
+        return self.data.copy()
                                             
+                    
                     
     def select_date(self, date_from, date_to):
         """
