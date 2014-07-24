@@ -2,6 +2,7 @@
 created on Jan 29, 2014
 
 @author: Nikola Jajcay, based on script by Martin Vejmelka> -- https://github.com/vejmelkam/ndw-climate --
+         jajcay@cs.cas.cz
 """
 
 import numpy as np
@@ -756,6 +757,7 @@ def load_ERA_data_daily(filename, varname, start_date, end_date, lats, lons, ano
         
     logger("Loading daily ERA-40 / ERA-Interim data...")
     
+    # if in one file, just load it
     if parts == 1:
         path, name = split(filename)
         if path != '':
@@ -764,7 +766,8 @@ def load_ERA_data_daily(filename, varname, start_date, end_date, lats, lons, ano
         else:
             g = DataField()
         g.load(name, varname, dataset = 'ERA-40', print_prog = False)
-        
+    
+    # if in more files, find them all and load them
     else:
         fnames = []
         glist = []
@@ -800,7 +803,22 @@ def load_ERA_data_daily(filename, varname, start_date, end_date, lats, lons, ano
         del glist
         
     if not np.all(np.unique(g.time) == g.time):
-        raise Exception('Some days are overlapping, resulting in double values. Please, check your fields.')        
+        logger('**WARNING: Some fields are overlapping, trying to fix this... (please note: experimental feature)')
+        doubles = []
+        for i in range(g.time.shape[0]):
+            if np.where(g.time == g.time[i])[0].shape[0] == 1:
+                # if there is one occurence of time value do nothing
+                pass
+            else:
+                # remember the indices of other occurences
+                doubles.append(np.where(g.time == g.time[i])[0][1:])
+        logger("... found %d multiple values (according to time field)..." % (len(doubles)/4))
+        delete_mask = np.squeeze(np.array(doubles)) # mask with multiple indices
+        # time
+        g.time = np.delete(g.time, delete_mask)
+        # data
+        g.data = np.delete(g.data, delete_mask, axis = 0)
+        
         
     logger("** loaded")
     g.select_date(start_date, end_date)

@@ -2,7 +2,7 @@
 """
 Created on Fri Mar  2 13:59:39 2012
 
-@author: martin
+@author: Martin Vejmelka -- https://github.com/vejmelkam/ndw-climate --
 
 Programmed according to Neumaier and Schneider and heavily inspired by ARFIT toolkit.
 """
@@ -11,7 +11,7 @@ import numpy as np
 from scipy import linalg
 import math
 
-# pyximport to import var_model_acc.pyx - N. J. 
+# pyximport to import var_model_acc.pyx - Nikola Jajcay 
 import pyximport; pyximport.install()
 import var_model_acc
 
