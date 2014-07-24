@@ -5,13 +5,13 @@ created on June 13, 2014
 """
 
 from src import wavelet_analysis as wvlt
-from src.data_class import load_ECA_D_data_daily
+from src.data_class import load_ECA_D_data_daily, load_ERA_data_daily
 from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import cPickle
 from multiprocessing import Pool
-import hickle as hkl
+#import hickle as hkl
 
 
 
@@ -60,20 +60,23 @@ def _get_cond_means(a):
     
     
 
+ECA = False # if False ERA-40 will be evaluated instead
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 22 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 3 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
-SURR_TYPE = 'MF' # None, for data, MF, FT or AR
+SURR_TYPE = 'ALL' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
 NUM_SURR = 1000 # number of surrogates to be evaluated
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
 
 
-if LOG:
+if LOG and ECA:
     log_file = open('result/ECA-D_%s_cond_mean_var_%s.log' % ('SATA' if ANOMALISE else 'SAT', datetime.now().strftime('%Y%m%d-%H%M')), 'w')
+elif LOG and not ECA:
+    log_file = open('result/ERA_%s_cond_mean_var_%s.log' % ('SATA' if ANOMALISE else 'SAT', datetime.now().strftime('%Y%m%d-%H%M')), 'w')
 
 def log(msg):
     if LOG:
@@ -83,9 +86,16 @@ def log(msg):
         print("[%s] %s" % (str(datetime.now()), msg))
 
 ## load and prepare data
-g = load_ECA_D_data_daily('tg_0.25deg_reg_v10.0.nc', 'tg', date(1950,1,1), date(2014,1,1), 
-                            LATS, LONS, ANOMALISE, logger_function = log)
+# ECA&D
+if ECA:
+    g = load_ECA_D_data_daily('tg_0.25deg_reg_v10.0.nc', 'tg', date(1950,1,1), date(2014,1,1), 
+                                LATS, LONS, ANOMALISE, logger_function = log)
                             
+# ERA-40 + ERA-Interim
+else:
+    g = load_ERA_data_daily('ERA40_EU', 't2m', date(1958,1,1), date(2004,1,1), LATS, LONS, ANOMALISE, 
+                             parts = 3, logger_function = log)
+                             
 g.get_data_of_precise_length('16k', START_DATE, None, True) # get 2^n data because of MF surrogates
 END_DATE = g.get_date_from_ndx(-1)
 
@@ -153,7 +163,7 @@ del job_result
 
 
 # if surrogate type is AR, exploit the pool to prepare the AR model
-if SURR_TYPE == 'AR':
+if SURR_TYPE == 'AR' or SURR_TYPE == 'ALL':
     log("Creating AR(1) model and computing residuals...")
     sg.prepare_AR_surrogates(pool)
 
@@ -167,14 +177,17 @@ log("Analysis on data done. Saving file...")
 # from variance to standard deviation
 difference_data_var = np.sqrt(difference_data_var)
 mean_data_var = np.sqrt(mean_data_var)
-fname = ('result/ECA-D_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))
+if ECA:
+    fname = ('result/ECA-D_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))
+else:
+    fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))    
 with open(fname + '.bin', 'wb') as f:
     cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
                    'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var, 
                    'lats' : g.lats, 'lons' : g.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
-hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
-           'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var,
-           'lats' : g.lats, 'lons' : g.lons}, fname + '.hkl', mode = 'w')
+#hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
+#           'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var,
+#           'lats' : g.lats, 'lons' : g.lons}, fname + '.hkl', mode = 'w')
     
 # release the g object 
 del g
@@ -182,7 +195,8 @@ del g
 ## surrogates
 if SURR_TYPE is not None:
     log("Computing %d %s surrogates in parallel using %d workers..." % (NUM_SURR, SURR_TYPE, WORKERS))
-    surr_diff = np.zeros((NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
+    SU = 3 if SURR_TYPE == 'ALL' else 1
+    surr_diff = np.zeros((SU, NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
     surr_mean = np.zeros_like(surr_diff)
     surr_diff_var = np.zeros_like(surr_diff)
     surr_mean_var = np.zeros_like(surr_diff)
@@ -191,49 +205,50 @@ if SURR_TYPE is not None:
     t_last = t_start
     pool = Pool(WORKERS)
     
-    for surr_completed in range(NUM_SURR):
-        # create surrogates field
-        if SURR_TYPE == 'MF':
-            sg.construct_multifractal_surrogates(pool = pool)
-            sg.add_seasonality(0, var, trend)
-        elif SURR_TYPE == 'FT':
-            sg.construct_fourier_surrogates_spatial(pool = pool)
-            sg.add_seasonality(0, var, trend)
-        elif SURR_TYPE == 'AR':
-            sg.construct_surrogates_with_residuals(pool = pool)
-            sg.add_seasonality(0, var[:-1, ...], trend[:-1, ...])
+    for su_type in range(SU):
+        for surr_completed in range(NUM_SURR):
+            # create surrogates field
+            if (SURR_TYPE == 'MF') or (SURR_TYPE == 'ALL' and su_type == 0):
+                sg.construct_multifractal_surrogates(pool = pool)
+                sg.add_seasonality(0, var, trend)
+            elif (SURR_TYPE == 'FT') or (SURR_TYPE == 'ALL' and su_type == 1):
+                sg.construct_fourier_surrogates_spatial(pool = pool)
+                sg.add_seasonality(0, var, trend)
+            elif (SURR_TYPE == 'AR') or (SURR_TYPE == 'ALL' and su_type == 2):
+                sg.construct_surrogates_with_residuals(pool = pool)
+                sg.add_seasonality(0, var[:-1, ...], trend[:-1, ...])
+        
+            # oscialltory modes
+            phase_surrs = np.zeros_like(sg.surr_data)
+            job_args = [ (i, j, s0, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
+            job_result = pool.map(_get_oscillatory_modes, job_args)
+            del job_args
+            # map results
+            for i, j, ph in job_result:
+                phase_surrs[:, i, j] = ph
+            del job_result
     
-        # oscialltory modes
-        phase_surrs = np.zeros_like(sg.surr_data)
-        job_args = [ (i, j, s0, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
-        job_result = pool.map(_get_oscillatory_modes, job_args)
-        del job_args
-        # map results
-        for i, j, ph in job_result:
-            phase_surrs[:, i, j] = ph
-        del job_result
-
-        sg.surr_data = sg.surr_data[IDX, ...]
-        phase_surrs = phase_surrs[IDX, ...]
-
-        job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
-        job_result = pool.map(_get_cond_means, job_args)
-        del job_args, phase_surrs
-        # map results
-        for i, j, diff_t, mean_t, diff_var, mean_var in job_result:
-            surr_diff[surr_completed, i, j] = diff_t
-            surr_mean[surr_completed, i, j] = mean_t
-            surr_diff_var[surr_completed, i, j] = diff_var
-            surr_mean_var[surr_completed, i, j] = mean_var
-        del job_result
-
-        # time to go
-        t_now = datetime.now()
-        if ((t_now - t_last).total_seconds() > 600) and surr_completed > 0:
-            t_last = t_now
-            dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
-            log("PROGRESS: %d/%d surrogate done, predicted completition at %s" % (surr_completed, NUM_SURR, 
-                str(t_now + dt)))
+            sg.surr_data = sg.surr_data[IDX, ...]
+            phase_surrs = phase_surrs[IDX, ...]
+    
+            job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
+            job_result = pool.map(_get_cond_means, job_args)
+            del job_args, phase_surrs
+            # map results
+            for i, j, diff_t, mean_t, diff_var, mean_var in job_result:
+                surr_diff[su_type, surr_completed, i, j] = diff_t
+                surr_mean[su_type, surr_completed, i, j] = mean_t
+                surr_diff_var[su_type, surr_completed, i, j] = diff_var
+                surr_mean_var[su_type, surr_completed, i, j] = mean_var
+            del job_result
+    
+            # time to go
+            t_now = datetime.now()
+            if ((t_now - t_last).total_seconds() > 600) and surr_completed > 0:
+                t_last = t_now
+                dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
+                log("PROGRESS: %d/%d surrogate done, predicted completition at %s" % (surr_completed, NUM_SURR, 
+                    str(t_now + dt)))
 
     if pool is not None:
         pool.close()
@@ -246,15 +261,19 @@ if SURR_TYPE is not None:
 
     surr_diff_var = np.sqrt(surr_diff_var)
     surr_mean_var = np.sqrt(surr_mean_var)
-    fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
-             SURR_TYPE, str(START_DATE)))
+    if ECA:
+        fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+                    SURR_TYPE, str(START_DATE)))
+    else:
+        fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+                    SURR_TYPE, str(START_DATE)))
     with open(fname + '.bin', 'wb') as f:
         cPickle.dump({'difference_surrogates' : surr_diff, 'mean_surrogates' : surr_mean,
                       'difference_surrogates_var' : surr_diff_var, 'mean_surrogates_var' : surr_mean_var,
                       'surrogates_type' : SURR_TYPE}, f, protocol = cPickle.HIGHEST_PROTOCOL)
-    hkl.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
-                'difference_surrogates_var' : surr_diff_var, 'mean_surrogates_var' : surr_mean_var,
-                'surrogates_type' : SURR_TYPE}, fname + '.hkl', mode = 'w')
+#    hkl.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
+#                'difference_surrogates_var' : surr_diff_var, 'mean_surrogates_var' : surr_mean_var,
+#                'surrogates_type' : SURR_TYPE}, fname + '.hkl', mode = 'w')
                       
 log("Saved.")
 if LOG:

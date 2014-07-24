@@ -573,7 +573,6 @@ class DataField:
         
         delta = self.time[1] - self.time[0]
         if delta < 1:
-            # data
             d = np.zeros([self.data.shape[0] / 4] + self.get_spatial_dims())
             t = np.zeros(self.time.shape[0] / 4)
             for i in range(d.shape[0]):
@@ -581,7 +580,7 @@ class DataField:
                 t[i] = self.time[4*i]
                 
             self.data = d
-            self.time = t
+            self.time = t.astype(np.int)
         
         else:
             raise Exception('No sub-daily values, you can average to daily only values with finer time sampling.')
@@ -800,7 +799,8 @@ def load_ERA_data_daily(filename, varname, start_date, end_date, lats, lons, ano
         g = DataField(data = data, lons = glist[0].lons, lats = glist[0].lats, time = time)
         del glist
         
-    ## add check for unique - np.unique(g.time) == g.time should be true
+    if not np.all(np.unique(g.time) == g.time):
+        raise Exception('Some days are overlapping, resulting in double values. Please, check your fields.')        
         
     logger("** loaded")
     g.select_date(start_date, end_date)
