@@ -11,7 +11,7 @@ import numpy as np
 from datetime import datetime, date
 import cPickle
 from multiprocessing import Pool
-#import hickle as hkl
+import hickle as hkl
 
 
 
@@ -63,14 +63,14 @@ def _get_cond_means(a):
     
     
 
-ECA = False # if False ERA-40 will be evaluated instead
+ECA = True # if False ERA-40 will be evaluated instead
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 3 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 16 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
-SURR_TYPE = 'ALL' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
+SURR_TYPE = 'MF' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
 NUM_SURR = 1000 # number of surrogates to be evaluated
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 SEASON = None
@@ -210,8 +210,10 @@ with open(fname + '.bin', 'wb') as f:
 #                   'lats' : g.lats, 'lons' : g.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
     cPickle.dump({'bins_data' : bins_data, 'bins_data_var' : bins_data_var, 'season' : SEASON, 
                    'lats' : g.lats, 'lons' : g.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
-#hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
+# hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
 #           'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var,
+#           'lats' : g.lats, 'lons' : g.lons}, fname + '.hkl', mode = 'w')
+# hkl.dump({'bins_data' : bins_data, 'bins_data_var' : bins_data_var, 'season' : SEASON,
 #           'lats' : g.lats, 'lons' : g.lons}, fname + '.hkl', mode = 'w')
     
 # release the g object 
@@ -313,9 +315,11 @@ if SURR_TYPE is not None:
 #                      'surrogates_type' : SURR_TYPE}, f, protocol = cPickle.HIGHEST_PROTOCOL)
         cPickle.dump({'bins_surrogates' : bins_surrogates, 'bins_surrogates_var' : bins_surrogates_var, 'season' : SEASON,
                       'surrogates_type' : SURR_TYPE}, f, protocol = cPickle.HIGHEST_PROTOCOL)
-#    hkl.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
-#                'difference_surrogates_var' : surr_diff_var, 'mean_surrogates_var' : surr_mean_var,
-#                'surrogates_type' : SURR_TYPE}, fname + '.hkl', mode = 'w')
+   # hkl.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
+   #             'difference_surrogates_var' : surr_diff_var, 'mean_surrogates_var' : surr_mean_var,
+   #             'surrogates_type' : SURR_TYPE}, fname + '.hkl', mode = 'w')
+    # hkl.dump({'bins_surrogates' : bins_surrogates, 'bins_surrogates_var' : bins_surrogates_var, 'season' : SEASON,
+    #            'surrogates_type' : SURR_TYPE}, fname + '.hkl', mode = 'w')
                       
 log("Saved.")
 if LOG:
