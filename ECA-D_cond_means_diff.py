@@ -218,7 +218,7 @@ if SURR_TYPE is not None:
                 sg.construct_surrogates_with_residuals(pool = pool)
                 sg.add_seasonality(0, var[:-1, ...], trend[:-1, ...])
         
-            # oscialltory modes
+            # oscillatory modes
             phase_surrs = np.zeros_like(sg.surr_data)
             job_args = [ (i, j, s0, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
             job_result = pool.map(_get_oscillatory_modes, job_args)
@@ -249,6 +249,7 @@ if SURR_TYPE is not None:
                 dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
                 log("PROGRESS: %d/%d surrogate done, predicted completition at %s" % (surr_completed, NUM_SURR, 
                     str(t_now + dt)))
+
 
     if pool is not None:
         pool.close()

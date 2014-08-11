@@ -165,6 +165,22 @@ class SurrogateField(DataField):
             self.surr_data += mean
         else:
             raise Exception("Surrogate data has not been created yet.")
+            
+            
+        
+    def remove_seasonality(self, mean, var, trend):
+        """
+        Removes seasonality from surrogates in order to use same field for 
+        multiple surrogate construction.
+        """        
+        
+        if self.surr_data != None:
+            self.surr_data -= mean
+            self.surr_data /= var
+            if trend != None:
+                self.surr_data -= trend
+        else:
+            raise Exception("Surrogate data has not been created yet.")
         
         
         
