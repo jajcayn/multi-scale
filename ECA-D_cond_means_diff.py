@@ -46,17 +46,20 @@ def _get_cond_means(a):
             ndx = ((phase >= phase_bins[iota]) & (phase <= phase_bins[iota+1]))
             cond_means_temp_m[iota] = np.mean(data[ndx])
             cond_means_temp_v[iota] = np.var(data[ndx], ddof = 1)
-        diff_temp_m = cond_means_temp_m.max() - cond_means_temp_m.min()
-        mean_temp_m = np.mean(cond_means_temp_m)
-        diff_temp_v = cond_means_temp_v.max() - cond_means_temp_v.min()
-        mean_temp_v = np.mean(cond_means_temp_v)
+#        diff_temp_m = cond_means_temp_m.max() - cond_means_temp_m.min()
+#        mean_temp_m = np.mean(cond_means_temp_m)
+#        diff_temp_v = cond_means_temp_v.max() - cond_means_temp_v.min()
+#        mean_temp_v = np.mean(cond_means_temp_v)
     else:
-        diff_temp_m = np.nan
-        mean_temp_m = np.nan
-        diff_temp_v = np.nan
-        mean_temp_v = np.nan
+#        diff_temp_m = np.nan
+#        mean_temp_m = np.nan
+#        diff_temp_v = np.nan
+#        mean_temp_v = np.nan
+        cond_means_temp_m = [np.nan for ii in range(8)]
+        cond_means_temp_v = [np.nan for ii in range(8)]
 
-    return i, j, diff_temp_m, mean_temp_m, diff_temp_v, mean_temp_v
+    return i, j, cond_means_temp_m, cond_means_temp_v 
+#    diff_temp_m, mean_temp_m, diff_temp_v, mean_temp_v
     
     
 
@@ -70,6 +73,7 @@ LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 SURR_TYPE = 'ALL' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
 NUM_SURR = 1000 # number of surrogates to be evaluated
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
+SEASON = None
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
 
 
@@ -143,22 +147,38 @@ phase_data = phase_data[IDX, ...]
 
 log("Wavelet on data done. Computing conditional mean and variance on data...")
 
+# subselect season if desired
+if SEASON != None:
+    season_list = [str(mon) for mon in SEASON]
+    log("Selecting only %s months..." % (', '.join(season_list)))
+    NDX_SEASON = g.select_months(SEASON)
+    phase_data = phase_data[NDX_SEASON, ...]
+
 ## conditional means / variance data
-difference_data = np.zeros(g.get_spatial_dims())
-mean_data = np.zeros(g.get_spatial_dims())
-difference_data_var = np.zeros(g.get_spatial_dims())
-mean_data_var = np.zeros(g.get_spatial_dims())
+#==============================================================================
+# difference_data = np.zeros(g.get_spatial_dims())
+# mean_data = np.zeros(g.get_spatial_dims())
+# difference_data_var = np.zeros(g.get_spatial_dims())
+# mean_data_var = np.zeros(g.get_spatial_dims())
+#==============================================================================
+bins_data = np.zeros(g.get_spatial_dims() + [8])
+bins_data_var = np.zeros(g.get_spatial_dims() + [8])
 phase_bins = get_equidistant_bins()
 
 job_args = [ (i, j, phase_data[:, i, j], g.data[:, i, j], phase_bins) for i in range(g.lats.shape[0]) for j in range(g.lons.shape[0]) ]
 job_result = map_func(_get_cond_means, job_args)
 del job_args, phase_data
 # map results
-for i, j, diff_t, mean_t, diff_var, mean_var in job_result:
-    difference_data[i, j] = diff_t
-    mean_data[i, j] = mean_t
-    difference_data_var[i, j] = diff_var
-    mean_data_var[i, j] = mean_var
+#==============================================================================
+# for i, j, diff_t, mean_t, diff_var, mean_var in job_result:
+#     difference_data[i, j] = diff_t
+#     mean_data[i, j] = mean_t
+#     difference_data_var[i, j] = diff_var
+#     mean_data_var[i, j] = mean_var
+#==============================================================================
+for i, j, cmm, cmv in job_result:
+    bins_data[i, j, :] = cmm
+    bins_data_var[i, j, :] = cmv
 del job_result
 
 
@@ -175,15 +195,20 @@ if pool is not None:
 log("Analysis on data done. Saving file...")
 ## save file in case something will go wrong with surrogates..
 # from variance to standard deviation
-difference_data_var = np.sqrt(difference_data_var)
-mean_data_var = np.sqrt(mean_data_var)
+#==============================================================================
+# difference_data_var = np.sqrt(difference_data_var)
+# mean_data_var = np.sqrt(mean_data_var)
+#==============================================================================
+bins_data_var = np.sqrt(bins_data_var)
 if ECA:
     fname = ('result/ECA-D_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))    
 with open(fname + '.bin', 'wb') as f:
-    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
-                   'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var, 
+#    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
+#                   'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var, 
+#                   'lats' : g.lats, 'lons' : g.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+    cPickle.dump({'bins_data' : bins_data, 'bins_data_var' : bins_data_var, 'season' : SEASON, 
                    'lats' : g.lats, 'lons' : g.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 #hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
 #           'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var,
@@ -196,10 +221,12 @@ del g
 if SURR_TYPE is not None:
     log("Computing %d %s surrogates in parallel using %d workers..." % (NUM_SURR, SURR_TYPE, WORKERS))
     SU = 3 if SURR_TYPE == 'ALL' else 1
-    surr_diff = np.zeros((SU, NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
-    surr_mean = np.zeros_like(surr_diff)
-    surr_diff_var = np.zeros_like(surr_diff)
-    surr_mean_var = np.zeros_like(surr_diff)
+#    surr_diff = np.zeros((SU, NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
+#    surr_mean = np.zeros_like(surr_diff)
+#    surr_diff_var = np.zeros_like(surr_diff)
+#    surr_mean_var = np.zeros_like(surr_diff)
+    bins_surrogates = np.zeros((SU, NUM_SURR, sg.data.shape[1], sg.data.shape[2], 8))
+    bins_surrogates_var = np.zeros_like(bins_surrogates)
     phase_bins = get_equidistant_bins()
     t_start = datetime.now()
     t_last = t_start
@@ -230,16 +257,25 @@ if SURR_TYPE is not None:
     
             sg.surr_data = sg.surr_data[IDX, ...]
             phase_surrs = phase_surrs[IDX, ...]
+            
+            if SEASON:
+                sg.surr_data = sg.surr_data[NDX_SEASON, ...]
+                phase_surrs = phase_surrs[NDX_SEASON, ...]
     
             job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
             job_result = pool.map(_get_cond_means, job_args)
             del job_args, phase_surrs
             # map results
-            for i, j, diff_t, mean_t, diff_var, mean_var in job_result:
-                surr_diff[su_type, surr_completed, i, j] = diff_t
-                surr_mean[su_type, surr_completed, i, j] = mean_t
-                surr_diff_var[su_type, surr_completed, i, j] = diff_var
-                surr_mean_var[su_type, surr_completed, i, j] = mean_var
+#==============================================================================
+#             for i, j, diff_t, mean_t, diff_var, mean_var in job_result:
+#                 surr_diff[su_type, surr_completed, i, j] = diff_t
+#                 surr_mean[su_type, surr_completed, i, j] = mean_t
+#                 surr_diff_var[su_type, surr_completed, i, j] = diff_var
+#                 surr_mean_var[su_type, surr_completed, i, j] = mean_var
+#==============================================================================
+            for i, j, cmm, cmv in job_result:
+                bins_surrogates[su_type, surr_completed, i, j, :] = cmm
+                bins_surrogates_var[su_type, surr_completed, i, j, :] = cmv
             del job_result
     
             # time to go
@@ -260,8 +296,11 @@ if SURR_TYPE is not None:
     
     ## save file with surrogates
 
-    surr_diff_var = np.sqrt(surr_diff_var)
-    surr_mean_var = np.sqrt(surr_mean_var)
+#==============================================================================
+#     surr_diff_var = np.sqrt(surr_diff_var)
+#     surr_mean_var = np.sqrt(surr_mean_var)
+#==============================================================================
+    bins_surrogates_var = np.sqrt(bins_surrogates_var)
     if ECA:
         fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                     SURR_TYPE, str(START_DATE)))
@@ -269,8 +308,10 @@ if SURR_TYPE is not None:
         fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                     SURR_TYPE, str(START_DATE)))
     with open(fname + '.bin', 'wb') as f:
-        cPickle.dump({'difference_surrogates' : surr_diff, 'mean_surrogates' : surr_mean,
-                      'difference_surrogates_var' : surr_diff_var, 'mean_surrogates_var' : surr_mean_var,
+#        cPickle.dump({'difference_surrogates' : surr_diff, 'mean_surrogates' : surr_mean,
+#                      'difference_surrogates_var' : surr_diff_var, 'mean_surrogates_var' : surr_mean_var,
+#                      'surrogates_type' : SURR_TYPE}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+        cPickle.dump({'bins_surrogates' : bins_surrogates, 'bins_surrogates_var' : bins_surrogates_var, 'season' : SEASON,
                       'surrogates_type' : SURR_TYPE}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 #    hkl.dump({'difference_surrogates' : surr_diff, 'mean surrogates' : surr_mean,
 #                'difference_surrogates_var' : surr_diff_var, 'mean_surrogates_var' : surr_mean_var,
