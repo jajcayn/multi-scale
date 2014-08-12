@@ -12,6 +12,7 @@ import csv
 from os.path import split
 import os
 from distutils.version import LooseVersion
+import cPickle
 
 
 
@@ -913,6 +914,30 @@ def load_NCEP_data_daily(filename, varname, start_date, end_date, lats, lons, le
 
     print("[%s] NCEP data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
         % (str(datetime.now()), str(g.data.shape), day[0], month[0], 
+           year[0], day[-1], month[-1], year[-1]))
+           
+    return g
+    
+    
+    
+def load_bin_data(filename, start_date, end_date, anom):
+    """
+    Data loader for daily binned data.
+    """
+    
+    _, name = split(filename)
+    print("[%s] Loading daily binned data from %s reanalysis..." % (str(datetime.now()), name.split('_')[0]))
+    with open(filename, 'rb') as f:
+        g = cPickle.load(f)['g']
+        
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    day, month, year = g.extract_day_month_year()
+    print("[%s] Data from %s loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+        % (str(datetime.now()), g.location, str(g.data.shape), day[0], month[0], 
            year[0], day[-1], month[-1], year[-1]))
            
     return g
