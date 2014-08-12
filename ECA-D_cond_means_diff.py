@@ -11,7 +11,7 @@ import numpy as np
 from datetime import datetime, date
 import cPickle
 from multiprocessing import Pool
-import hickle as hkl
+#import hickle as hkl
 
 
 
@@ -63,14 +63,14 @@ def _get_cond_means(a):
     
     
 
-ECA = True # if False ERA-40 will be evaluated instead
+ECA = False # if False ERA-40 will be evaluated instead
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 16 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 2 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
-SURR_TYPE = 'MF' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
+SURR_TYPE = 'ALL' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
 NUM_SURR = 1000 # number of surrogates to be evaluated
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 SEASON = None

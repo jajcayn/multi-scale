@@ -29,7 +29,7 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
     m.drawmeridians(np.arange(-40, 80, 10), linewidth = 1.2, labels = [0,0,0,1], color = "#222222")
     x, y = m(*np.meshgrid(lons, lats))
     if not MEANS:
-        levs = np.arange(0.,4.,0.25) # 0.5 - 6 / 0.25
+        levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
     else:
         levs = np.arange(0,4,0.2) # 0 - 4 / 0.2
     if ECA:
@@ -48,7 +48,7 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
             title = ("%s reanalysis - differences of conditional standard deviation \n %d %s surrogates" % ('ECA & D' if ECA else 'ERA-40', num_surr, SURR_TYPE))        
     else:
         if MEANS:
-            title = ("%s reanalysis - differences of conditional means \n DATA" % ('ECA % D' if ECA else 'ERA-40'))
+            title = ("%s reanalysis - differences of conditional means \n FT SURROGATE STD" % ('ECA % D' if ECA else 'ERA-40'))
         else:
             title = ("%s reanalysis - differences of conditional standard deviation \n MF SURROGATE STD" % ('ECA % D' if ECA else 'ERA-40'))
     title += subtit
@@ -66,7 +66,7 @@ START_DATE = date(1958,1,1)
 MEANS = True
 ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
-SIGN = False # wheter to check significance or just plot results
+SIGN = True # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
 PERCENTIL = 95
 
@@ -78,7 +78,7 @@ if ECA:
     fname = ('result/ECA-D_%s_cond_means_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                                                               str(START_DATE)))
 else:
-    fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
                                                               str(START_DATE)))
 if PICKLE:
     with open(fname + '.bin', 'rb') as f:
@@ -99,7 +99,7 @@ if ECA:
     fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                  SURR_TYPE, str(START_DATE)))
 else:
-    fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
                  SURR_TYPE, str(START_DATE)))
 if PICKLE:
     with open(fname + '.bin', 'rb') as f:
@@ -134,10 +134,10 @@ if SIGN:
                         result_sigma[lat, lon] = difference_data[lat, lon]
                     else:
                         result_sigma[lat, lon] = np.nan # or np.nan
-                    print 'lat x lon - ', lats[lat],'x', lons[lon]
-                    print 'data - ', difference_data[lat, lon]
-                    print 'exceedance should be - ', mean + SIGMAS_ABOVE*sigma
-                    print 
+#                    print 'lat x lon - ', lats[lat],'x', lons[lon]
+#                    print 'data - ', difference_data[lat, lon]
+#                    print 'exceedance should be - ', mean + SIGMAS_ABOVE*sigma
+#                    print 
                         
                     # percentil-based significance
                     greater_mat = np.greater(difference_data[lat, lon], difference_surrogates[SU, :, lat, lon])
@@ -172,6 +172,7 @@ if SIGN:
             SURR_TYPE = 'FT'
         elif SU == 2:
             SURR_TYPE = 'AR'
+    print('total grid points: %d -- not significant grid points: %d' % (np.prod(result_sigma.shape), np.sum(np.isnan(result_sigma))))
     fname = ('debug/%s_%s_cond_%s_%ssurrogates_from_%s_16k_above_%.1fsigma.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
                  'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), SIGMAS_ABOVE))
     render_differences_map(result_sigma, lats, lons, subtit = (' - above %.2f $\sigma$ (STDs)' % SIGMAS_ABOVE), 
@@ -186,10 +187,10 @@ else:
         fname = ('debug/ECA-D_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
                                                                        str(START_DATE)))
     else:
-        fname = ('debug/ERA_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+        fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
                                                                        str(START_DATE)))
     if MEANS:
-        render_differences_map(difference_data, lats, lons, subtit = (' - no significance test'), 
+        render_differences_map(np.std(difference_surrogates[1, ...], axis = 0, ddof = 1), lats, lons, subtit = (' - no significance test'), 
                                 fname = fname)
     else:
         render_differences_map(np.std(difference_surrogates_var[0, ...], axis = 0, ddof = 1), lats, lons, subtit = (' - no significance test'), 

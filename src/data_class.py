@@ -167,8 +167,8 @@ class DataField:
         if dataset == 'ERA-40':
             d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
-            
-            self.data = v[:]
+
+            self.data = v[:] - 273.15 # ERA is in Kelvins
             self.lons = d.variables['longitude'][:]
             self.lats = d.variables['latitude'][:]
             self.time = d.variables['time'][:] # hours since 1900-01-01 00:00
@@ -812,7 +812,7 @@ def load_ERA_data_daily(filename, varname, start_date, end_date, lats, lons, ano
             else:
                 # remember the indices of other occurences
                 doubles.append(np.where(g.time == g.time[i])[0][1:])
-        logger("... found %d multiple values (according to time field)..." % (len(doubles)/4))
+        logger("... found %d multiple values (according to the time field)..." % (len(doubles)/4))
         delete_mask = np.squeeze(np.array(doubles)) # mask with multiple indices
         # time
         g.time = np.delete(g.time, delete_mask)
