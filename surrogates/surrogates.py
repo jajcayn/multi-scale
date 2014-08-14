@@ -127,7 +127,7 @@ def _create_amplitude_adjusted_surrogates(a):
     if not np.all(np.isnan(data)):
         # sort surrogates
         idx = np.argsort(surr)
-        # amplitude adjustment are original date sorted as surrogates
+        # amplitude adjustment are original data sorted according to the surrogates
         aa_surr = data[idx]
 
     else:
