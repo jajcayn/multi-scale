@@ -54,11 +54,11 @@ def _compute_FT_surrogates(a):
     
     return (i, j, ft_surr)
     
-    
 
 
 def _compute_MF_surrogates(a):
     i, l, ts, randomise_from_scale = a
+    
     if not np.all(np.isnan(ts)):
         n = int(np.log2(ts.shape[0])) # time series length should be 2^n
         n_real = np.log2(ts.shape[0])
@@ -118,6 +118,22 @@ def _compute_MF_surrogates(a):
         mf_surr = np.nan
         
     return (i, l, mf_surr)
+
+
+
+def _create_amplitude_adjusted_surrogates(a):
+    i, j, data, surr = a
+    
+    if not np.all(np.isnan(data)):
+        # sort surrogates
+        idx = np.argsort(surr)
+        # amplitude adjustment are original date sorted as surrogates
+        aa_surr = data[idx]
+
+    else:
+        aa_surr = np.nan
+
+    return (i, j, aa_surr)
 
 
 
@@ -410,3 +426,43 @@ class SurrogateField(DataField):
 
         else:
            raise Exception("The AR(k) model is not simulated yet. First prepare surrogates!") 
+
+
+
+    def amplitude_adjust_surrogates(self, pool = None):
+        """
+        Performs so-called amplitude adjustment to already created surrogate data. 
+        """
+
+        if self.surr_data != None and self.data != None:
+
+            if pool == None:
+                map_func = map
+            else:
+                map_func = pool.map
+
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+            else:
+                num_lats = 1
+                num_lons = 1
+                self.data = self.data[:, np.newaxis, np.newaxis]
+                self.surr_data = self.surr_data[:, np.newaxis, np.newaxis]
+
+            job_data = [ (i, j, self.data[:, i, j], self.surr_data[:, i, j]) for i in range(num_lats) for j in range(num_lons) ]
+            job_results = map_func(_create_amplitude_adjusted_surrogates, job_data)
+
+            self.surr_data = np.zeros_like(self.data)
+
+            for i, j, AAsurr in job_results:
+                self.surr_data[:, i, j] = AAsurr
+
+            # squeeze single-dimensional entries (e.g. station data)
+            self.surr_data = np.squeeze(self.surr_data)
+            self.data = np.squeeze(self.data)
+
+        else:
+            raise Exception("No surrogate data or/and no data in the field. "
+                            "Amplitude adjustment works on already copied data and created surrogates.")
+
