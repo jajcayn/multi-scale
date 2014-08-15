@@ -109,7 +109,10 @@ def _compute_MF_surrogates(a):
             idx = np.argsort(coeffs_tilde[j])
             
             # finally, rearange original coefficient according to coefficient with tilde
-            shuffled_coeffs.append(coeffs[j][idx])
+            coeffs[j] = np.sort(coeffs[j])
+            temporary = np.zeros_like(coeffs[j])
+            temporary[idx] = coeffs[j]
+            shuffled_coeffs.append(temporary)
         
         # return randomised time series as inverse discrete wavelet transform
         mf_surr = pywt.waverec(shuffled_coeffs, 'db1')
@@ -122,13 +125,23 @@ def _compute_MF_surrogates(a):
 
 
 def _create_amplitude_adjusted_surrogates(a):
-    i, j, data, surr = a
+    i, j, d, surr, m, v, t = a
+    data = d.copy()
     
     if not np.all(np.isnan(data)):
         # sort surrogates
         idx = np.argsort(surr)
+        
+        # return seasonality back to the data
+        if t != None:
+            data += t
+        data *= v
+        data += m
+        
         # amplitude adjustment are original data sorted according to the surrogates
-        aa_surr = data[idx]
+        data = np.sort(data)
+        aa_surr = np.zeros_like(data)
+        aa_surr[idx] = data
 
     else:
         aa_surr = np.nan
@@ -429,7 +442,7 @@ class SurrogateField(DataField):
 
 
 
-    def amplitude_adjust_surrogates(self, pool = None):
+    def amplitude_adjust_surrogates(self, mean, var, trend, pool = None):
         """
         Performs so-called amplitude adjustment to already created surrogate data. 
         """
@@ -449,11 +462,13 @@ class SurrogateField(DataField):
                 num_lons = 1
                 self.data = self.data[:, np.newaxis, np.newaxis]
                 self.surr_data = self.surr_data[:, np.newaxis, np.newaxis]
+                
+            old_shape = self.surr_data.shape
 
-            job_data = [ (i, j, self.data[:, i, j], self.surr_data[:, i, j]) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, self.data[:, i, j], self.surr_data[:, i, j], mean, var, trend) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_create_amplitude_adjusted_surrogates, job_data)
 
-            self.surr_data = np.zeros_like(self.data)
+            self.surr_data = np.zeros(old_shape)
 
             for i, j, AAsurr in job_results:
                 self.surr_data[:, i, j] = AAsurr

@@ -20,7 +20,9 @@ MEANS = True # if True, compute conditional means, if False, compute conditional
 NUM_SURR = 100
 season = [9,10,11]
 s_name = 'SON'
-s_num = 3
+s_num = 100
+AA = True
+SURR_TYPE = 'MF'
 
 # load data - at least 32k of data because of surrogates
 g = load_station_data('TG_STAID000027.txt', date(1924, 1, 1), date(2013,9,18), ANOMALISE)
@@ -53,22 +55,30 @@ phase = phase[0, idx[0] : idx[1]]
 phase_bins = get_equidistant_bins() # equidistant bins
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-    cond_means[i] = np.var(g_data.data[ndx], ddof = 1)
+    cond_means[i] = np.mean(g_data.data[ndx])
     
     
 cond_means_surr = np.zeros((NUM_SURR, 8))
 
 mean, var, trend = g.get_seasonality(True)
 
-
 for su in range(NUM_SURR):
     sg = SurrogateField()
     sg.copy_field(g)
-    sg.construct_multifractal_surrogates()
-    sg.add_seasonality(mean, var, trend)
+    if SURR_TYPE == 'MF':
+        sg.construct_multifractal_surrogates()
+        sg.add_seasonality(mean, var, trend)
+    elif SURR_TYPE == 'FT':
+        sg.construct_fourier_surrogates_spatial()
+        sg.add_seasonality(mean, var, trend)
+    elif SURR_TYPE == 'AR':
+        sg.prepare_AR_surrogates()
+        sg.construct_surrogates_with_residuals()
+        sg.add_seasonality(mean[:-1], var[:-1], trend[:-1])
     wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
     phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
-
+    if AA:
+        sg.amplitude_adjust_surrogates(mean, var, trend)
     _, _, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
     sg.surr_data = sg.surr_data[idx[0] : idx[1]]
     phase = phase[0, idx[0] : idx[1]]
@@ -78,7 +88,7 @@ for su in range(NUM_SURR):
 #    phase = phase[ndx_season]
     for i in range(cond_means.shape[0]):
         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-        cond_means_surr[su, i] = np.var(sg.surr_data[ndx], ddof = 1)
+        cond_means_surr[su, i] = np.mean(sg.surr_data[ndx])
         
     if su+1 % 10 == 0:
         print su+1, '. surrogate done...'
@@ -94,10 +104,10 @@ plt.xlabel('phase [rad]')
 mean_of_diffs = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])])
 std_of_diffs = np.std([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])], ddof = 1)
 plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
-plt.ylabel('cond variance temperature [$^{\circ}$C$^{2}$]')
-plt.axis([-np.pi, np.pi, 7, 30])
-plt.title('%s cond variance \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
+plt.ylabel('cond means temperature [$^{\circ}$C$^{2}$]')
+plt.axis([-np.pi, np.pi, -1.5, 1])
+plt.title('%s cond means \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
            (cond_means.max() - cond_means.min()), mean_of_diffs, std_of_diffs))
 
-plt.savefig('case_study_58-02/cond_variance.png')
+plt.savefig('debug/cond_mean_%s%s.png' % (SURR_TYPE, '_amplitude_adjusted_before_phase' if AA else ''))
         

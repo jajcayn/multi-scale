@@ -260,7 +260,7 @@ if SURR_TYPE is not None:
             sg.surr_data = sg.surr_data[IDX, ...]
             phase_surrs = phase_surrs[IDX, ...]
             
-            if SEASON:
+            if SEASON != None:
                 sg.surr_data = sg.surr_data[NDX_SEASON, ...]
                 phase_surrs = phase_surrs[NDX_SEASON, ...]
     

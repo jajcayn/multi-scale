@@ -5,7 +5,7 @@ created on July 3, 2014
 """
 
 import numpy as np
-from src.data_class import load_station_data, DataField
+from src.data_class import load_station_data, DataField, load_bin_data
 from datetime import date
 from src import wavelet_analysis as wvlt
 import matplotlib.gridspec as gridspec
@@ -29,7 +29,6 @@ def render_extremes_and_scaling_in_bins(res, heat_w, cold_w, fname = None):
     colours = ['#F38630', '#FA6900', '#69D2E7', '#A7DBD8', '#EB6841', '#00A0B0']
     hatches = ['/', '+', 'x', '.']
     labels = ['DJF', 'MAM', 'JJA', 'SON']
-    
     for i in range(6):
         ax = plt.Subplot(fig, gs1[0, i])
         fig.add_subplot(ax)
@@ -184,22 +183,34 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
 
 PERIOD = 8
 WINDOW_LENGTH = 13462 # 13462, 16384
-MIDDLE_YEAR = 1965 # year around which the window will be deployed
+MIDDLE_YEAR = 1991 # year around which the window will be deployed
 JUST_SCALING = False
 PLOT = True
+WAVES_PERCENTIL = 80
+DATA = 0 # 0 - original station, 1 - closest ERA, 2 - closest ECA&D
 
 
 # load whole data - load SAT data
-g = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+if DATA == 0:
+    g = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+elif DATA == 1:
+    g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1940,1,1), date(2014,1,1), False)
+elif DATA == 2:
+    g = load_bin_data('../data/ECA&D_time_series_50.1N_14.4E.bin', date(1940,1,1), date(2014,1,1), False)
 # save SAT data
 tg_sat = g.copy_data()
 # anomalise to obtain SATA data
 g.anomalise()
 
-
-g_max = load_station_data('TX_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
-
-g_min = load_station_data('TN_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+if DATA == 0:
+    g_max = load_station_data('TX_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+    g_min = load_station_data('TN_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+elif DATA == 1:
+    g_max = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1940,1,1), date(2014,1,1), False)
+    g_min = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1940,1,1), date(2014,1,1), False)
+elif DATA == 2:
+    g_max = load_bin_data('../data/ECA&D_time_series_50.1N_14.4E.bin', date(1940,1,1), date(2014,1,1), False)
+    g_min = load_bin_data('../data/ECA&D_time_series_50.1N_14.4E.bin', date(1940,1,1), date(2014,1,1), False)
 
 g_temp = DataField()
 
@@ -319,9 +330,9 @@ for i in range(phase_bins.shape[0] - 1):
         heat_w = {}
         cold_w = {}
         while iota < data_temp.shape[0]:
-            if get_percentil_exceedance(tg_sat_temp[iota], g_max.data, 80, True):
+            if get_percentil_exceedance(tg_sat_temp[iota], g_max.data, WAVES_PERCENTIL, True):
                 lag = 0
-                while get_percentil_exceedance(tg_sat_temp[iota+lag], g_max.data, 80, True):
+                while get_percentil_exceedance(tg_sat_temp[iota+lag], g_max.data, WAVES_PERCENTIL, True):
                     if time_temp[iota+lag] - time_temp[iota+lag-1] == 1:
                         if iota+lag+1 < data_temp.shape[0]:
                             lag += 1
@@ -334,9 +345,9 @@ for i in range(phase_bins.shape[0] - 1):
                     add_value_dict(heat_w, lag)
                 iota += lag
                 
-            elif get_percentil_exceedance(tg_sat_temp[iota], g_min.data, 80, False):
+            elif get_percentil_exceedance(tg_sat_temp[iota], g_min.data, WAVES_PERCENTIL, False):
                 lag = 0
-                while get_percentil_exceedance(tg_sat_temp[iota+lag], g_min.data, 80, False):
+                while get_percentil_exceedance(tg_sat_temp[iota+lag], g_min.data, WAVES_PERCENTIL, False):
                     if time_temp[iota+lag] - time_temp[iota+lag-1] == 1:
                         if iota+lag+1 < data_temp.shape[0]:
                             lag += 1
@@ -399,7 +410,12 @@ if JUST_SCALING:
 
 if PLOT:
     if not JUST_SCALING:
-        fname = ('debug/scaling_extremes_%d_%sk_window_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))
+        if DATA == 0:
+            fname = ('debug/scaling_extremes_%d_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
+        elif DATA == 1:
+            fname = ('debug/scaling_extremes_%d_ERA_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
+        elif DATA == 2:
+            fname = ('debug/scaling_extremes_%d_ECA&D_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
         render_extremes_and_scaling_in_bins(result, hw, cw, fname)
     else:
         fname = ('debug/scaling_min_max_%d_%sk_window.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))

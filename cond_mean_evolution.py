@@ -5,7 +5,7 @@ created on May 20, 2014
 """
 
 from src import wavelet_analysis
-from src.data_class import load_station_data, DataField
+from src.data_class import load_station_data, DataField, load_bin_data
 from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
@@ -140,10 +140,10 @@ def render_phase_and_bins(bins, cond_means, cond_means_surr, phase, dates, perce
         
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 16384 # 13462, 16384
+WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 4
+WORKERS = 2
 NUM_SURR = 100 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
@@ -151,12 +151,16 @@ mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
 PLOT = True
 PLOT_PHASE = False
 BEGIN = True # if True, phase will be rewritten as in the beggining, otherwise as in the end
-PHASE_ANALYSIS_YEAR = 1960 # year of detailed analysis - phase and bins, or None
-
+PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
+AA = False
 
 
 ## loading data
 g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), ANOMALISE)
+# ERA
+#g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1958,4,28), date(2013,10,1), ANOMALISE)
+# ECA
+#g = load_bin_data('../data/ECA&D_time_series_50.1N_14.4E.bin', date(1950,4,28), date(2013,10,1), ANOMALISE)
 g_working = DataField()
 g_surrs = DataField()
 
@@ -191,6 +195,8 @@ def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq):
             sg.add_seasonality(mean[:-1, ...], var[:-1, ...], trend[:-1, ...])
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave))
+        if AA:
+            sg.amplitude_adjust_surrogates(mean, var, trend)
         _, _, idx = g_temp.get_data_of_precise_length(WINDOW_LENGTH, start_cut, None, False)
         sg.surr_data = sg.surr_data[idx[0] : idx[1]]
         phase = phase[0, idx[0] : idx[1]]
@@ -330,11 +336,11 @@ while end_idx < g.data.shape[0]:
             meanvar_surr.append(0)
             meanvar_surr_std.append(0)
             
-    if PHASE_ANALYSIS_YEAR < last_mid_year:
-        # (bins, cond_means, cond_means_surr, phase, dates, subtit = '', fname = None):
-        fn = ('debug/detail/%d_%s_phase_bins_time_point.png' % (last_mid_year, '32to16' if WINDOW_LENGTH > 16000 else '16to14'))
-        render_phase_and_bins(phase_bins, cond_means, cond_means_surrs, phase,
-                              [g_working.get_date_from_ndx(0), g_working.get_date_from_ndx(-1)], percentil = difference_95perc[-1], fname = fn)
+#    if PHASE_ANALYSIS_YEAR < last_mid_year:
+#        # (bins, cond_means, cond_means_surr, phase, dates, subtit = '', fname = None):
+#        fn = ('debug/detail/%d_%s_phase_bins_time_point.png' % (last_mid_year, '32to16' if WINDOW_LENGTH > 16000 else '16to14'))
+#        render_phase_and_bins(phase_bins, cond_means, cond_means_surrs, phase,
+#                              [g_working.get_date_from_ndx(0), g_working.get_date_from_ndx(-1)], percentil = difference_95perc[-1], fname = fn)
         
     cnt += 1
 
@@ -356,8 +362,8 @@ if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/PRG_%s_%d_%ssurr_%sk_window%s.png" % ('means' if MEANS else 'var',
-            NUM_SURR, SURR_TYPE, '16to14' if WINDOW_LENGTH < 16000 else '32to16', '_phase' if PLOT_PHASE else ''))
+    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s.png" % ('means' if MEANS else 'var',
+            NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', '_phase' if PLOT_PHASE else ''))
     
     if PLOT_PHASE:
         render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
