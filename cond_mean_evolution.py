@@ -14,7 +14,7 @@ from multiprocessing import Process, Queue
 
 
 def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = None, fname = None):
-    fig, ax1 = plt.subplots(figsize=(11,8))
+    fig, ax1 = plt.subplots(figsize=(13,8))
     if len(diffs) > 3:
         ax1.plot(diffs, color = '#403A37', linewidth = 2, figure = fig)
     else:
@@ -91,9 +91,9 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
         tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     #plt.title(tit)
     if MEANS:
-        tit = ('Evolution of difference in cond means temp SATA -- %s \n' % g.location)
+        tit = ('Evolution of difference in cond means temp SATA -- %s \n %s' % (g.location, ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
     else:
-        tit = ('Evolution of difference in cond variance in temp SATA -- %s \n' % g.location)
+        tit = ('Evolution of difference in cond variance in temp SATA -- %s \n %s' % (g.location, ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
     tit += subtit
     plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
@@ -145,8 +145,8 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 2
 NUM_SURR = 100 # how many surrs will be used to evaluate
-SURR_TYPE = 'AR'
-diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
+SURR_TYPE = 'MF'
+diff_ax = (0, 4) # means -> 0, 2, var -> 1, 8
 mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
 PLOT = True
 PLOT_PHASE = False
@@ -154,7 +154,8 @@ BEGIN = True # if True, phase will be rewritten as in the beggining, otherwise a
 PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
 AA = False
 SAME_BINS = False
-CONDITION = True
+CONDITION = False
+SEASON = [9,10,11]
 
 
 ## loading data
@@ -177,13 +178,16 @@ s0 = period / fourier_factor # get scale
 
 cond_means = np.zeros((8,))
 to_wavelet = 16384 if WINDOW_LENGTH < 16000 else 32768
+mons = {0: 'J', 1: 'F', 2: 'M', 3: 'A', 4: 'M', 5: 'J', 6: 'J', 7: 'A', 8: 'S', 9: 'O', 10: 'N', 11: 'D'}
+if SEASON != None:
+    print("[%s] Only %s season will be evaluated.." % (str(datetime.now()), ''.join([mons[m-1] for m in SEASON])))
 
 def get_equidistant_bins():
     return np.array(np.linspace(-np.pi, np.pi, 9))
     
 
 
-def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq):
+def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq, ndx_seas):
     mean, var, trend = a
     while jobq.get() is not None:
         if SURR_TYPE == 'MF':
@@ -202,6 +206,9 @@ def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq):
         _, _, idx = g_temp.get_data_of_precise_length(WINDOW_LENGTH, start_cut, None, False)
         sg.surr_data = sg.surr_data[idx[0] : idx[1]]
         phase = phase[0, idx[0] : idx[1]]
+        if SEASON != None:
+            sg.surr_data = sg.surr_data[ndx_seas]
+            phase = phase[ndx_seas]
         phase_bins = get_equidistant_bins() # equidistant bins
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
@@ -277,6 +284,12 @@ while end_idx < g.data.shape[0]:
             ndx = g_working.find_date_ndx(last_day)
             phase_total.append(phase[ndx:])
             last_day = g_working.get_date_from_ndx(-1)
+        # season
+        if SEASON != None:
+            ndx_season = g_working.select_months(SEASON)
+            phase = phase[ndx_season]
+        else:
+            ndx_season = None
         phase_bins = get_equidistant_bins() # equidistant bins
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
@@ -319,7 +332,7 @@ while end_idx < g.data.shape[0]:
             sg.copy_field(g_surrs)
             if SURR_TYPE == 'AR':
                 sg.prepare_AR_surrogates()
-            workers = [Process(target = _cond_difference_surrogates, args = (sg, g_surrs, a, start_cut, jobQ, resQ)) for iota in range(WORKERS)]
+            workers = [Process(target = _cond_difference_surrogates, args = (sg, g_surrs, a, start_cut, jobQ, resQ, ndx_season)) for iota in range(WORKERS)]
             for w in workers:
                 w.start()
             tot = 0
@@ -394,9 +407,10 @@ if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s%s%s.png" % ('means' if MEANS else 'var',
+    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s%s%s%s.png" % ('means' if MEANS else 'var',
             NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', 
-            '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else ''))
+            '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else '', 
+            ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
     
     if PLOT_PHASE:
         render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
