@@ -183,11 +183,11 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
 
 PERIOD = 8
 WINDOW_LENGTH = 13462 # 13462, 16384
-MIDDLE_YEAR = 1991 # year around which the window will be deployed
+MIDDLE_YEAR = 1975 # year around which the window will be deployed
 JUST_SCALING = False
 PLOT = True
 WAVES_PERCENTIL = 80
-DATA = 0 # 0 - original station, 1 - closest ERA, 2 - closest ECA&D
+DATA = 1 # 0 - original station, 1 - closest ERA, 2 - closest ECA&D
 
 
 # load whole data - load SAT data

@@ -145,7 +145,7 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 2
 NUM_SURR = 100 # how many surrs will be used to evaluate
-SURR_TYPE = 'MF'
+SURR_TYPE = 'AR'
 diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
 mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
 PLOT = True
@@ -153,6 +153,8 @@ PLOT_PHASE = False
 BEGIN = True # if True, phase will be rewritten as in the beggining, otherwise as in the end
 PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
 AA = False
+SAME_BINS = False
+CONDITION = True
 
 
 ## loading data
@@ -208,10 +210,15 @@ def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq):
                 cond_means[i] = np.mean(sg.surr_data[ndx])
             else:
                 cond_means[i] = np.var(sg.surr_data[ndx], ddof = 1)
-        diff = (cond_means.max() - cond_means.min()) # append difference to list
+        ma = cond_means.argmax()
+        mi = cond_means.argmin()
+        if not SAME_BINS:
+            diff = (cond_means.max() - cond_means.min()) # append difference to list
+        elif SAME_BINS:
+            diff = (cond_means[max_bin] - cond_means[min_bin])
         mean_var = np.mean(cond_means)
         
-        resq.put((diff, mean_var, cond_means))
+        resq.put((diff, mean_var, cond_means, np.abs(ma - mi)))
     
     
     
@@ -277,7 +284,9 @@ while end_idx < g.data.shape[0]:
                 cond_means[i] = np.mean(g_working.data[ndx])
             else:
                 cond_means[i] = np.var(g_working.data[ndx], ddof = 1)
-        difference_data.append(cond_means.max() - cond_means.min()) # append difference to list
+        max_bin = cond_means.argmax()
+        min_bin = cond_means.argmin()
+        difference_data.append(cond_means[max_bin] - cond_means[min_bin]) # append difference to list
         meanvar_data.append(np.mean(cond_means))
     else:
         difference_data.append(np.nan)
@@ -291,12 +300,18 @@ while end_idx < g.data.shape[0]:
         mean_vars = np.zeros_like(diffs)
         g_surrs.data = g.data[start_idx : end_idx].copy()
         g_surrs.time = g.time[start_idx : end_idx].copy()
+        if CONDITION:
+            total_surrogates_condition = []
         if np.all(np.isnan(g_surrs.data) == False):
             # construct the job queue
             jobQ = Queue()
             resQ = Queue()
-            for i in range(NUM_SURR):
-                jobQ.put(1)
+            if CONDITION:
+                for i in range(3*NUM_SURR):
+                    jobQ.put(1)
+            else:
+                for i in range(NUM_SURR):
+                    jobQ.put(1)
             for i in range(WORKERS):
                 jobQ.put(None)
             a = g_surrs.get_seasonality(DETREND = True)
@@ -307,13 +322,24 @@ while end_idx < g.data.shape[0]:
             workers = [Process(target = _cond_difference_surrogates, args = (sg, g_surrs, a, start_cut, jobQ, resQ)) for iota in range(WORKERS)]
             for w in workers:
                 w.start()
+            tot = 0
             while surr_completed < NUM_SURR:
                 # get result
-                diff, meanVar, cond_means_surr = resQ.get()
-                diffs[surr_completed] = diff
-                mean_vars[surr_completed] = meanVar
-                cond_means_surrs[surr_completed, :] = cond_means_surr
-                surr_completed += 1
+                diff, meanVar, cond_means_surr, maxmin = resQ.get()
+                if CONDITION:
+                    if (maxmin > 2) and (maxmin < 6):
+                        diffs[surr_completed] = diff
+                        mean_vars[surr_completed] = meanVar
+                        cond_means_surrs[surr_completed, :] = cond_means_surr
+                        surr_completed += 1
+                    else:
+                        pass
+                    tot += 1
+                else:
+                    diffs[surr_completed] = diff
+                    mean_vars[surr_completed] = meanVar
+                    cond_means_surrs[surr_completed, :] = cond_means_surr
+                    surr_completed += 1
             for w in workers:
                 w.join()
                 
@@ -329,7 +355,10 @@ while end_idx < g.data.shape[0]:
             percentil = meanvar_data[-1] > mean_vars
             no_true = percentil[percentil == True].shape[0]
             mean_95perc.append(True if (no_true > NUM_SURR * 0.95) else False)
-            print("%d. time point - data: %.2f, surr mean: %.2f, surr std: %.2f" % (cnt, difference_data[-1], np.mean(diffs), np.std(diffs, ddof = 1)))
+            print("%d. time point - data: %.2f, surr mean: %.2f, surr std: %.2f, total surrs: %d" % (cnt, difference_data[-1], np.mean(diffs), np.std(diffs, ddof = 1), tot))
+            
+            if CONDITION:
+                total_surrogates_condition.append(tot)
         else:
             difference_surr.append(0)
             difference_surr_std.append(0)
@@ -356,14 +385,18 @@ meanvar_data = np.array(meanvar_data)
 difference_95perc = np.array(difference_95perc)
 mean_95perc = np.array(mean_95perc)
 
+if CONDITION:
+    total_surrogates_condition = np.array(total_surrogates_condition)
+
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
 if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s.png" % ('means' if MEANS else 'var',
-            NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', '_phase' if PLOT_PHASE else ''))
+    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s%s%s.png" % ('means' if MEANS else 'var',
+            NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', 
+            '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else ''))
     
     if PLOT_PHASE:
         render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
