@@ -12,9 +12,9 @@ import cPickle
 
 
 ECA = True # if False ERA-40 / ERA-Interim reanalysis will be used
-LAT = 50.5
-LON = 14.25
-# Prague - 50.5N x 14.25E
+LAT = 50.08
+LON = 14.41
+# Prague - 50.08N x 14.41E
 
 
 

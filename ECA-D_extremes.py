@@ -10,7 +10,7 @@ from datetime import date, datetime
 import numpy as np
 from multiprocessing import Pool
 from mpl_toolkits.basemap import Basemap
-import matplolib.pyplot as plt
+import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import scipy.stats as sst
 
