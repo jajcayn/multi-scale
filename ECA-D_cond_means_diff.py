@@ -70,7 +70,7 @@ PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
-SURR_TYPE = 'ALL' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
+SURR_TYPE = 'MF' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
 NUM_SURR = 1000 # number of surrogates to be evaluated
 NUM_FILES = 10
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
@@ -223,6 +223,7 @@ del g
 ## surrogates
 if SURR_TYPE is not None:
     log("Computing %d %s surrogates in parallel using %d workers..." % (NUM_SURR, SURR_TYPE, WORKERS))
+    log("Result will be saved in %d files..." % (NUM_FILES))
     SU = 3 if SURR_TYPE == 'ALL' else 1
 #    surr_diff = np.zeros((SU, NUM_SURR, sg.data.shape[1], sg.data.shape[2]))
 #    surr_mean = np.zeros_like(surr_diff)
@@ -237,7 +238,7 @@ if SURR_TYPE is not None:
     
     for su_type in range(SU):
         for file_num in range(NUM_FILES):
-            bins_surrogates = np.zeros((SU, NUM_SURR, sg.data.shape[1], sg.data.shape[2], 8))
+            bins_surrogates = np.zeros((SU, NUM_SURR/NUM_FILES, sg.data.shape[1], sg.data.shape[2], 8))
             bins_surrogates_var = np.zeros_like(bins_surrogates)
             for surr_completed in range(NUM_SURR/NUM_FILES):
                 # create surrogates field
