@@ -60,13 +60,13 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
         plt.show()
 
 
-ECA = False
-SURR_TYPE = 'ALL' # MF, FT or AR
+ECA = True
+SURR_TYPE = 'MF' # MF, FT or AR
 START_DATE = date(1958,1,1)
 MEANS = True
 ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
-SIGN = True # wheter to check significance or just plot results
+SIGN = False # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
 PERCENTIL = 95
 
@@ -75,7 +75,7 @@ PERCENTIL = 95
 # load data 
 print("[%s] Loading data..." % (str(datetime.now())))
 if ECA:
-    fname = ('result/ECA-D_%s_cond_means_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                                                               str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
@@ -85,15 +85,15 @@ if PICKLE:
         data = cPickle.load(f)
 else:
     data = hkl.load(fname + '.hkl')
-difference_data = data['difference_data']
-mean_data = data['mean_data']
-difference_data_var = data['difference_data_var']
-mean_data_var = data['mean_data_var']
+bins_data = data['bins_data']
+bins_data_var = data['bins_data_var']
 lats = data['lats']
 lons = data['lons']
 del data
 
 # load surrogates
+bins_surrogates_list = []
+bins_surrogates_var_list = []
 print("[%s] Data loaded. Now loading surrogates..." % (str(datetime.now())))
 if ECA:
     fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
@@ -102,16 +102,29 @@ else:
     fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
                  SURR_TYPE, str(START_DATE)))
 if PICKLE:
-    with open(fname + '.bin', 'rb') as f:
-        data = cPickle.load(f)
+    for i in range(10):
+        with open(fname + '_%d' % (i) + '.bin', 'rb') as f:
+            data = cPickle.load(f)
+        bins_surrogates_list.append(data['bins_surrogates'])
+        bins_surrogates_var_list.append(data['bins_surrogates_var'])
+
 else:
     data = hkl.load(fname + '.hkl')
-difference_surrogates = data['difference_surrogates']
-mean_surrogates = data['mean_surrogates']
-difference_surrogates_var = data['difference_surrogates_var']
-mean_surrogates_var = data['mean_surrogates_var']
 del data
 print("[%s] Surrogates loaded." % (str(datetime.now())))
+bins_surrogates = np.zeros(([10 * bins_surrogates_list[0].shape[1]] + list(bins_surrogates_list[0].shape[2:])))
+pointer = 0
+for i in range(10):
+    bins_surrogates[pointer:pointer+100, ...] = bins_surrogates_list[i][0, ...]
+    pointer += 100
+del bins_surrogates_list
+bins_surrogates_var = np.zeros_like(bins_surrogates)
+pointer = 0
+for i in range(10):
+    bins_surrogates_var[pointer:pointer+100, ...] = bins_surrogates_var_list[i][0, ...]
+    pointer += 100
+del bins_surrogates_var_list
+
 
 
 if SIGN:
