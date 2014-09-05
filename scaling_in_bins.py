@@ -119,13 +119,14 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
     ax1.tick_params(which = 'minor', top = 'off', right = 'off', color = '#6A4A3C')
     lab = {}
     for i in range(scaling.shape[0]):
-        lab[i], = ax1.loglog(scaling[i, 0:], linewidth = 0.75, color = colours[i])
+        lab[i], = ax1.plot(scaling[i, 0:], linewidth = 0.75, color = colours[i])
 #    ax1.axis([0, scaling.shape[1], 0, 6])
     ax1.yaxis.set_major_locator(ticker.MultipleLocator(1))
     ax1.yaxis.set_major_formatter(ticker.ScalarFormatter())
-    ax1.set_ylim(ymax = 6)
+    ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    ax1.set_ylim(ymax = 10)
     ax1.set_xlim(xmax = 80)
-    ax1.set_xlabel('log $\Delta$time [days]')
+    ax1.set_xlabel('$\Delta$time [days]')
     ax1.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
     ax1.set_title("scaling mean temperature TG")
     fig.legend([lab[i] for i in range(scaling.shape[0])], 
@@ -140,13 +141,14 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
     ax2.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
     ax2.tick_params(which = 'minor', top = 'off', right = 'off', color = '#6A4A3C')
     for i in range(scaling.shape[0]):
-        ax2.loglog(min_scaling[i, 0:], linewidth = 0.75, color = colours[i])
+        ax2.plot(min_scaling[i, 0:], linewidth = 0.75, color = colours[i])
 #    ax2.axis([0, scaling.shape[1], 0, 6])
     ax2.yaxis.set_major_locator(ticker.MultipleLocator(1))
     ax2.yaxis.set_major_formatter(ticker.ScalarFormatter())
-    ax2.set_ylim(ymax = 6)
+    ax2.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    ax2.set_ylim(ymax = 10)
     ax2.set_xlim(xmax = 80)
-    ax2.set_xlabel('log $\Delta$time [days]')
+    ax2.set_xlabel('$\Delta$time [days]')
     ax2.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
     ax2.set_title("scaling min temperature TN")
     
@@ -158,18 +160,19 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
     ax3.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
     ax3.tick_params(which = 'minor', top = 'off', right = 'off', color = '#6A4A3C')
     for i in range(scaling.shape[0]):
-        ax3.loglog(max_scaling[i, 0:], linewidth = 0.75, color = colours[i])
+        ax3.plot(max_scaling[i, 0:], linewidth = 0.75, color = colours[i])
 #    ax3.axis([0, scaling.shape[1], 0, 6])
     ax3.yaxis.set_major_locator(ticker.MultipleLocator(1))
     ax3.yaxis.set_major_formatter(ticker.ScalarFormatter())
-    ax3.set_ylim(ymax = 6)
+    ax3.xaxis.set_minor_locator(ticker.MultipleLocator(1))
+    ax3.set_ylim(ymax = 10)
     ax3.set_xlim(xmax = 80)
-    ax3.set_xlabel('log $\Delta$time [days]')
+    ax3.set_xlabel('$\Delta$time [days]')
     ax3.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
     ax3.set_title("scaling max temperature TX")
     
-    fig.text(0.02, 0.575, 'log $\Delta$difference [$^{\circ}$C]', ha = 'center', va = 'center', rotation = 'vertical')
-    fig.text(0.97, 0.575, 'log $\Delta$difference [$^{\circ}$C]', ha = 'center', va = 'center', rotation = -90)
+    fig.text(0.02, 0.575, '$\Delta$difference [$^{\circ}$C]', ha = 'center', va = 'center', rotation = 'vertical')
+    fig.text(0.97, 0.575, '$\Delta$difference [$^{\circ}$C]', ha = 'center', va = 'center', rotation = -90)
     
     plt.suptitle('%s - %d point / %s window: %s -- %s' % (g.location, MIDDLE_YEAR, '14k' if WINDOW_LENGTH < 16000 else '16k', 
                   str(g.get_date_from_ndx(0)), str(g.get_date_from_ndx(-1))), size = 16)
@@ -182,12 +185,12 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
 
 
 PERIOD = 8
-WINDOW_LENGTH = 13462 # 13462, 16384
-MIDDLE_YEAR = 1975 # year around which the window will be deployed
-JUST_SCALING = False
+WINDOW_LENGTH = 16384 # 13462, 16384
+MIDDLE_YEAR = 1965 # year around which the window will be deployed
+JUST_SCALING = True
 PLOT = True
 WAVES_PERCENTIL = 80
-DATA = 1 # 0 - original station, 1 - closest ERA, 2 - closest ECA&D
+DATA = 0 # 0 - original station, 1 - closest ERA, 2 - closest ECA&D
 
 
 # load whole data - load SAT data
@@ -284,7 +287,7 @@ if JUST_SCALING:
     scaling_max = []
 for i in range(phase_bins.shape[0] - 1):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-    data_temp = g.data[ndx].copy()
+    data_temp = tg_sat[ndx].copy()#g.data[ndx].copy()
     time_temp = g.time[ndx].copy()
     max_temp = g_max.data[ndx].copy()
     min_temp = g_min.data[ndx].copy()
@@ -418,7 +421,7 @@ if PLOT:
             fname = ('debug/scaling_extremes_%d_ECA&D_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
         render_extremes_and_scaling_in_bins(result, hw, cw, fname)
     else:
-        fname = ('debug/scaling_min_max_%d_%sk_window.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))
+        fname = ('debug/scaling_min_max_%d_%sk_window_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))
         render_scaling_min_max(scaling, scaling_min, scaling_max, fname)
             
 
