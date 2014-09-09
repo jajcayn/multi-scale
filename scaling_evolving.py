@@ -89,6 +89,7 @@ else:
     # g_for_avg are SAT data
     mean, var, trend = g_for_avg.get_seasonality(DETREND = True)
     sg.copy_field(g_for_avg)
+    sg.prepare_AR_surrogates()
     year = 365.25
     k0 = 6. # wavenumber of Morlet wavelet used in analysis
     fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
@@ -100,9 +101,10 @@ else:
     phase_bins = get_equidistant_bins()
     
     for surr in range(NUM_SURR):
-        sg.construct_multifractal_surrogates()
-        sg.add_seasonality(mean, var, trend) # so SAT data
+        sg.construct_surrogates_with_residuals()
+        sg.add_seasonality(mean[:-1], var[:-1], trend[:-1]) # so SAT data
         g_for_avg.data = sg.surr_data.copy()
+        g_for_avg.time = g_for_avg.time[:-1]
         tg_temp = g_for_avg.copy_data()
         g_for_avg.anomalise() # SATA data for phase
         wave, _, _, _ = wvlt.continous_wavelet(g_for_avg.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
@@ -141,6 +143,7 @@ if USE_SURR:
     sg = SurrogateField()
     mean, var, trend = g.get_seasonality(True)
     sg.copy_field(g) # SAT
+    sg.prepare_AR_surrogates()
     
 ev_start_year = 1861 if USE_SURR else 1802
     
@@ -150,10 +153,11 @@ for MIDDLE_YEAR in range(ev_start_year, 1988):
         
         result_temp_surr = np.zeros((NUM_SURR, 8,2))
         for surr in range(NUM_SURR):
-            sg.construct_multifractal_surrogates()
-            sg.add_seasonality(mean, var, trend)
+            sg.construct_surrogates_with_residuals()
+            sg.add_seasonality(mean[:-1], var[:-1], trend[:-1]) # so SAT data
             g.data = sg.surr_data.copy()
             tg_sat = g.copy_data()
+            g.time = g.time[:-1]
             g.anomalise()
             
             g_temp = DataField()
@@ -293,7 +297,7 @@ if PLOT:
     sins_sp = [hsin_sp, csin_sp]
     titles = ['hot extremes  >2$\sigma$', 'cold extremes  <-2$\sigma$']
     if USE_SURR:
-        plt.suptitle('Evolving of correlation of extremes barplots with average 1840-1930, %d MF surrogates, %s window' % (NUM_SURR, '16k' if WINDOW_LENGTH > 16000 else '14k'), size = 16)
+        plt.suptitle('Evolving of correlation of extremes barplots with average 1840-1930, %d AR surrogates, %s window' % (NUM_SURR, '16k' if WINDOW_LENGTH > 16000 else '14k'), size = 16)
     else:
         plt.suptitle('Evolving of correlation of extremes barplots with average 1775-%d, %s window' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'), size = 16)
     for i in range(2):
@@ -356,7 +360,7 @@ if PLOT:
     fig.text(0.72, 0.47, 'average extremes \n 1775-%d' % PAST_UNTIL, va = 'center', ha = 'center', size = 13, weight = 'heavy')    
     fig.text(0.9, 0.47, 'collage of bar plots', va = 'center', ha = 'center', size = 13, weight = 'heavy')    
     if USE_SURR:
-        plt.savefig('debug/MFsurr_extremes_evolving_%d_%s_window.png' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
+        plt.savefig('debug/ARsurr_extremes_evolving_%d_%s_window.png' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
     else:
         plt.savefig('debug/extremes_evolving_%d_%s_window.png' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
 
