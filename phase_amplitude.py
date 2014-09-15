@@ -20,13 +20,13 @@ PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-NUM_SURR = 1000
+NUM_SURR = 100
 season = [9,10,11]
 s_name = 'SON'
 s_num = 100
 AA = False
 SURR_TYPE = 'MF'
-SURR_DETAIL = True
+SURR_DETAIL = False
 
 # load data - at least 32k of data because of surrogates
 g = load_station_data('TG_STAID000027.txt', date(1924, 1, 1), date(2013,9,18), ANOMALISE)
@@ -212,7 +212,7 @@ while su < NUM_SURR:
     
 print("[%s] Wavelet done." % (str(datetime.now())))
 
-plot_surr_analysis(cond_means_surr, fname = 'debug/surr_analysis_%d%ssurrs_condition.png' % (NUM_SURR, SURR_TYPE))
+#plot_surr_analysis(cond_means_surr, fname = 'debug/surr_analysis_%d%ssurrs_condition.png' % (NUM_SURR, SURR_TYPE))
 
 if SURR_DETAIL:
     meandiff = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])])
@@ -231,18 +231,18 @@ if SURR_DETAIL:
            plt.savefig('debug/large_surr_diff/bar%d' % cnt)
 
 
-#diff = (phase_bins[1]-phase_bins[0])
-#fig = plt.figure(figsize=(6,10))
-#b1 = plt.bar(phase_bins[:-1], cond_means, width = diff*0.45, bottom = None, fc = '#403A37', figure = fig)
-#b2 = plt.bar(phase_bins[:-1] + diff*0.5, np.mean(cond_means_surr, axis = 0), width = diff*0.45, bottom = None, fc = '#A09793', figure = fig)
-#plt.xlabel('phase [rad]')
-#mean_of_diffs = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])])
-#std_of_diffs = np.std([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])], ddof = 1)
-#plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
-#plt.ylabel('cond means temperature [$^{\circ}$C$^{2}$]')
-#plt.axis([-np.pi, np.pi, -1.5, 1])
-#plt.title('%s cond means \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
-#           (cond_means.max() - cond_means.min()), mean_of_diffs, std_of_diffs))
-#
-#plt.savefig('debug/cond_mean_%s%s.png' % (SURR_TYPE, '_amplitude_adjusted_before_phase' if AA else ''))
+diff = (phase_bins[1]-phase_bins[0])
+fig = plt.figure(figsize=(6,10))
+b1 = plt.bar(phase_bins[:-1], cond_means, width = diff*0.45, bottom = None, fc = '#403A37', figure = fig)
+b2 = plt.bar(phase_bins[:-1] + diff*0.5, np.mean(cond_means_surr, axis = 0), width = diff*0.45, bottom = None, fc = '#A09793', figure = fig)
+plt.xlabel('phase [rad]')
+mean_of_diffs = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])])
+std_of_diffs = np.std([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])], ddof = 1)
+plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
+plt.ylabel('cond means temperature [$^{\circ}$C$^{2}$]')
+plt.axis([-np.pi, np.pi, -1.5, 1])
+plt.title('%s cond means \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
+           (cond_means.max() - cond_means.min()), mean_of_diffs, std_of_diffs))
+
+plt.savefig('debug/cond_mean_%s%s.png' % (SURR_TYPE, '_amplitude_adjusted_before_phase' if AA else ''))
         
