@@ -131,8 +131,8 @@ ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-MOMENT = 'skewness' # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 2
+MOMENT = 'kurtosis' # if True, compute conditional means, if False, compute conditional variance
+WORKERS = 4
 NUM_SURR = 100 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 4) # means -> 0, 2, var -> 1, 8
@@ -144,7 +144,7 @@ PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
 AA = False
 SAME_BINS = False
 CONDITION = False
-SEASON = [9,10,11]
+SEASON = [9, 10, 11]
 
 
 ## loading data
@@ -162,10 +162,12 @@ elif MOMENT == 'std':
     func = np.std
 elif MOMENT == 'skewness':
     func = sts.skew
-    diff_ax = (-1, 1)
+    diff_ax = (0, 8)
+    mean_ax = (-1, 1)
 elif MOMENT == 'kurtosis':
     func = sts.kurtosis
-    diff_ax = (-2, 6)
+    diff_ax = (-2, 12)
+    mean_ax = (-1, 7)
 
 
 print("[%s] Wavelet analysis in progress with %d year window shifted by %d year(s)..." % (str(datetime.now()), WINDOW_LENGTH, WINDOW_SHIFT))
