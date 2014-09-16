@@ -10,6 +10,7 @@ from datetime import date
 from src import wavelet_analysis as wvlt
 import matplotlib.gridspec as gridspec
 import matplotlib.pyplot as plt
+import scipy.stats as sts
 
 
 def get_equidistant_bins():
@@ -22,7 +23,7 @@ PERIOD = 8
 WINDOW_LENGTH = 13462 # 13462, 16384
 MIDDLE_YEAR = 1965 # year around which the window will be deployed
 DIFFS_LIM = [10,25]
-SAT = True
+SAT = False
 
 # load whole data - load SAT data
 g = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
@@ -117,8 +118,10 @@ for i in range(8):
 
 gs2 = gridspec.GridSpec(1,4)
 gs2.update(left = 0.05, right = 0.95, top = 0.41, bottom = 0.08, wspace = 0.3)
-func = [np.amax, np.amin, np.mean, np.median]
-titl = ['Maximum', 'Minimum', 'Mean', 'Median']
+#func = [np.amax, np.amin, np.mean, np.median]
+func = [np.mean, np.std, sts.skew, sts.kurtosis]
+#titl = ['Maximum', 'Minimum', 'Mean', 'Median']
+titl = ['Mean', 'STD', 'skewness', 'kurtosis']
 for i in range(4):
     ax = plt.Subplot(fig, gs2[0, i])
     fig.add_subplot(ax)
@@ -129,7 +132,10 @@ for i in range(4):
     c = np.zeros((scaling.shape[0], scaling.shape[1]))
     for ii in range(c.shape[0]):
         for jj in range(c.shape[1]):
-            c[ii,jj] = func[i](scaling[ii, jj])
+            if i != 1:
+                c[ii,jj] = func[i](scaling[ii, jj])
+            else:
+                c[ii,jj] = func[i](scaling[ii, jj], ddof = 1)
     ma, mi = c.max(), c.min()
     if ma-mi > 1:
         vmax, vmin = np.ceil(ma), np.floor(mi)
@@ -150,4 +156,4 @@ fig.text(0.5, 0.92, 'Cumulative normed histograms of scaling', ha = 'center', va
 plt.suptitle('%s - %d point / %s window: %s -- %s' % (g.location, MIDDLE_YEAR, '14k' if WINDOW_LENGTH < 16000 else '16k', 
                   str(g.get_date_from_ndx(0)), str(g.get_date_from_ndx(-1))), size = 16)
 
-plt.savefig('debug/scaling_hist_%s%d_%s_window.png' % ('SAT' if SAT else 'SATA', MIDDLE_YEAR, '14k' if WINDOW_LENGTH < 16000 else '16k'))
+plt.savefig('debug/scaling_hist_moments_%s%d_%s_window.png' % ('SAT' if SAT else 'SATA', MIDDLE_YEAR, '14k' if WINDOW_LENGTH < 16000 else '16k'))

@@ -11,6 +11,7 @@ import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue
+import scipy.stats as sts
 
 
 def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = None, fname = None):
@@ -31,15 +32,12 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
     ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
     ax1.set_xlabel('middle year of %.2f-year wide window' % (WINDOW_LENGTH / 365.25), size = 14)
-    if MEANS:
-        ax1.set_ylabel('difference in cond mean in temperature [$^{\circ}$C]', size = 14)
-    elif not MEANS:
-        ax1.set_ylabel('difference in cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
-# year_diff = np.round((last_mid_year - first_mid_year) / 10)
-# print last_mid_year, first_mid_year, year_diff
-# xnames = np.arange(first_mid_year, last_mid_year, year_diff)
-# print xnames
-# plt.xticks(np.linspace(0, cnt, len(xnames)), xnames, rotation = 30)
+    ax1.set_ylabel('difference in cond %s in temperature [$^{\circ}$C]' % (MOMENT), size = 14)
+    # year_diff = np.round((last_mid_year - first_mid_year) / 10)
+    # print last_mid_year, first_mid_year, year_diff
+    # xnames = np.arange(first_mid_year, last_mid_year, year_diff)
+    # print xnames
+    # plt.xticks(np.linspace(0, cnt, len(xnames)), xnames, rotation = 30)
     plt.xticks(np.arange(0, cnt+8, 8), np.arange(first_mid_year, last_mid_year+8, 8), rotation = 30)
     if not PLOT_PHASE:
         ax2 = ax1.twinx()
@@ -56,10 +54,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
             if percentil != None:
                 for pos in np.where(percentil[:, 1] == True)[0]:
                     ax2.plot(pos, meanvars[0][pos], 'o', markersize = 8, color = '#CA4F17')
-        if MEANS:
-            ax2.set_ylabel('mean of cond means in temperature [$^{\circ}$C]', size = 14)
-        elif not MEANS:
-            ax2.set_ylabel('mean of cond variance in temperature [$^{\circ}$C$^2$]', size = 14)
+        ax2.set_ylabel('mean of cond %s in temperature [$^{\circ}$C]' % (MOMENT), size = 14)
         ax2.axis([0, cnt-1, mean_ax[0], mean_ax[1]])
         for tl in ax2.get_yticklabels():
             tl.set_color('#CA4F17')
@@ -77,10 +72,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
             tl.set_color('#CA4F17')
         plt.legend([p1, p2, p3], ["difference DATA", "difference SURROGATE mean", "phase DATA"], loc = 2)
     tit = 'SURR: Evolution of difference in cond'
-    if MEANS:
-        tit += ' mean in temp, '
-    else:
-        tit += ' variance in temp, '
+    tit += (' %s in temp, ' % MOMENT)
     if not ANOMALISE:
         tit += 'SAT, '
     else:
@@ -90,10 +82,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     else:
         tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     #plt.title(tit)
-    if MEANS:
-        tit = ('Evolution of difference in cond means temp SATA -- %s \n %s' % (g.location, ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
-    else:
-        tit = ('Evolution of difference in cond variance in temp SATA -- %s \n %s' % (g.location, ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
+    tit = ('Evolution of difference in cond %s temp SATA -- %s \n %s' % (MOMENT, g.location, ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
     tit += subtit
     plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
@@ -142,7 +131,7 @@ ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-MEANS = True # if True, compute conditional means, if False, compute conditional variance
+MOMENT = 'skewness' # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 2
 NUM_SURR = 100 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
@@ -166,6 +155,17 @@ g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), AN
 #g = load_bin_data('../data/ECA&D_time_series_50.1N_14.4E.bin', date(1950,4,28), date(2013,10,1), ANOMALISE)
 g_working = DataField()
 g_surrs = DataField()
+if MOMENT == 'mean':
+    func = np.mean
+    diff_ax = (0, 4)
+elif MOMENT == 'std':
+    func = np.std
+elif MOMENT == 'skewness':
+    func = sts.skew
+    diff_ax = (-1, 1)
+elif MOMENT == 'kurtosis':
+    func = sts.kurtosis
+    diff_ax = (-2, 6)
 
 
 print("[%s] Wavelet analysis in progress with %d year window shifted by %d year(s)..." % (str(datetime.now()), WINDOW_LENGTH, WINDOW_SHIFT))
@@ -213,10 +213,10 @@ def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq, ndx_seas):
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-            if MEANS:
-                cond_means[i] = np.mean(sg.surr_data[ndx])
+            if MOMENT == 'std':
+                cond_means[i] = func(sg.surr_data[ndx], ddof = 1)
             else:
-                cond_means[i] = np.var(sg.surr_data[ndx], ddof = 1)
+                cond_means[i] = func(sg.surr_data[ndx])
         ma = cond_means.argmax()
         mi = cond_means.argmin()
         if not SAME_BINS:
@@ -293,10 +293,10 @@ while end_idx < g.data.shape[0]:
         phase_bins = get_equidistant_bins() # equidistant bins
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-            if MEANS:
-                cond_means[i] = np.mean(g_working.data[ndx])
+            if MOMENT == 'std':
+                cond_means[i] = func(g_working.data[ndx], ddof = 1)
             else:
-                cond_means[i] = np.var(g_working.data[ndx], ddof = 1)
+                cond_means[i] = func(g_working.data[ndx])
         max_bin = cond_means.argmax()
         min_bin = cond_means.argmin()
         difference_data.append(cond_means[max_bin] - cond_means[min_bin]) # append difference to list
@@ -407,7 +407,7 @@ if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s%s%s%s.png" % ('means' if MEANS else 'var',
+    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT,
             NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', 
             '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else '', 
             ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
