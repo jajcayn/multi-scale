@@ -18,6 +18,7 @@ if os.name == 'nt': # if Winodws, use MinGW gcc compiler and include numpy impor
     import pyximport; pyximport.install(setup_args = mingw_setup_args)
 else:
     import pyximport; pyximport.install()
+    
 import var_model_acc
 
 

@@ -22,12 +22,27 @@ WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 NUM_SURR = 100
-season = [12,1,12]
+EVAL_SEASON = False
+season = [12,1,2]
 s_name = 'DJF'
 s_num = 100
 AA = False
 SURR_TYPE = 'MF'
 SURR_DETAIL = False
+SURR_ANALYSIS = True
+MOMENT = 'kurtosis'
+
+if MOMENT == 'mean':
+    func = np.mean
+    axplot = [-1, 1.5]
+elif MOMENT == 'std':
+    func = np.std
+elif MOMENT == 'skewness':
+    func = sts.skew
+    axplot = [-0.5, 0.5]
+elif MOMENT == 'kurtosis':
+    func = sts.kurtosis
+    axplot = [-1, 5]
 
 # load data - at least 32k of data because of surrogates
 g = load_station_data('TG_STAID000027.txt', date(1924, 1, 1), date(2013,9,18), ANOMALISE)
@@ -54,20 +69,22 @@ start_cut = date(1958,1,1)
 g_data.data, g_data.time, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
 phase = phase[0, idx[0] : idx[1]]
 # subselect season
-ndx_season = g_data.select_months(season)
-phase = phase[ndx_season]
+if EVAL_SEASON:
+    ndx_season = g_data.select_months(season)
+    phase = phase[ndx_season]
 
 phase_bins = get_equidistant_bins() # equidistant bins
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-    cond_means[i] = sts.kurtosis(g_data.data[ndx])
+    cond_means[i] = func(g_data.data[ndx])
     
     
 def plot_surr_analysis(bins_surrs, fname = None):
     fig = plt.figure(figsize = (16,8), frameon = False)
     gs = gridspec.GridSpec(2, 3)
     gs.update(left = 0.05, right = 0.95, top = 0.9, bottom = 0.1, wspace = 0.25, hspace = 0.4)
-    plt.suptitle("%s - run of %d %s surrogates -- %s - %s" % (g.location, NUM_SURR, SURR_TYPE, str(g_data.get_date_from_ndx(0)), str(g_data.get_date_from_ndx(-1))), size = 16)
+    plt.suptitle("%s - run of %d %s surrogates -- %s - %s%s" % (g.location, NUM_SURR, SURR_TYPE, str(g_data.get_date_from_ndx(0)), 
+                  str(g_data.get_date_from_ndx(-1)), (' -- %s only' % s_name) if EVAL_SEASON else ''), size = 16)
     
     # binning
     ax = plt.Subplot(fig, gs[:, 0])
@@ -79,10 +96,10 @@ def plot_surr_analysis(bins_surrs, fname = None):
     diff = (phase_bins[1]-phase_bins[0])
     ax.bar(phase_bins[:-1], cond_means, width = 0.45*diff, bottom = None, fc = '#071E21', ec = '#071E21', label = 'data')
     ax.bar(phase_bins[:-1]+0.5*diff, np.mean(bins_surrs, axis = 0), width = 0.45*diff, bottom = None, fc = '#8F8D0A', ec = '#8F8D0A', label = 'mean of %d surrs' % NUM_SURR)
-    ax.axis([-np.pi, np.pi, -1., 1.5])
+    ax.axis([-np.pi, np.pi, axplot[0], axplot[1]])
     ax.set_xlabel('phase [rad]')
-    ax.set_ylabel('cond. mean temperature [$^{\circ}$C]')
-    ax.set_title('Cond. means in bins - surrogate mean')
+    ax.set_ylabel('cond. %s temperature [$^{\circ}$C]' % (MOMENT))
+    ax.set_title('Cond. %s in bins - surrogate mean' % (MOMENT))
     ax.legend()
     
     meandiff = np.mean([bins_surrs[i,:].max() - bins_surrs[i,:].min() for i in range(cond_means_surr.shape[0])])
@@ -191,12 +208,13 @@ while su < NUM_SURR:
     phase = phase[0, idx[0] : idx[1]]
     
     # subselect season
-    sg.surr_data = sg.surr_data[ndx_season]
-    phase = phase[ndx_season]
+    if EVAL_SEASON:
+        sg.surr_data = sg.surr_data[ndx_season]
+        phase = phase[ndx_season]
     temp_means = np.zeros((8,))
     for i in range(cond_means.shape[0]):
         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-        temp_means[i] = sts.kurtosis(sg.surr_data[ndx])
+        temp_means[i] = func(sg.surr_data[ndx])
     ma = temp_means.argmax()
     mi = temp_means.argmin()
     print 'max - ', ma, '  min - ', mi
@@ -213,7 +231,8 @@ while su < NUM_SURR:
     
 print("[%s] Wavelet done." % (str(datetime.now())))
 
-#plot_surr_analysis(cond_means_surr, fname = 'debug/surr_analysis_%d%ssurrs_condition.png' % (NUM_SURR, SURR_TYPE))
+if SURR_ANALYSIS:
+    plot_surr_analysis(cond_means_surr, fname = 'debug/surr_analysis_%d%ssurrs_condition.png' % (NUM_SURR, SURR_TYPE))
 
 if SURR_DETAIL:
     meandiff = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])])
@@ -240,11 +259,12 @@ plt.xlabel('phase [rad]')
 mean_of_diffs = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])])
 std_of_diffs = np.std([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])], ddof = 1)
 plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
-plt.ylabel('cond kurtosis temperature [$^{\circ}$C$^{2}$]')
-plt.axis([-np.pi, np.pi, -1, 5])
+plt.ylabel('cond %s temperature [$^{\circ}$C$^{2}$]' % (MOMENT))
+plt.axis([-np.pi, np.pi, axplot[0], axplot[1]])
 # plt.xlim(-np.pi, np.pi)
-plt.title('%s cond kurtosis \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
-           (cond_means.max() - cond_means.min()), mean_of_diffs, std_of_diffs))
-
-plt.savefig('debug/cond_kurt_%s_%s%s.png' % (SURR_TYPE, s_name, '_amplitude_adjusted_before_phase' if AA else ''))
+plt.title('%s cond %s \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
+           MOMENT, (cond_means.max() - cond_means.min()), mean_of_diffs, std_of_diffs))
+s_name = s_name if EVAL_SEASON else ''
+MOMENT_SHRTCT = MOMENT[:4] if len(MOMENT) > 4 else MOMENT
+plt.savefig('debug/cond_%s_%s_%s%s.png' % (MOMENT_SHRTCT, SURR_TYPE, s_name, '_amplitude_adjusted_before_phase' if AA else ''))
         
