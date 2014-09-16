@@ -22,8 +22,8 @@ WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 NUM_SURR = 100
-season = [9,10,11]
-s_name = 'SON'
+season = [12,1,12]
+s_name = 'DJF'
 s_num = 100
 AA = False
 SURR_TYPE = 'MF'
@@ -54,8 +54,8 @@ start_cut = date(1958,1,1)
 g_data.data, g_data.time, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
 phase = phase[0, idx[0] : idx[1]]
 # subselect season
-#ndx_season = g_data.select_months(season)
-#phase = phase[ndx_season]
+ndx_season = g_data.select_months(season)
+phase = phase[ndx_season]
 
 phase_bins = get_equidistant_bins() # equidistant bins
 for i in range(cond_means.shape[0]):
@@ -191,8 +191,8 @@ while su < NUM_SURR:
     phase = phase[0, idx[0] : idx[1]]
     
     # subselect season
-#    sg.surr_data = sg.surr_data[ndx_season]
-#    phase = phase[ndx_season]
+    sg.surr_data = sg.surr_data[ndx_season]
+    phase = phase[ndx_season]
     temp_means = np.zeros((8,))
     for i in range(cond_means.shape[0]):
         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
@@ -241,10 +241,10 @@ mean_of_diffs = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min()
 std_of_diffs = np.std([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])], ddof = 1)
 plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
 plt.ylabel('cond kurtosis temperature [$^{\circ}$C$^{2}$]')
-#plt.axis([-np.pi, np.pi, -1.5, 1])
-plt.xlim(-np.pi, np.pi)
+plt.axis([-np.pi, np.pi, -1, 5])
+# plt.xlim(-np.pi, np.pi)
 plt.title('%s cond kurtosis \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
            (cond_means.max() - cond_means.min()), mean_of_diffs, std_of_diffs))
 
-plt.savefig('debug/cond_kurt_%s%s.png' % (SURR_TYPE, '_amplitude_adjusted_before_phase' if AA else ''))
+plt.savefig('debug/cond_kurt_%s_%s%s.png' % (SURR_TYPE, s_name, '_amplitude_adjusted_before_phase' if AA else ''))
         
