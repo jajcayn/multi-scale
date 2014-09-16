@@ -13,6 +13,7 @@ from surrogates.surrogates import SurrogateField
 import matplotlib.gridspec as gridspec
 from scipy.stats import itemfreq
 import matplotlib.mlab as mlab
+import scipy.stats as sts
 
 
 ANOMALISE = True
@@ -59,7 +60,7 @@ phase = phase[0, idx[0] : idx[1]]
 phase_bins = get_equidistant_bins() # equidistant bins
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-    cond_means[i] = np.mean(g_data.data[ndx])
+    cond_means[i] = sts.kurtosis(g_data.data[ndx])
     
     
 def plot_surr_analysis(bins_surrs, fname = None):
@@ -195,7 +196,7 @@ while su < NUM_SURR:
     temp_means = np.zeros((8,))
     for i in range(cond_means.shape[0]):
         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-        temp_means[i] = np.mean(sg.surr_data[ndx])
+        temp_means[i] = sts.kurtosis(sg.surr_data[ndx])
     ma = temp_means.argmax()
     mi = temp_means.argmin()
     print 'max - ', ma, '  min - ', mi
@@ -239,10 +240,11 @@ plt.xlabel('phase [rad]')
 mean_of_diffs = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])])
 std_of_diffs = np.std([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])], ddof = 1)
 plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
-plt.ylabel('cond means temperature [$^{\circ}$C$^{2}$]')
-plt.axis([-np.pi, np.pi, -1.5, 1])
-plt.title('%s cond means \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
+plt.ylabel('cond kurtosis temperature [$^{\circ}$C$^{2}$]')
+#plt.axis([-np.pi, np.pi, -1.5, 1])
+plt.xlim(-np.pi, np.pi)
+plt.title('%s cond kurtosis \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
            (cond_means.max() - cond_means.min()), mean_of_diffs, std_of_diffs))
 
-plt.savefig('debug/cond_mean_%s%s.png' % (SURR_TYPE, '_amplitude_adjusted_before_phase' if AA else ''))
+plt.savefig('debug/cond_kurt_%s%s.png' % (SURR_TYPE, '_amplitude_adjusted_before_phase' if AA else ''))
         
