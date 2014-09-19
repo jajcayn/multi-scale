@@ -920,6 +920,49 @@ def load_NCEP_data_daily(filename, varname, start_date, end_date, lats, lons, le
     
     
     
+def load_sunspot_data(filename, start_date, end_date, smoothed = False):
+    """
+    Data loader for ASCII file of sunspot number from Royal Observatory of Belgium.
+    """
+    
+    path, name = split(filename)
+    if path != '':
+        path += "/"
+        g = DataField(data_folder = path)
+    else:
+        g = DataField()
+    with open(g.data_folder + filename, 'rb') as f:
+        time = []
+        data = []
+        reader = csv.reader(f)
+        for row in reader:
+            year = int(row[0][:4])
+            month = int(row[0][4:6])
+            day = 1
+            time.append(date(year, month, day).toordinal())
+            if not smoothed:
+                data.append(float(row[0][19:24]))
+            else:
+                if row[0][27:32] == '':
+                    data.append(np.nan)
+                else:
+                    data.append(float(row[0][27:32]))
+    
+    g.data = np.array(data)
+    g.time = np.array(time)
+    g.location = 'The Sun'
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    _, month, year = g.extract_day_month_year()
+    
+    print("[%s] %s data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
+        % (str(datetime.now()), 'Sunspot' if not smoothed else 'Smoothed sunspot', str(g.data.shape), month[0], 
+           year[0], month[-1], year[-1]))
+           
+    return g
+    
+    
+    
 def load_bin_data(filename, start_date, end_date, anom):
     """
     Data loader for daily binned data.
