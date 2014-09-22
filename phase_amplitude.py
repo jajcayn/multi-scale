@@ -27,10 +27,10 @@ season = [12,1,2]
 s_name = 'DJF'
 s_num = 100
 AA = False
-SURR_TYPE = 'MF'
+SURR_TYPE = 'AR'
 SURR_DETAIL = False
-SURR_ANALYSIS = True
-MOMENT = 'kurtosis'
+SURR_ANALYSIS = False
+MOMENT = 'skewness'
 
 if MOMENT == 'mean':
     func = np.mean
@@ -39,7 +39,7 @@ elif MOMENT == 'std':
     func = np.std
 elif MOMENT == 'skewness':
     func = sts.skew
-    axplot = [-0.5, 0.5]
+    axplot = [-0.75, 0.75]
 elif MOMENT == 'kurtosis':
     func = sts.kurtosis
     axplot = [-1, 5]
@@ -74,6 +74,7 @@ if EVAL_SEASON:
     phase = phase[ndx_season]
 
 phase_bins = get_equidistant_bins() # equidistant bins
+data_mom = func(g_data.data)
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
     cond_means[i] = func(g_data.data[ndx])
@@ -182,6 +183,7 @@ def plot_surr_analysis(bins_surrs, fname = None):
     
     
 cond_means_surr = np.zeros((NUM_SURR, 8))
+surr_mom = []
 
 mean, var, trend = g.get_seasonality(True)
 su = 0
@@ -212,6 +214,7 @@ while su < NUM_SURR:
         sg.surr_data = sg.surr_data[ndx_season]
         phase = phase[ndx_season]
     temp_means = np.zeros((8,))
+    surr_mom.append(func(sg.surr_data))
     for i in range(cond_means.shape[0]):
         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
         temp_means[i] = func(sg.surr_data[ndx])
@@ -256,15 +259,15 @@ fig = plt.figure(figsize=(6,10))
 b1 = plt.bar(phase_bins[:-1], cond_means, width = diff*0.45, bottom = None, fc = '#403A37', figure = fig)
 b2 = plt.bar(phase_bins[:-1] + diff*0.5, np.mean(cond_means_surr, axis = 0), width = diff*0.45, bottom = None, fc = '#A09793', figure = fig)
 plt.xlabel('phase [rad]')
-mean_of_diffs = np.mean([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])])
-std_of_diffs = np.std([cond_means_surr[i,:].max() - cond_means_surr[i,:].min() for i in range(cond_means_surr.shape[0])], ddof = 1)
+mean_of_surr_mom = np.mean(np.array(surr_mom))
+std_of_surr_mom = np.std(np.array(surr_mom), ddof = 1)
 plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
-plt.ylabel('cond %s temperature [$^{\circ}$C$^{2}$]' % (MOMENT))
+plt.ylabel('cond %s temperature' % (MOMENT))
 plt.axis([-np.pi, np.pi, axplot[0], axplot[1]])
 # plt.xlim(-np.pi, np.pi)
-plt.title('%s cond %s \n difference data: %.2f$^{\circ}$C \n mean of diffs: %.2f$^{\circ}$C \n std of diffs: %.2f$^{\circ}$C$^{2}$' % (g.location, 
-           MOMENT, (cond_means.max() - cond_means.min()), mean_of_diffs, std_of_diffs))
+plt.title('%s cond %s \n %s data: %.2f\n mean of surr %s: %.2f \n std of surr %s: %.2f' % (g.location, 
+           MOMENT, MOMENT, data_mom, MOMENT, mean_of_surr_mom, MOMENT, std_of_surr_mom))
 s_name = s_name if EVAL_SEASON else ''
 MOMENT_SHRTCT = MOMENT[:4] if len(MOMENT) > 4 else MOMENT
-plt.savefig('debug/cond_%s_%s_%s%s.png' % (MOMENT_SHRTCT, SURR_TYPE, s_name, '_amplitude_adjusted_before_phase' if AA else ''))
+plt.savefig('debug/cond_%s_%s%s%s.png' % (MOMENT_SHRTCT, SURR_TYPE, '_' + s_name if EVAL_SEASON else '', '_amplitude_adjusted_before_phase' if AA else ''))
         
