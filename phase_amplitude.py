@@ -30,7 +30,7 @@ AA = False
 SURR_TYPE = 'MF'
 SURR_DETAIL = False
 SURR_ANALYSIS = False
-MOMENT = 'kurtosis'
+MOMENT = 'mean'
 
 if MOMENT == 'mean':
     func = np.mean
@@ -47,7 +47,7 @@ elif MOMENT == 'kurtosis':
 
 # load data - at least 32k of data because of surrogates
 g = load_station_data('TG_STAID000027.txt', date(1924, 1, 1), date(2013,9,18), ANOMALISE)
-g_amp = load_station_data('TG_STAID000027.txt', date(1924, 1, 1), date(2013, 9, 18), False)
+# g_amp = load_station_data('TG_STAID000027.txt', date(1924, 1, 1), date(2013, 9, 18), False)
 g_data = DataField()
 
 
@@ -63,8 +63,8 @@ phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory m
 
 period = 1 * y
 s0_amp = period / fourier_factor # scale for amplitude
-wave, _, _, _ = wavelet_analysis.continous_wavelet(g_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0)
-amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+# wave, _, _, _ = wavelet_analysis.continous_wavelet(g_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0)
+# amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
 
 cond_means = np.zeros((8,))
 
@@ -75,20 +75,20 @@ def get_equidistant_bins():
 start_cut = date(1958,1,1)
 g_data.data, g_data.time, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
 phase = phase[0, idx[0] : idx[1]]
-amplitude = amplitude[0,idx[0] : idx[1]]
+# amplitude = amplitude[0,idx[0] : idx[1]]
 # subselect season
 if EVAL_SEASON:
     ndx_season = g_data.select_months(season)
     phase = phase[ndx_season]
-    amplitude = amplitude[ndx_season]
+    # amplitude = amplitude[ndx_season]
 
 phase_bins = get_equidistant_bins() # equidistant bins
 # data_mom = func(g_data.data)
 data_mom = func(amplitude)
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-    # cond_means[i] = func(g_data.data[ndx])
-    cond_means[i] = func(amplitude[ndx])
+    cond_means[i] = func(g_data.data[ndx])
+    # cond_means[i] = func(amplitude[ndx])
     
     
 def plot_surr_analysis(bins_surrs, fname = None):
@@ -197,49 +197,49 @@ cond_means_surr = np.zeros((NUM_SURR, 8))
 surr_mom = []
 
 mean, var, trend = g.get_seasonality(True)
-mean2, var2, trend2 = g_amp.get_seasonality(True)
+# mean2, var2, trend2 = g_amp.get_seasonality(True)
 su = 0
 tot = 0
 while su < NUM_SURR:
     sg = SurrogateField()
-    sg_amp = SurrogateField()
+    # sg_amp = SurrogateField()
     sg.copy_field(g)
-    sg_amp.copy_field(g_amp)
+    # sg_amp.copy_field(g_amp)
     if SURR_TYPE == 'MF':
         sg.construct_multifractal_surrogates()
         sg.add_seasonality(mean, var, trend)
-        sg_amp.construct_multifractal_surrogates()
-        sg_amp.add_seasonality(mean2, var2, trend2)
+        # sg_amp.construct_multifractal_surrogates()
+        # sg_amp.add_seasonality(mean2, var2, trend2)
     elif SURR_TYPE == 'FT':
         sg.construct_fourier_surrogates_spatial()
         sg.add_seasonality(mean, var, trend)
-        sg_amp.construct_fourier_surrogates_spatial()
-        sg_amp.add_seasonality(mean2, var2, trend2)
+        # sg_amp.construct_fourier_surrogates_spatial()
+        # sg_amp.add_seasonality(mean2, var2, trend2)
     elif SURR_TYPE == 'AR':
         sg.prepare_AR_surrogates()
         sg.construct_surrogates_with_residuals()
         sg.add_seasonality(mean[:-1], var[:-1], trend[:-1])
-        sg_amp.prepare_AR_surrogates()
-        sg_amp.construct_surrogates_with_residuals()
-        sg_amp.add_seasonality(mean2, var2, trend2)
+        # sg_amp.prepare_AR_surrogates()
+        # sg_amp.construct_surrogates_with_residuals()
+        # sg_amp.add_seasonality(mean2, var2, trend2)
     wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
     phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
-    wave, _, _, _ = wavelet_analysis.continous_wavelet(sg_amp.surr_data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
-    amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+    # wave, _, _, _ = wavelet_analysis.continous_wavelet(sg_amp.surr_data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
+    # amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
     if AA:
         sg.amplitude_adjust_surrogates(mean, var, trend)
-        sg_amp.amplitude_adjust_surrogates(mean2, var2, trend2)
+        # sg_amp.amplitude_adjust_surrogates(mean2, var2, trend2)
     _, _, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
     sg.surr_data = sg.surr_data[idx[0] : idx[1]]
     phase = phase[0, idx[0] : idx[1]]
-    amplitude = amplitude[0, idx[0] : idx[1]]
+    # amplitude = amplitude[0, idx[0] : idx[1]]
     
     # subselect season
     if EVAL_SEASON:
         sg.surr_data = sg.surr_data[ndx_season]
         phase = phase[ndx_season]
-        amplitude = amplitude[ndx_season]
+        # amplitude = amplitude[ndx_season]
     temp_means = np.zeros((8,))
     # surr_mom.append(func(sg.surr_data))
     surr_mom.append(func(amplitude))
@@ -291,13 +291,13 @@ plt.xlabel('phase [rad]')
 mean_of_surr_mom = np.mean(np.array(surr_mom))
 std_of_surr_mom = np.std(np.array(surr_mom), ddof = 1)
 plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
-# plt.ylabel('cond %s temperature' % (MOMENT))
-plt.ylabel('cond %s SAT amplitude' % (MOMENT))
+plt.ylabel('cond %s temperature' % (MOMENT))
+# plt.ylabel('cond %s SAT amplitude' % (MOMENT))
 plt.axis([-np.pi, np.pi, axplot[0], axplot[1]])
 # plt.xlim(-np.pi, np.pi)
 plt.title('%s cond %s \n %s data: %.2f\n mean of surr %s: %.2f \n std of surr %s: %.2f' % (g.location, 
            MOMENT, MOMENT, data_mom, MOMENT, mean_of_surr_mom, MOMENT, std_of_surr_mom))
 s_name = s_name if EVAL_SEASON else ''
 MOMENT_SHRTCT = MOMENT[:4] if len(MOMENT) > 4 else MOMENT
-plt.savefig('debug/cond_%s_amplitude_%s%s%s.png' % (MOMENT_SHRTCT, SURR_TYPE, '_' + s_name if EVAL_SEASON else '', '_amplitude_adjusted_before_phase' if AA else ''))
+plt.savefig('debug/cond_%s_%s%s%s.png' % (MOMENT_SHRTCT, SURR_TYPE, '_' + s_name if EVAL_SEASON else '', '_amplitude_adjusted_before_phase' if AA else ''))
         
