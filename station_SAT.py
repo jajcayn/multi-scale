@@ -18,13 +18,13 @@ def get_equidistant_bins():
 
 
 PLOT = True
-SEASON = 'DJF'
+SEASON = 'JJA'
 PERCENTIL = 80
 
 
 g = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
 g_amp = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
-g_sun = load_sunspot_data('monthssn.dat', date(1775, 1, 1), date(2014, 1, 1), False)
+# g_sun = load_sunspot_data('monthssn.dat', date(1775, 1, 1), date(2014, 1, 1), False)
 tg = g.copy_data()
 g.anomalise()
 
@@ -54,14 +54,14 @@ mean_djf = np.mean(tg, axis = 0)
 
 months_ndx = [12,1,2] if SEASON == 'DJF' else [6,7,8]
 djf_ndx = g.select_months(months_ndx)
-g_sun.select_months(months_ndx)
+# g_sun.select_months(months_ndx)
 tg = tg[djf_ndx]
 phase = phase[djf_ndx]
 amplitude = amplitude[djf_ndx]
 
 
 d, m, y = g.extract_day_month_year()
-_, m_s, y_s = g_sun.extract_day_month_year()
+# _, m_s, y_s = g_sun.extract_day_month_year()
 
 phase_bins = get_equidistant_bins()
 
@@ -79,6 +79,7 @@ for i in range(phase_bins.shape[0] - 1):
 #mean_djf = np.mean(tg, axis = 0)
 season_avg = []
 phase_avg = []
+amplitude_avg = []
 sunspot_avg = []
 extremes = []
 extr_ttl = []
@@ -86,16 +87,17 @@ season = 1779
 while season < 2009: # 2009
     if SEASON == 'DJF':
         this_djf = filter(lambda i: (m[i] == 12 and y[i] == season) or (m[i] < 3 and y[i] == season + 1), range(tg.shape[0]))
-        this_djf_sspot = filter(lambda i: (m_s[i] == 12 and y_s[i] == season) or (m_s[i] < 3 and y_s[i] == season + 1), range(g_sun.data.shape[0]))
+        # this_djf_sspot = filter(lambda i: (m_s[i] == 12 and y_s[i] == season) or (m_s[i] < 3 and y_s[i] == season + 1), range(g_sun.data.shape[0]))
         this_year_extr = filter(lambda i: (m[i] == 12 and y[i] == season) or (m[i] < 12 and y[i] == season + 1), range(tg.shape[0])) 
     elif SEASON == 'JJA':
         this_djf = filter(lambda i: (m[i] > 5 and m[i] < 9 and y[i] == season), range(tg.shape[0]))
-        this_djf_sspot = filter(lambda i: (m_s[i] > 5 and m_s[i] < 9 and y_s[i] == season), range(g_sun.data.shape[0]))    
+        # this_djf_sspot = filter(lambda i: (m_s[i] > 5 and m_s[i] < 9 and y_s[i] == season), range(g_sun.data.shape[0]))    
         this_year_extr = filter(lambda i: y[i] == season, range(tg.shape[0]))
     
     season_avg.append([season, np.mean(tg[this_djf], axis = 0), np.std(tg[this_djf], axis = 0, ddof = 1)])
     phase_avg.append([phase[this_djf].min(), phase[this_djf].max(), np.mean(phase[this_djf]), np.median(phase[this_djf])])
-    sunspot_avg.append([np.mean(g_sun.data[this_djf_sspot], axis = 0), np.std(g_sun.data[this_djf_sspot], axis = 0, ddof = 1)])
+    # sunspot_avg.append([np.mean(g_sun.data[this_djf_sspot], axis = 0), np.std(g_sun.data[this_djf_sspot], axis = 0, ddof = 1)])
+    amplitude_avg.append([np.mean(amplitude[this_djf], axis = 0), np.std(amplitude[this_djf], axis = 0, ddof = 1)])
     
     sigma_season = np.std(tg[this_year_extr], axis = 0, ddof = 1)
     if SEASON == 'DJF':
@@ -119,6 +121,7 @@ while season < 2009: # 2009
 season_avg = np.array(season_avg)
 phase_avg = np.array(phase_avg)
 sunspot_avg = np.array(sunspot_avg)
+amplitude_avg = np.array(amplitude_avg)
 extremes = np.array(extremes)
 extr_ttl = np.array(extr_ttl)
 
@@ -131,20 +134,22 @@ if PLOT:
             
     axs = plt.Subplot(fig, gs[0, 0])
     fig.add_subplot(axs)
-    axs.plot(season_avg[:, 0], sunspot_avg[:, 0], color = '#FFE545', linewidth = 2)
-    minima = argrelextrema(sunspot_avg[:, 0], np.less, order = 3)[0]
-    minima = np.append(minima, [31, sunspot_avg.shape[0]-1])
-    for mi in range(minima.shape[0]):
-        axs.plot(season_avg[minima[mi], 0], sunspot_avg[minima[mi], 0], 'o', markersize = 6, color = '#FFE545')
+    axs.plot(season_avg[:, 0], amplitude_avg[:, 0], color = '#FFE545', linewidth = 2)
+    axs.fill_between(season_avg[:, 0], amplitude_avg[:, 0] - amplitude_avg[:, 1], amplitude_avg[:, 0] + amplitude_avg[:, 1], 
+                        color = '#FFF091', alpha = 0.8)
+    # minima = argrelextrema(sunspot_avg[:, 0], np.less, order = 3)[0]
+    # minima = np.append(minima, [31, sunspot_avg.shape[0]-1])
+    # for mi in range(minima.shape[0]):
+        # axs.plot(season_avg[minima[mi], 0], sunspot_avg[minima[mi], 0], 'o', markersize = 6, color = '#FFE545')
     axs.spines['top'].set_visible(False)
     axs.spines['right'].set_visible(False)
     axs.spines['left'].set_visible(False)
     axs.spines['bottom'].set_visible(False)
     axs.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
-    axs.axis([season_avg[0,0], season_avg[-1,0], 0, 200])
+    axs.axis([season_avg[0,0], season_avg[-1,0], 100, 250])
     axs.set_xticks(np.arange(season_avg[0,0], season_avg[-1,0]+5, 15))
-    axs.set_title("seasonal mean of sunspot number")
-    axs.set_ylabel("number")
+    axs.set_title("seasonal amplitude of SAT mean with std")
+    axs.set_ylabel("amplitude of SAT")
     
     axe = plt.Subplot(fig, gs[2, 0])
     fig.add_subplot(axe)    
