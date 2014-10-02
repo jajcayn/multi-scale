@@ -16,6 +16,9 @@ import scipy.stats as sts
 
 def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = None, fname = None):
     fig, ax1 = plt.subplots(figsize=(13,8))
+    ax1.spines['top'].set_visible(False)
+    ax1.spines['right'].set_visible(False)
+    ax1.spines['left'].set_visible(False)
     if len(diffs) > 3:
         ax1.plot(diffs, color = '#403A37', linewidth = 2, figure = fig)
     else:
@@ -129,14 +132,14 @@ def render_phase_and_bins(bins, cond_means, cond_means_surr, phase, dates, perce
         
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 13462 # 13462, 16384
+WINDOW_LENGTH = 16384 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
-MOMENT = 'kurtosis' # if True, compute conditional means, if False, compute conditional variance
+MOMENT = 'std' # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 4
 NUM_SURR = 100 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
-diff_ax = (0, 4) # means -> 0, 2, var -> 1, 8
-mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
+diff_ax = (0, 5) # means -> 0, 2, var -> 1, 8
+mean_ax = (0, 7) # means -> -1, 1.5, var -> 9, 18
 PLOT = True
 PLOT_PHASE = False
 BEGIN = True # if True, phase will be rewritten as in the beggining, otherwise as in the end
@@ -144,7 +147,7 @@ PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
 AA = False
 SAME_BINS = False
 CONDITION = False
-SEASON = [9, 10, 11]
+SEASON = None
 
 
 ## loading data
@@ -409,7 +412,7 @@ if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT,
+    fn = ("debug/PRG_%s_%d_%s%ssurr_%sk_window%s%s%s%s.eps" % (MOMENT,
             NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', 
             '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else '', 
             ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))

@@ -30,14 +30,14 @@ AA = False
 SURR_TYPE = 'MF'
 SURR_DETAIL = False
 SURR_ANALYSIS = False
-MOMENT = 'mean'
+MOMENT = 'std'
 
 if MOMENT == 'mean':
     func = np.mean
-    axplot = [0, 200]
+    axplot = [-1.5, 1.5]
 elif MOMENT == 'std':
     func = np.std
-    axplot = [0, 15]
+    axplot = [0, 7]
 elif MOMENT == 'skewness':
     func = sts.skew
     axplot = [-0.5, 1]
@@ -61,8 +61,8 @@ s0 = period / fourier_factor # get scale
 wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
 phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
-period = 1 * y
-s0_amp = period / fourier_factor # scale for amplitude
+# period = 1 * y
+# s0_amp = period / fourier_factor # scale for amplitude
 # wave, _, _, _ = wavelet_analysis.continous_wavelet(g_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0)
 # amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
 
@@ -83,8 +83,8 @@ if EVAL_SEASON:
     # amplitude = amplitude[ndx_season]
 
 phase_bins = get_equidistant_bins() # equidistant bins
-# data_mom = func(g_data.data)
-data_mom = func(amplitude)
+data_mom = func(g_data.data)
+# data_mom = func(amplitude)
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
     cond_means[i] = func(g_data.data[ndx])
@@ -241,18 +241,18 @@ while su < NUM_SURR:
         phase = phase[ndx_season]
         # amplitude = amplitude[ndx_season]
     temp_means = np.zeros((8,))
-    # surr_mom.append(func(sg.surr_data))
-    surr_mom.append(func(amplitude))
+    # surr_mom.append(func(amplitude))
     for i in range(cond_means.shape[0]):
         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-        # temp_means[i] = func(sg.surr_data[ndx])
-        temp_means[i] = func(amplitude[ndx])
+        temp_means[i] = func(sg.surr_data[ndx])
+        # temp_means[i] = func(amplitude[ndx])
     ma = temp_means.argmax()
     mi = temp_means.argmin()
     print 'max - ', ma, '  min - ', mi
     if (np.abs(ma - mi) > 2) and (np.abs(ma - mi) < 6):
         cond_means_surr[su, :] = temp_means.copy()
         su += 1
+        surr_mom.append(temp_means[ma] - temp_means[mi])
     else:
         pass
     
@@ -291,13 +291,13 @@ plt.xlabel('phase [rad]')
 mean_of_surr_mom = np.mean(np.array(surr_mom))
 std_of_surr_mom = np.std(np.array(surr_mom), ddof = 1)
 plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
-plt.ylabel('cond %s temperature' % (MOMENT))
+plt.ylabel('cond %s temperature [$^{\circ}$C]' % (MOMENT))
 # plt.ylabel('cond %s SAT amplitude' % (MOMENT))
 plt.axis([-np.pi, np.pi, axplot[0], axplot[1]])
 # plt.xlim(-np.pi, np.pi)
-plt.title('%s cond %s \n %s data: %.2f\n mean of surr %s: %.2f \n std of surr %s: %.2f' % (g.location, 
-           MOMENT, MOMENT, data_mom, MOMENT, mean_of_surr_mom, MOMENT, std_of_surr_mom))
+plt.title('%s cond %s \n difference data: %.2f\n mean of surr diffs: %.2f \n std of surr diffs: %.2f' % (g.location, 
+           MOMENT, cond_means.max() - cond_means.min(), mean_of_surr_mom, std_of_surr_mom))
 s_name = s_name if EVAL_SEASON else ''
 MOMENT_SHRTCT = MOMENT[:4] if len(MOMENT) > 4 else MOMENT
-plt.savefig('debug/cond_%s_%s%s%s.png' % (MOMENT_SHRTCT, SURR_TYPE, '_' + s_name if EVAL_SEASON else '', '_amplitude_adjusted_before_phase' if AA else ''))
+plt.savefig('debug/cond_%s_%s%s%s.eps' % (MOMENT_SHRTCT, SURR_TYPE, '_' + s_name if EVAL_SEASON else '', '_amplitude_adjusted_before_phase' if AA else ''))
         

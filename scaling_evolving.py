@@ -24,7 +24,7 @@ PERIOD = 8
 PAST_UNTIL = 1930 # from which segment the average extremes should be computed
 WINDOW_LENGTH = 13462 # 13462, 16384 for surrogates only 13462
 PLOT = True
-USE_SURR = True
+USE_SURR = False
 NUM_SURR = 100
 
 
@@ -285,7 +285,7 @@ csin_sp = np.array(csin_sp)
 
 if PLOT:
     fig = plt.figure(figsize = (16,8), frameon = False)
-    gs = gridspec.GridSpec(2, 3, width_ratios = [5,1,1])
+    gs = gridspec.GridSpec(2, 2, width_ratios = [5,1])
     gs.update(left = 0.05, right = 0.95, top = 0.9, bottom = 0.1, wspace = 0.25, hspace = 0.4)
     colours = ['#F38630', '#69D2E7']
     colours_sp = ['#FEF215', '#6A009D']
@@ -344,25 +344,25 @@ if PLOT:
         ax.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
         ax.set_xlabel('phase [rad]')
         
-        # typical histo
-        ax = plt.Subplot(fig, gs[i, 2])
-        fig.add_subplot(ax)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-        ax.tick_params(color = '#6A4A3C')
-        ax.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
-        for bar in evolve:
-            rects = ax.bar(phase_bins[:-1]+0.1*diff, bar[:, i], width = 0.8*diff, bottom = None, fc = colours[i], ec = colours[i], alpha = 0.15)
-        ax.axis([-np.pi, np.pi, 0, avg_bins[:, i].max() + 1])
-        ax.set_xlabel('phase [rad]')
+        # # typical histo
+        # ax = plt.Subplot(fig, gs[i, 2])
+        # fig.add_subplot(ax)
+        # ax.spines['top'].set_visible(False)
+        # ax.spines['right'].set_visible(False)
+        # ax.spines['left'].set_visible(False)
+        # ax.tick_params(color = '#6A4A3C')
+        # ax.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
+        # for bar in evolve:
+        #     rects = ax.bar(phase_bins[:-1]+0.1*diff, bar[:, i], width = 0.8*diff, bottom = None, fc = colours[i], ec = colours[i], alpha = 0.15)
+        # ax.axis([-np.pi, np.pi, 0, avg_bins[:, i].max() + 1])
+        # ax.set_xlabel('phase [rad]')
         
-    fig.text(0.72, 0.47, 'average extremes \n 1775-%d' % PAST_UNTIL, va = 'center', ha = 'center', size = 13, weight = 'heavy')    
-    fig.text(0.9, 0.47, 'collage of bar plots', va = 'center', ha = 'center', size = 13, weight = 'heavy')    
+    fig.text(0.88, 0.47, 'average extremes \n 1775-%d' % PAST_UNTIL, va = 'center', ha = 'center', size = 13, weight = 'heavy') # 0.7
+    # fig.text(0.9, 0.47, 'collage of bar plots', va = 'center', ha = 'center', size = 13, weight = 'heavy')    
     if USE_SURR:
         plt.savefig('debug/ARsurr_extremes_evolving_%d_%s_window.png' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
     else:
-        plt.savefig('debug/extremes_evolving_%d_%s_window.png' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
+        plt.savefig('debug/extremes_evolving_%d_%s_window.eps' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
 
     
     

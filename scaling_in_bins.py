@@ -21,15 +21,15 @@ def render_extremes_and_scaling_in_bins(res, heat_w, cold_w, fname = None):
     fig = plt.figure(figsize = (16,8), frameon = False)
     
     # extremes
-    gs1 = gridspec.GridSpec(1, 6)
-    gs1.update(left = 0.1, right = 0.95, top = 0.91, bottom = 0.55, wspace = 0.25)
+    gs1 = gridspec.GridSpec(1, 4)
+    gs1.update(left = 0.1, right = 0.95, top = 0.91, bottom = 0.1, wspace = 0.25)
     titles = ['> 2$\cdot\sigma$', '> 3$\cdot\sigma$', 
               '< -2$\cdot\sigma$', '< -3$\cdot\sigma$',
               '5 days > 0.8$\cdot$max T', '5 days < 0.8$\cdot$min T']
     colours = ['#F38630', '#FA6900', '#69D2E7', '#A7DBD8', '#EB6841', '#00A0B0']
     hatches = ['/', '+', 'x', '.']
     labels = ['DJF', 'MAM', 'JJA', 'SON']
-    for i in range(6):
+    for i in range(4):
         ax = plt.Subplot(fig, gs1[0, i])
         fig.add_subplot(ax)
         ax.spines['top'].set_visible(False)
@@ -47,7 +47,7 @@ def render_extremes_and_scaling_in_bins(res, heat_w, cold_w, fname = None):
                                     fc = colours[i], ec = '#6A4A3C', hatch = hatches[j], linewidth = 0.1, label = labels[j])
             ax.set_xbound(lower = -np.pi, upper = np.pi)
             if i == 0:
-                ax.legend(bbox_to_anchor = (-0.3, 0.72), prop = {'size' : 11})
+                ax.legend(bbox_to_anchor = (-0.15, 0.80), prop = {'size' : 11})
             maximum = np.sum(res[:, 4*i:4*i+4], axis = 1).argmax()
             ax.text(rects[maximum].get_x() + rects[maximum].get_width()/2., 0, 
                      '%d'%int(np.sum(res[maximum, 4*i:4*i+4])), ha = 'center', va = 'bottom', color = '#6A4A3C')
@@ -62,36 +62,36 @@ def render_extremes_and_scaling_in_bins(res, heat_w, cold_w, fname = None):
         ax.yaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
         ax.set_xlabel('phase [rad]')
         ax.set_title(titles[i])
-    fig.text(0.07, 0.75, 'count', ha = 'center', va = 'center', rotation = 'vertical')
-    fig.text(0.97, 0.75, 'count', ha = 'center', va = 'center', rotation = -90)
+    fig.text(0.07, 0.5, 'count', ha = 'center', va = 'center', rotation = 'vertical')
+    fig.text(0.97, 0.5, 'count', ha = 'center', va = 'center', rotation = -90)
     
     # scaling
-    gs2 = gridspec.GridSpec(1, 8)
-    gs2.update(left = 0.05, right = 0.95, top = 0.42, bottom = 0.12, wspace = 0.25)
-    for i in range(8):
-        ax = plt.Subplot(fig, gs2[0, i])
-        fig.add_subplot(ax)
-        ax.spines['top'].set_visible(False)
-        ax.spines['right'].set_visible(False)
-        ax.spines['left'].set_visible(False)
-        ax.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
-        ax.tick_params(which = 'minor', top = 'off', right = 'off', color = '#6A4A3C')
-        max_d = max(cold_w[i].keys()[-1], heat_w[i].keys()[-1])
-        ax.bar(np.arange(3, max_d+1,1)+0.1, [heat_w[i][j] if (j in heat_w[i]) else 0 for j in range(3,max_d+1)], width = 0.8, 
-               bottom = None, fc = '#EB6841', ec = '#EB6841')
-        ax.bar(np.arange(3, max_d+1,1)+0.1, [-cold_w[i][j] if (j in cold_w[i]) else 0 for j in range(3,max_d+1)], width = 0.8, 
-               bottom = None, fc = '#00A0B0', ec = '#00A0B0')
-        bound = max(np.array([cold_w[k][j] for k in range(8) for j in cold_w[k].keys() if j >= 3]).max(), np.array([heat_w[k][j] for k in range(8) for j in heat_w[k].keys() if j >= 3]).max())
-        ax.axis([3, 25, -bound, bound])
-#        ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
-#        ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
-        ax.set_xlabel('wave duration [days]')
-        ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
-        pos = gs2[0,i].get_position(fig).get_points()
-        fig.text(np.mean(pos[:,0]), 0.45, '(%.2f, %.2f)' % (phase_bins[i], phase_bins[i+1]), ha = 'center', va = 'center')
-    fig.text(0.015, 0.27, 'number of occurence \n cold | heat', ha = 'center', va = 'center', rotation = 'vertical')
-    fig.text(0.965, 0.277, 'number of occurence \n heat | cold', ha = 'center', va = 'center', rotation = -90)
-    fig.text(0.5, 0.02, 'heat/cold waves (80percentil) with duration at least 3 days', ha = 'center', va = 'center', size = 16)    
+#     gs2 = gridspec.GridSpec(1, 8)
+#     gs2.update(left = 0.05, right = 0.95, top = 0.42, bottom = 0.12, wspace = 0.25)
+#     for i in range(8):
+#         ax = plt.Subplot(fig, gs2[0, i])
+#         fig.add_subplot(ax)
+#         ax.spines['top'].set_visible(False)
+#         ax.spines['right'].set_visible(False)
+#         ax.spines['left'].set_visible(False)
+#         ax.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
+#         ax.tick_params(which = 'minor', top = 'off', right = 'off', color = '#6A4A3C')
+#         max_d = max(cold_w[i].keys()[-1], heat_w[i].keys()[-1])
+#         ax.bar(np.arange(3, max_d+1,1)+0.1, [heat_w[i][j] if (j in heat_w[i]) else 0 for j in range(3,max_d+1)], width = 0.8, 
+#                bottom = None, fc = '#EB6841', ec = '#EB6841')
+#         ax.bar(np.arange(3, max_d+1,1)+0.1, [-cold_w[i][j] if (j in cold_w[i]) else 0 for j in range(3,max_d+1)], width = 0.8, 
+#                bottom = None, fc = '#00A0B0', ec = '#00A0B0')
+#         bound = max(np.array([cold_w[k][j] for k in range(8) for j in cold_w[k].keys() if j >= 3]).max(), np.array([heat_w[k][j] for k in range(8) for j in heat_w[k].keys() if j >= 3]).max())
+#         ax.axis([3, 25, -bound, bound])
+# #        ax.yaxis.set_major_locator(ticker.MultipleLocator(1))
+# #        ax.yaxis.set_major_formatter(ticker.ScalarFormatter())
+#         ax.set_xlabel('wave duration [days]')
+#         ax.xaxis.set_major_formatter(ticker.FormatStrFormatter('%d'))
+#         pos = gs2[0,i].get_position(fig).get_points()
+#         fig.text(np.mean(pos[:,0]), 0.45, '(%.2f, %.2f)' % (phase_bins[i], phase_bins[i+1]), ha = 'center', va = 'center')
+#     fig.text(0.015, 0.27, 'number of occurence \n cold | heat', ha = 'center', va = 'center', rotation = 'vertical')
+#     fig.text(0.965, 0.277, 'number of occurence \n heat | cold', ha = 'center', va = 'center', rotation = -90)
+#     fig.text(0.5, 0.02, 'heat/cold waves (80percentil) with duration at least 3 days', ha = 'center', va = 'center', size = 16)    
     plt.suptitle('%s - %d point / %s window: %s -- %s' % (g.location, MIDDLE_YEAR, '14k' if WINDOW_LENGTH < 16000 else '16k', 
                   str(g.get_date_from_ndx(0)), str(g.get_date_from_ndx(-1))), size = 16)
     if fname != None:
@@ -120,7 +120,6 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
     lab = {}
     for i in range(scaling.shape[0]):
         lab[i], = ax1.plot(scaling[i, 0:], linewidth = 0.75, color = colours[i])
-#    ax1.axis([0, scaling.shape[1], 0, 6])
     ax1.yaxis.set_major_locator(ticker.MultipleLocator(1))
     ax1.yaxis.set_major_formatter(ticker.ScalarFormatter())
     ax1.xaxis.set_minor_locator(ticker.MultipleLocator(1))
@@ -142,7 +141,6 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
     ax2.tick_params(which = 'minor', top = 'off', right = 'off', color = '#6A4A3C')
     for i in range(scaling.shape[0]):
         ax2.plot(min_scaling[i, 0:], linewidth = 0.75, color = colours[i])
-#    ax2.axis([0, scaling.shape[1], 0, 6])
     ax2.yaxis.set_major_locator(ticker.MultipleLocator(1))
     ax2.yaxis.set_major_formatter(ticker.ScalarFormatter())
     ax2.xaxis.set_minor_locator(ticker.MultipleLocator(1))
@@ -161,7 +159,6 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
     ax3.tick_params(which = 'minor', top = 'off', right = 'off', color = '#6A4A3C')
     for i in range(scaling.shape[0]):
         ax3.plot(max_scaling[i, 0:], linewidth = 0.75, color = colours[i])
-#    ax3.axis([0, scaling.shape[1], 0, 6])
     ax3.yaxis.set_major_locator(ticker.MultipleLocator(1))
     ax3.yaxis.set_major_formatter(ticker.ScalarFormatter())
     ax3.xaxis.set_minor_locator(ticker.MultipleLocator(1))
@@ -185,9 +182,9 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
 
 
 PERIOD = 8
-WINDOW_LENGTH = 16384 # 13462, 16384
+WINDOW_LENGTH = 13462 # 13462, 16384
 MIDDLE_YEAR = 1965 # year around which the window will be deployed
-JUST_SCALING = True
+JUST_SCALING = False
 PLOT = True
 WAVES_PERCENTIL = 80
 DATA = 0 # 0 - original station, 1 - closest ERA, 2 - closest ECA&D
@@ -257,8 +254,8 @@ g_min.time = g_min.time[idx[0] : idx[1]]
 tg_sat = tg_sat[idx[0] : idx[1]]
 
 # get sigma for extremes
-sigma_max = np.nanstd(tg_sat, axis = 0, ddof = 1)
-sigma_min = np.nanstd(tg_sat, axis = 0, ddof = 1)
+sigma_max = np.nanstd(g.data, axis = 0, ddof = 1)
+sigma_min = np.nanstd(g.data, axis = 0, ddof = 1)
 
 
 # prepare result matrix
@@ -287,7 +284,7 @@ if JUST_SCALING:
     scaling_max = []
 for i in range(phase_bins.shape[0] - 1):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-    data_temp = tg_sat[ndx].copy()#g.data[ndx].copy()
+    data_temp = g.data[ndx].copy()#g.data[ndx].copy()
     time_temp = g.time[ndx].copy()
     max_temp = g_max.data[ndx].copy()
     min_temp = g_min.data[ndx].copy()
@@ -297,25 +294,25 @@ for i in range(phase_bins.shape[0] - 1):
         g_temp.time = time_temp.copy()
         _, m, _ = g_temp.extract_day_month_year()
         # positive extremes - 2sigma
-        g_e = np.greater_equal(tg_sat_temp, np.mean(tg_sat) + 2 * sigma_max)
+        g_e = np.greater_equal(data_temp, np.mean(g.data) + 2 * sigma_max)
         result[i, 0] = np.sum((m[g_e] == 12) | (m[g_e] <= 2)) # DJF
         result[i, 1] = np.sum((m[g_e] > 2) & (m[g_e] <= 5)) # MAM
         result[i, 2] = np.sum((m[g_e] > 5) & (m[g_e] <= 8)) # JJA
         result[i, 3] = np.sum((m[g_e] > 8) & (m[g_e] <= 11)) # SON
         # positive extremes - 3sigma
-        g_e = np.greater_equal(tg_sat_temp, np.mean(tg_sat) + 3 * sigma_max)
+        g_e = np.greater_equal(data_temp, np.mean(g.data) + 3 * sigma_max)
         result[i, 4] = np.sum((m[g_e] == 12) | (m[g_e] <= 2)) # DJF
         result[i, 5] = np.sum((m[g_e] > 2) & (m[g_e] <= 5)) # MAM
         result[i, 6] = np.sum((m[g_e] > 5) & (m[g_e] <= 8)) # JJA
         result[i, 7] = np.sum((m[g_e] > 8) & (m[g_e] <= 11)) # SON
         # negative extremes - 2sigma
-        l_e = np.less_equal(tg_sat_temp, np.mean(tg_sat) - 2 * sigma_min)
+        l_e = np.less_equal(data_temp, np.mean(g.data) - 2 * sigma_min)
         result[i, 8] = np.sum((m[l_e] == 12) | (m[l_e] <= 2)) # DJF
         result[i, 9] = np.sum((m[l_e] > 2) & (m[l_e] <= 5)) # MAM
         result[i, 10] = np.sum((m[l_e] > 5) & (m[l_e] <= 8)) # JJA
         result[i, 11] = np.sum((m[l_e] > 8) & (m[l_e] <= 11)) # SON
         # negative extremes - 3sigma
-        l_e = np.less_equal(tg_sat_temp, np.mean(tg_sat) - 3 * sigma_min)
+        l_e = np.less_equal(data_temp, np.mean(g.data) - 3 * sigma_min)
         result[i, 12] = np.sum((m[l_e] == 12) | (m[l_e] <= 2)) # DJF
         result[i, 13] = np.sum((m[l_e] > 2) & (m[l_e] <= 5)) # MAM
         result[i, 14] = np.sum((m[l_e] > 5) & (m[l_e] <= 8)) # JJA
@@ -414,7 +411,7 @@ if JUST_SCALING:
 if PLOT:
     if not JUST_SCALING:
         if DATA == 0:
-            fname = ('debug/scaling_extremes_%d_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
+            fname = ('debug/scaling_extremes_%d_%sk_window_%dpercentil_SATA.eps' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
         elif DATA == 1:
             fname = ('debug/scaling_extremes_%d_ERA_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
         elif DATA == 2:
