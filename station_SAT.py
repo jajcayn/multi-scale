@@ -18,7 +18,7 @@ def get_equidistant_bins():
 
 
 PLOT = True
-SEASON = 'JJA'
+SEASON = 'DJF'
 PERCENTIL = 80
 
 
@@ -41,12 +41,23 @@ period = 1 * 365.25 # frequency of interest
 s0 = period / fourier_factor # get scale
 wave, _, _, _ = wvlt.continous_wavelet(g_amp.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
 amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+amplitude = amplitude[0, :]
+phase_amp = np.arctan2(np.imag(wave), np.real(wave))
+phase_amp = phase_amp[0, :]
+
+# fitting oscillatory phase / amplitude to actual SAT
+reconstruction = amplitude * np.cos(phase_amp)
+print reconstruction.shape
+fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+m, c = np.linalg.lstsq(fit_x, g_amp.data)[0]
+amplitude = m * amplitude + c
+print("Oscillatory series fitted to SAT data with coeff. %.3f and intercept %.3f" % (m, c))
 
 # cut because of wavelet
 wvlt_cut = g.select_date(date(1779,8,1), date(2009,11,1)) # first and last incomplete winters are omitted
 tg = tg[wvlt_cut]
 phase = phase[0, wvlt_cut]
-amplitude = amplitude[0, wvlt_cut]
+amplitude = amplitude[wvlt_cut]
 
 # if extremes from total sigma / mean not just DJF
 sigma_djf = np.std(tg, axis = 0, ddof = 1)
@@ -55,6 +66,8 @@ mean_djf = np.mean(tg, axis = 0)
 months_ndx = [12,1,2] if SEASON == 'DJF' else [6,7,8]
 djf_ndx = g.select_months(months_ndx)
 # g_sun.select_months(months_ndx)
+
+
 tg = tg[djf_ndx]
 phase = phase[djf_ndx]
 amplitude = amplitude[djf_ndx]
@@ -83,6 +96,8 @@ amplitude_avg = []
 sunspot_avg = []
 extremes = []
 extr_ttl = []
+cold_winters = []
+cold_winters_sum = []
 season = 1779
 while season < 2009: # 2009
     if SEASON == 'DJF':
@@ -93,6 +108,16 @@ while season < 2009: # 2009
         this_djf = filter(lambda i: (m[i] > 5 and m[i] < 9 and y[i] == season), range(tg.shape[0]))
         # this_djf_sspot = filter(lambda i: (m_s[i] > 5 and m_s[i] < 9 and y_s[i] == season), range(g_sun.data.shape[0]))    
         this_year_extr = filter(lambda i: y[i] == season, range(tg.shape[0]))
+    neg_sum_djf = 0
+    for day_temp in tg[this_djf]:
+        if day_temp < 0:
+            neg_sum_djf += day_temp
+    cold_winters_sum.append(neg_sum_djf)
+    if neg_sum_djf < -300:
+        cold_winters.append(True)
+    else:
+        cold_winters.append(False)
+
     
     season_avg.append([season, np.mean(tg[this_djf], axis = 0), np.std(tg[this_djf], axis = 0, ddof = 1)])
     phase_avg.append([phase[this_djf].min(), phase[this_djf].max(), np.mean(phase[this_djf]), np.median(phase[this_djf])])
@@ -124,6 +149,12 @@ sunspot_avg = np.array(sunspot_avg)
 amplitude_avg = np.array(amplitude_avg)
 extremes = np.array(extremes)
 extr_ttl = np.array(extr_ttl)
+cold_winters = np.array(cold_winters)
+cold_winters_sum = np.array(cold_winters_sum)
+
+plt.figure()
+plt.plot(cold_winters_sum)
+plt.savefig('negative_sum.png')
 
 # plotting
 if PLOT:
@@ -146,7 +177,10 @@ if PLOT:
     axs.spines['left'].set_visible(False)
     axs.spines['bottom'].set_visible(False)
     axs.tick_params(top = 'off', right = 'off', color = '#6A4A3C')
-    axs.axis([season_avg[0,0], season_avg[-1,0], 100, 250])
+    if SEASON == 'JJA':
+        axs.axis([season_avg[0,0], season_avg[-1,0], 15, 25])
+    elif SEASON == 'DJF':
+        axs.axis([season_avg[0,0], season_avg[-1,0], 18, 23])
     axs.set_xticks(np.arange(season_avg[0,0], season_avg[-1,0]+5, 15))
     axs.set_title("seasonal amplitude of SAT mean with std")
     axs.set_ylabel("amplitude of SAT")
@@ -234,19 +268,21 @@ if PLOT:
             else:
                 ax2.plot(season_avg[i, 0], phase_avg[i, 3], 'o', markersize = 3, color = '#000000')
         elif SEASON == 'DJF':
+            if cold_winters[i]:
+                ax.plot(season_avg[i, 0], season_avg[i, 1], 'o', markersize = 14, color = '#6EB1C2')
             if (phase_avg[i, 3] <= phase_bins[1]) or (phase_avg[i, 3] >= phase_bins[7]):
                 ax2.plot(season_avg[i, 0], phase_avg[i, 3], 'o', markersize = 8, color = '#C5D76C')
                 perc = np.less(season_avg[i, 1], season_avg[:, 1])
-                # percentil from below
-                if np.sum(perc) >= season_avg.shape[0]*(PERCENTIL/100.):
-                    ax.plot(season_avg[i, 0], season_avg[i, 1], 'o', markersize = 8, color = '#6EB1C2')
-                    dist_of_in_phase[0] += 1
-                # percentil from top
-                elif np.sum(perc) <= season_avg.shape[0]*((100-PERCENTIL)/100.):
-                    dist_of_in_phase[2] += 1
-                else:
-                    ax.plot(season_avg[i, 0], season_avg[i, 1], 'o', markersize = 8, color = '#7F417C')
-                    dist_of_in_phase[1] += 1
+                # # percentil from below
+                # if np.sum(perc) >= season_avg.shape[0]*(PERCENTIL/100.):
+                #     ax.plot(season_avg[i, 0], season_avg[i, 1], 'o', markersize = 8, color = '#6EB1C2')
+                #     dist_of_in_phase[0] += 1
+                # # percentil from top
+                # elif np.sum(perc) <= season_avg.shape[0]*((100-PERCENTIL)/100.):
+                #     dist_of_in_phase[2] += 1
+                # else:
+                ax.plot(season_avg[i, 0], season_avg[i, 1], 'o', markersize = 8, color = '#7F417C')
+                    # dist_of_in_phase[1] += 1
                 axe.plot(season_avg[i, 0], extr_ttl[i, 0], 'o', markersize = 8, color = '#6EB1C2')
                 axe2.plot(season_avg[i, 0], extremes[i, 0], 'o', markersize = 8, color = '#8F9C28')
                 in_phase.append([season_avg[i, 1], extr_ttl[i, 0], extremes[i, 0]])

@@ -132,11 +132,11 @@ def render_phase_and_bins(bins, cond_means, cond_means_surr, phase, dates, perce
         
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 16384 # 13462, 16384
+WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MOMENT = 'std' # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 4
-NUM_SURR = 100 # how many surrs will be used to evaluate
+NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 5) # means -> 0, 2, var -> 1, 8
 mean_ax = (0, 7) # means -> -1, 1.5, var -> 9, 18
@@ -162,7 +162,9 @@ if MOMENT == 'mean':
     func = np.mean
     diff_ax = (0, 4)
 elif MOMENT == 'std':
-    func = np.std
+    func = np.var
+    diff_ax = (1,15)
+    mean_ax = (9,18)
 elif MOMENT == 'skewness':
     func = sts.skew
     diff_ax = (0, 8)
@@ -215,22 +217,24 @@ def _cond_difference_surrogates(sg, g_temp, a, start_cut, jobq, resq, ndx_seas):
             sg.surr_data = sg.surr_data[ndx_seas]
             phase = phase[ndx_seas]
         phase_bins = get_equidistant_bins() # equidistant bins
-        for i in range(cond_means.shape[0]): # get conditional means for current phase range
+        cond_means_temp = np.zeros((8,))
+        for i in range(cond_means_temp.shape[0]): # get conditional means for current phase range
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
             if MOMENT == 'std':
-                cond_means[i] = func(sg.surr_data[ndx], ddof = 1)
+                cond_means_temp[i] = func(sg.surr_data[ndx], ddof = 1)
             else:
-                cond_means[i] = func(sg.surr_data[ndx])
-        ma = cond_means.argmax()
-        mi = cond_means.argmin()
+                cond_means_temp[i] = func(sg.surr_data[ndx])
+        ma = cond_means_temp.argmax()
+        mi = cond_means_temp.argmin()
+        print cond_means_temp, ma, mi
         if not SAME_BINS:
-            diff = (cond_means.max() - cond_means.min()) # append difference to list
+            diff = (cond_means_temp[ma] - cond_means_temp[mi]) # append difference to list
         elif SAME_BINS:
-            diff = (cond_means[max_bin] - cond_means[min_bin])
-        mean_var = np.mean(cond_means)
+            diff = (cond_means_temp[max_bin] - cond_means_temp[min_bin])
+        mean_var = np.mean(cond_means_temp)
         
-        resq.put((diff, mean_var, cond_means, np.abs(ma - mi)))
+        resq.put((diff, mean_var, cond_means_temp, np.abs(ma - mi)))
     
     
     
