@@ -23,8 +23,8 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 NUM_SURR = 100
 EVAL_SEASON = False
-season = [12,1,2]
-s_name = 'DJF'
+season = [6,7,8]
+s_name = 'JJA'
 s_num = 100
 AA = False
 SURR_TYPE = 'MF'
@@ -34,7 +34,8 @@ MOMENT = 'mean'
 
 if MOMENT == 'mean':
     func = np.mean
-    axplot = [-1.5, 1.5]
+    # axplot = [-1.5, 1.5]
+    axplot = [18, 22] # if evaluating amplitude
 elif MOMENT == 'std':
     func = np.std
     axplot = [2.5, 5.5]
@@ -66,12 +67,12 @@ s0_amp = period / fourier_factor # get scale
 wave, _, _, _ = wavelet_analysis.continous_wavelet(g_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
 amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
 amplitude = amplitude[0, :]
+print 'data', amplitude.max(), amplitude.min()
 phase_amp = np.arctan2(np.imag(wave), np.real(wave))
 phase_amp = phase_amp[0, :]
 
 # fitting oscillatory phase / amplitude to actual SAT
 reconstruction = amplitude * np.cos(phase_amp)
-print reconstruction.shape
 fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
 m, c = np.linalg.lstsq(fit_x, g_amp.data)[0]
 amplitude = m * amplitude + c
@@ -245,7 +246,7 @@ while su < NUM_SURR:
     # fitting oscillatory phase / amplitude to actual SAT
     reconstruction = amplitude * np.cos(phase_amp)
     fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
-    m, c = np.linalg.lstsq(fit_x, g_amp.data)[0]
+    m, c = np.linalg.lstsq(fit_x, sg_amp.surr_data)[0]
     amplitude = m * amplitude + c
     if AA:
         # sg.amplitude_adjust_surrogates(mean, var, trend)
@@ -261,7 +262,6 @@ while su < NUM_SURR:
         phase = phase[ndx_season]
         amplitude = amplitude[ndx_season]
     temp_means = np.zeros((8,))
-    surr_mom.append(func(amplitude))
     for i in range(cond_means.shape[0]):
         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
         # temp_means[i] = func(sg.surr_data[ndx])
@@ -313,8 +313,8 @@ std_of_surr_mom = np.std(np.array(surr_mom), ddof = 1)
 plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
 # plt.ylabel('cond %s temperature [$^{\circ}$C]' % (MOMENT))
 plt.ylabel('cond %s SAT amplitude' % (MOMENT))
-# plt.axis([-np.pi, np.pi, axplot[0], axplot[1]])
-plt.xlim(-np.pi, np.pi)
+plt.axis([-np.pi, np.pi, axplot[0], axplot[1]])
+# plt.xlim(-np.pi, np.pi)
 plt.title('%s cond %s \n difference data: %.2f\n mean of surr diffs: %.2f \n std of surr diffs: %.2f' % (g.location, 
            MOMENT, cond_means.max() - cond_means.min(), mean_of_surr_mom, std_of_surr_mom))
 s_name = s_name if EVAL_SEASON else ''

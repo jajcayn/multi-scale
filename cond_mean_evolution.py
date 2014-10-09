@@ -164,7 +164,8 @@ g_surrs = DataField()
 g_surrs_amp = DataField()
 if MOMENT == 'mean':
     func = np.mean
-    diff_ax = (0, 4)
+    diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
+    mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
 elif MOMENT == 'std':
     func = np.var
     diff_ax = (1,15)
@@ -229,7 +230,7 @@ def _cond_difference_surrogates(sg, sg_amp, g_temp, a, a_amp, start_cut, jobq, r
         phase_amp = phase_amp[0, :]
         reconstruction = amplitude * np.cos(phase_amp)
         fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
-        m, c = np.linalg.lstsq(fit_x, g_working_amp.data)[0]
+        m, c = np.linalg.lstsq(fit_x, sg_amp.surr_data)[0]
         amplitude = m * amplitude + c
 
         if AA:
