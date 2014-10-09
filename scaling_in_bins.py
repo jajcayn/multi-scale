@@ -26,7 +26,7 @@ def render_extremes_and_scaling_in_bins(res, heat_w, cold_w, fname = None):
     titles = ['> 2$\cdot\sigma$', '> 3$\cdot\sigma$', 
               '< -2$\cdot\sigma$', '< -3$\cdot\sigma$',
               '5 days > 0.8$\cdot$max T', '5 days < 0.8$\cdot$min T']
-    colours = ['#F38630', '#FA6900', '#69D2E7', '#A7DBD8', '#EB6841', '#00A0B0']
+    colours = ['#F38630', '#FA6900', '#69 D2E7', '#A7DBD8', '#EB6841', '#00 A0B0']
     hatches = ['/', '+', 'x', '.']
     labels = ['DJF', 'MAM', 'JJA', 'SON']
     for i in range(4):
