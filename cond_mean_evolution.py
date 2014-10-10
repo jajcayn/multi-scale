@@ -5,14 +5,13 @@ created on May 20, 2014
 """
 
 from src import wavelet_analysis
-from src.data_class import load_station_data, DataField, load_bin_data
+from src.data_class import load_station_data, DataField
 from surrogates.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue
 import scipy.stats as sts
-import time
 
 
 def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = None, fname = None):
@@ -149,19 +148,22 @@ AA = False
 SAME_BINS = False
 CONDITION = False
 SEASON = None
+AMPLITUDE = False
 
 
 ## loading data
 g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), ANOMALISE)
-g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013, 10, 1), False)
+if AMPLITUDE:
+    g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013, 10, 1), False)
 # ERA
 #g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1958,4,28), date(2013,10,1), ANOMALISE)
 # ECA
 #g = load_bin_data('../data/ECA&D_time_series_50.1N_14.4E.bin', date(1950,4,28), date(2013,10,1), ANOMALISE)
 g_working = DataField()
-g_working_amp = DataField()
 g_surrs = DataField()
-g_surrs_amp = DataField()
+if AMPLITUDE:
+    g_working_amp = DataField()
+    g_surrs_amp = DataField()
 if MOMENT == 'mean':
     func = np.mean
     diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
@@ -187,8 +189,9 @@ fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
 period = PERIOD * y # frequency of interest
 s0 = period / fourier_factor # get scale
 
-period_amp = 1 * y # frequency of interest
-s0_amp = period_amp / fourier_factor # get scale
+if AMPLITUDE:
+    period_amp = 1 * y # frequency of interest
+    s0_amp = period_amp / fourier_factor # get scale
 
 cond_means = np.zeros((8,))
 to_wavelet = 16384 if WINDOW_LENGTH < 16000 else 32768
@@ -203,42 +206,47 @@ def get_equidistant_bins():
 
 def _cond_difference_surrogates(sg, sg_amp, g_temp, a, a_amp, start_cut, jobq, resq, ndx_seas):
     mean, var, trend = a
-    mean2, var2, trend2 = a_amp
+    if AMPLITUDE:
+        mean2, var2, trend2 = a_amp
     while jobq.get() is not None:
         if SURR_TYPE == 'MF':
             sg.construct_multifractal_surrogates()
             sg.add_seasonality(mean, var, trend)
-            sg_amp.construct_multifractal_surrogates()
-            sg_amp.add_seasonality(mean2, var2, trend2)
+            if AMPLITUDE:
+                sg_amp.construct_multifractal_surrogates()
+                sg_amp.add_seasonality(mean2, var2, trend2)
         elif SURR_TYPE == 'FT':
             sg.construct_fourier_surrogates_spatial()
             sg.add_seasonality(mean, var, trend)
-            sg_amp.construct_fourier_surrogates_spatial()
-            sg_amp.add_seasonality(mean2, var2, trend2)
+            if AMPLITUDE:
+                sg_amp.construct_fourier_surrogates_spatial()
+                sg_amp.add_seasonality(mean2, var2, trend2)
         elif SURR_TYPE == 'AR':
             sg.construct_surrogates_with_residuals()
             sg.add_seasonality(mean[:-1, ...], var[:-1, ...], trend[:-1, ...])
-            sg_amp.construct_surrogates_with_residuals()
-            sg_amp.add_seasonality(mean2[:-1, ...], var2[:-1, ...], trend2[:-1, ...])
+            if AMPLITUDE:
+                sg_amp.construct_surrogates_with_residuals()
+                sg_amp.add_seasonality(mean2[:-1, ...], var2[:-1, ...], trend2[:-1, ...])
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave))
-
-        wave, _, _, _ = wavelet_analysis.continous_wavelet(sg_amp.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
-        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
-        amplitude = amplitude[0, :]
-        phase_amp = np.arctan2(np.imag(wave), np.real(wave))
-        phase_amp = phase_amp[0, :]
-        reconstruction = amplitude * np.cos(phase_amp)
-        fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
-        m, c = np.linalg.lstsq(fit_x, sg_amp.surr_data)[0]
-        amplitude = m * amplitude + c
+        if AMPLITUDE:
+            wave, _, _, _ = wavelet_analysis.continous_wavelet(sg_amp.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
+            amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+            amplitude = amplitude[0, :]
+            phase_amp = np.arctan2(np.imag(wave), np.real(wave))
+            phase_amp = phase_amp[0, :]
+            reconstruction = amplitude * np.cos(phase_amp)
+            fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+            m, c = np.linalg.lstsq(fit_x, sg_amp.surr_data)[0]
+            amplitude = m * amplitude + c
 
         if AA:
             sg.amplitude_adjust_surrogates(mean, var, trend)
         _, _, idx = g_temp.get_data_of_precise_length(WINDOW_LENGTH, start_cut, None, False)
         sg.surr_data = sg.surr_data[idx[0] : idx[1]]
         phase = phase[0, idx[0] : idx[1]]
-        amplitude = amplitude[idx[0] : idx[1]]
+        if AMPLITUDE:
+            amplitude = amplitude[idx[0] : idx[1]]
         if SEASON != None:
             sg.surr_data = sg.surr_data[ndx_seas]
             phase = phase[ndx_seas]
@@ -248,11 +256,15 @@ def _cond_difference_surrogates(sg, sg_amp, g_temp, a, a_amp, start_cut, jobq, r
             #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
             if MOMENT == 'std':
-                # cond_means_temp[i] = func(sg.surr_data[ndx], ddof = 1)
-                cond_means_temp[i] = func(amplitude[ndx], ddof = 1)
+                if AMPLITUDE:
+                    cond_means_temp[i] = func(amplitude[ndx], ddof = 1)
+                else:
+                    cond_means_temp[i] = func(sg.surr_data[ndx], ddof = 1)
             else:
-                # cond_means_temp[i] = func(sg.surr_data[ndx])
-                cond_means_temp[i] = func(amplitude[ndx])
+                if AMPLITUDE:
+                    cond_means_temp[i] = func(amplitude[ndx])
+                else:
+                    cond_means_temp[i] = func(sg.surr_data[ndx])
         ma = cond_means_temp.argmax()
         mi = cond_means_temp.argmin()
         if not SAME_BINS:
@@ -298,20 +310,22 @@ while end_idx < g.data.shape[0]:
     # data
     g_working.data = g.data[start_idx : end_idx].copy()
     g_working.time = g.time[start_idx : end_idx].copy()
-    g_working_amp.data = g_amp.data[start_idx : end_idx].copy()
+    if AMPLITUDE:
+        g_working_amp.data = g_amp.data[start_idx : end_idx].copy()
     if np.all(np.isnan(g_working.data) == False):
         wave, _, _, _ = wavelet_analysis.continous_wavelet(g_working.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
-        wave, _, _, _ = wavelet_analysis.continous_wavelet(g_working_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
-        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
-        amplitude = amplitude[0, :]
-        phase_amp = np.arctan2(np.imag(wave), np.real(wave))
-        phase_amp = phase_amp[0, :]
-        reconstruction = amplitude * np.cos(phase_amp)
-        fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
-        m, c = np.linalg.lstsq(fit_x, g_working_amp.data)[0]
-        amplitude = m * amplitude + c
+        if AMPLITUDE:
+            wave, _, _, _ = wavelet_analysis.continous_wavelet(g_working_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
+            amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+            amplitude = amplitude[0, :]
+            phase_amp = np.arctan2(np.imag(wave), np.real(wave))
+            phase_amp = phase_amp[0, :]
+            reconstruction = amplitude * np.cos(phase_amp)
+            fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+            m, c = np.linalg.lstsq(fit_x, g_working_amp.data)[0]
+            amplitude = m * amplitude + c
 
         start_cut = date(start_year+cnt*WINDOW_SHIFT, sm, sd)
         idx = g_working.get_data_of_precise_length(WINDOW_LENGTH, start_cut, None, True)
@@ -321,7 +335,8 @@ while end_idx < g.data.shape[0]:
         last_mid_year += 1
         print last_mid_year
         phase = phase[0, idx[0] : idx[1]]
-        amplitude = amplitude[idx[0] : idx[1]]
+        if AMPLITUDE:
+            amplitude = amplitude[idx[0] : idx[1]]
         if PLOT_PHASE and BEGIN:
             phase_till = date(start_year+(cnt+1)*WINDOW_SHIFT, sm, sd)
             ndx = g_working.find_date_ndx(phase_till)
@@ -337,18 +352,23 @@ while end_idx < g.data.shape[0]:
         if SEASON != None:
             ndx_season = g_working.select_months(SEASON)
             phase = phase[ndx_season]
-            amplitude = amplitude[ndx_season]
+            if AMPLITUDE:
+                amplitude = amplitude[ndx_season]
         else:
             ndx_season = None
         phase_bins = get_equidistant_bins() # equidistant bins
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
             if MOMENT == 'std':
-                # cond_means[i] = func(g_working.data[ndx], ddof = 1)
-                cond_means[i] = func(amplitude[ndx], ddof = 1)
+                if AMPLITUDE:
+                    cond_means[i] = func(amplitude[ndx], ddof = 1)
+                else:
+                    cond_means[i] = func(g_working.data[ndx], ddof = 1)
             else:
-                # cond_means[i] = func(g_working.data[ndx])
-                cond_means[i] = func(amplitude[ndx])
+                if AMPLITUDE:
+                    cond_means[i] = func(amplitude[ndx])
+                else:
+                    cond_means[i] = func(g_working.data[ndx])
         max_bin = cond_means.argmax()
         min_bin = cond_means.argmin()
         difference_data.append(cond_means[max_bin] - cond_means[min_bin]) # append difference to list
@@ -365,8 +385,9 @@ while end_idx < g.data.shape[0]:
         mean_vars = np.zeros_like(diffs)
         g_surrs.data = g.data[start_idx : end_idx].copy()
         g_surrs.time = g.time[start_idx : end_idx].copy()
-        g_surrs_amp.data = g_amp.data[start_idx : end_idx].copy()
-        g_surrs_amp.time = g_amp.time[start_idx : end_idx].copy()
+        if AMPLITUDE:
+            g_surrs_amp.data = g_amp.data[start_idx : end_idx].copy()
+            g_surrs_amp.time = g_amp.time[start_idx : end_idx].copy()
         if CONDITION:
             total_surrogates_condition = []
         if np.all(np.isnan(g_surrs.data) == False):
@@ -382,14 +403,19 @@ while end_idx < g.data.shape[0]:
             for i in range(WORKERS):
                 jobQ.put(None)
             a = g_surrs.get_seasonality(DETREND = True)
-            a_amp = g_surrs_amp.get_seasonality(True)
             sg = SurrogateField()
-            sg_amp = SurrogateField()
             sg.copy_field(g_surrs)
-            sg_amp.copy_field(g_surrs_amp)
+            if AMPLITUDE:
+                a_amp = g_surrs_amp.get_seasonality(True)
+                sg_amp = SurrogateField()
+                sg_amp.copy_field(g_surrs_amp)
+            else:
+                sg_amp = None
+                a_amp = None
             if SURR_TYPE == 'AR':
                 sg.prepare_AR_surrogates()
-                sg_amp.prepare_AR_surrogates()
+                if AMPLITUDE:
+                    sg_amp.prepare_AR_surrogates()
             workers = [Process(target = _cond_difference_surrogates, args = (sg, sg_amp, g_surrs, a, a_amp, start_cut, jobQ, resQ, ndx_season)) for iota in range(WORKERS)]
             for w in workers:
                 w.start()
@@ -465,7 +491,7 @@ if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/PRG_%s_SATamplitude_%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT,
+    fn = ("debug/PRG_%s_%s%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT, 'SATamplitude_' if AMPLITUDE else '', 
             NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', 
             '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else '', 
             ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
