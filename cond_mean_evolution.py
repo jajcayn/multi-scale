@@ -152,9 +152,9 @@ AMPLITUDE = True
 
 
 ## loading data
-g = load_station_data('TG_STAID000047.txt', date(1924,1,15), date(2013,10,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
+g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
 if AMPLITUDE:
-    g_amp = load_station_data('TG_STAID000047.txt', date(1924,1,15), date(2013, 10, 1), False)
+    g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013, 10, 1), False)
 # ERA
 #g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1958,4,28), date(2013,10,1), ANOMALISE)
 # ECA
@@ -168,7 +168,7 @@ if MOMENT == 'mean':
     func = np.mean
     if AMPLITUDE:
         diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
-        mean_ax = (15, 20) # means -> -1, 1.5, var -> 9, 18
+        mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
     else:
         diff_ax = (0, 4)
         mean_ax = (-1, 1.5)
@@ -292,6 +292,7 @@ meanvar_surr_std = []
 
 difference_95perc = []
 mean_95perc = []
+smooth_amp = []
 
 
 start_year = date.fromordinal(g.time[0]).year + 4
@@ -361,6 +362,8 @@ while end_idx < g.data.shape[0]:
         else:
             ndx_season = None
         phase_bins = get_equidistant_bins() # equidistant bins
+        if AMPLITUDE:
+            smooth_amp.append(np.mean(amplitude))
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
             if MOMENT == 'std':
@@ -495,7 +498,7 @@ if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/HAM_%s_%s%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT, 'SATamplitude_' if AMPLITUDE else '', 
+    fn = ("debug/PRG_%s_%s%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT, 'SATamplitude_' if AMPLITUDE else '', 
             NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', 
             '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else '', 
             ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
