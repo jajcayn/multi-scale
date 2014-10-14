@@ -9,15 +9,23 @@ cycles:
 
  ✔ temporal evolution - amplitude of 1-year cycle w/ surrogates @done (14-10-09 18:36)
 
- ✔ grl - forma, pocet stran, atd @done (14-10-13 15:50)
-     *Total publishing units = # of words/500 + # of figures + # of tables, MAX is 12!!!!
-
 amplitude - (13-10-2014): 
- ☐ check amplitude diff rise around 1920s - for each year (SAT data): 
-     ☐ mean DJF vs. mean
-     ☐ extremes DJF vs. JJA - absolute max vs. absolute min., mean of maxT 5-10% vs. mean of minT 5-10%
+ ✔ check amplitude diff rise around 1920s - for each year (SAT data):  @done (14-10-14 12:40)
+     ✔ mean DJF vs. mean @done (14-10-14 11:15)
+     ✔ extremes DJF vs. JJA - absolute max vs. absolute min., mean of maxT 5-10% vs. mean of minT 5-10% @done (14-10-14 12:40)
+     ☐ mean of 5-10% but from mean daily temp, not max/min
  ☐ conditioning on bin of 8-year cycle - use same 
 
+ ☐ PRG amp with same input data length as HAM and POTS
+ ☐ PRG amp evolution 32/16k window
+ ☐ wavelet first with amp PRG, POTS, HAM
 --- ✄ -----------------------
+
+publication:
+  ✔ grl - forma, pocet stran, atd @done (14-10-13 15:50)
+     *Total publishing units = # of words/500 + # of figures + # of tables, MAX is 12!!!!
+  ☐ set-up LaTeX layout, write outline, other preparations
+--- ✄ -----------------------
+
 others:
  ☐ GAUK - navrh
