@@ -132,12 +132,12 @@ def render_phase_and_bins(bins, cond_means, cond_means_surr, phase, dates, perce
         
 ANOMALISE = True
 PERIOD = 8 # years, period of wavelet
-WINDOW_LENGTH = 13462 # 13462, 16384
+WINDOW_LENGTH = 16384 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MOMENT = 'mean' # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 4
 NUM_SURR = 100 # how many surrs will be used to evaluate
-SURR_TYPE = 'MF'
+SURR_TYPE = 'AR'
 diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
 mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
 PLOT = True

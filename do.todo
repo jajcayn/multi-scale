@@ -13,19 +13,20 @@ amplitude - (13-10-2014):
  ✔ check amplitude diff rise around 1920s - for each year (SAT data):  @done (14-10-14 12:40)
      ✔ mean DJF vs. mean @done (14-10-14 11:15)
      ✔ extremes DJF vs. JJA - absolute max vs. absolute min., mean of maxT 5-10% vs. mean of minT 5-10% @done (14-10-14 12:40)
-     ☐ mean of 5-10% but from mean daily temp, not max/min
- ☐ conditioning on bin of 8-year cycle - use same 
+     ✔ mean of 5-10% but from mean daily temp, not max/min @done (14-10-15 11:31)
+ ✔ conditioning on bin of 8-year cycle - use same  @done (14-10-15 15:14)
 
- ☐ PRG amp with same input data length as HAM and POTS
- ☐ PRG amp evolution 32/16k window
- ☐ wavelet first with amp PRG, POTS, HAM
+ ✔ PRG amp with same input data length as HAM and POTS @done (14-10-15 11:40)
+ ✔ PRG amp evolution 32/16k window @done (14-10-15 11:56)
+ ✔ wavelet first with amp PRG, POTS, HAM @done (14-10-15 13:46)
 --- ✄ -----------------------
 
 publication:
   ✔ grl - forma, pocet stran, atd @done (14-10-13 15:50)
      *Total publishing units = # of words/500 + # of figures + # of tables, MAX is 12!!!!
-  ☐ set-up LaTeX layout, write outline, other preparations
+  ✔ set-up LaTeX layout, write outline - DAMES-like @done (14-10-15 14:16)
 --- ✄ -----------------------
 
 others:
  ☐ GAUK - navrh
+ ☐ napis konecne na zahranicne oddelenie ze ako, kedy, kde, preco a love Montreal!

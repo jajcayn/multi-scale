@@ -139,17 +139,22 @@ WINDOW_LENGTH = 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 16
-NUM_SURR = 1000 # how many surrs will be used to evaluate
-SURR_TYPE = 'MF' # MF, FT, AR
+NUM_SURR = 100 # how many surrs will be used to evaluate
+SURR_TYPE = 'AR' # MF, FT, AR
 diff_ax = (0, 2) # means -> 0, 2, var -> 1, 8
-mean_ax = (-1, 1.5) # means -> -1, 1.5, var -> 9, 18
-PLOT_PHASE = True
-PHASE_ANALYSIS_YEAR = 1986 # year of detailed analysis - phase and bins, or None
+mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
+PLOT_PHASE = False
+PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
+AMPLITUDE = True
 
 
 ## loading data
 g = load_station_data('TG_STAID000027.txt', date(1834,7,28), date(2014,1,1), ANOMALISE)
 sg = SurrogateField()
+if AMPLITUDE:
+    g_amp = load_station_data('TG_STAID000027.txt', date(1834,7,28), date(2014, 1, 1), False)
+    sg_amp = SurrogateField()
+
 
 
 print("[%s] Wavelet analysis in progress with %d year window shifted by %d year(s)..." % (str(datetime.now()), WINDOW_LENGTH, WINDOW_SHIFT))
@@ -159,7 +164,6 @@ fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
 period = PERIOD * y # frequency of interest
 s0 = period / fourier_factor # get scale 
 
-
 cond_means = np.zeros((8,))
 
 def get_equidistant_bins():
@@ -168,13 +172,33 @@ def get_equidistant_bins():
 wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
 phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
+if AMPLITUDE:
+    s0_amp = (1 * y) / fourier_factor
+    wave, _, _, _ = wavelet_analysis.continous_wavelet(g_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
+    amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+    amplitude = amplitude[0, :]
+    phase_amp = np.arctan2(np.imag(wave), np.real(wave))
+    phase_amp = phase_amp[0, :]
+
+    # fitting oscillatory phase / amplitude to actual SAT
+    reconstruction = amplitude * np.cos(phase_amp)
+    fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+    m, c = np.linalg.lstsq(fit_x, g_amp.data)[0]
+    amplitude = m * amplitude + c
+
 mean, var, trend = g.get_seasonality(True)
 sg.copy_field(g)
 g.return_seasonality(mean, var, trend)
+if AMPLITUDE:
+    mean2, var2, trend2 = g_amp.get_seasonality(True)
+    sg_amp.copy_field(g_amp)
+    g_amp.return_seasonality(mean2, var2, trend2)
 
 main_cut_ndx = g.select_date(date(1838,7,28), date(2010,1,1))
 y1 = 1838
 phase = phase[0, main_cut_ndx]
+if AMPLITUDE:
+    amplitude = amplitude[main_cut_ndx]
 
 difference_data = []
 meanvar_data = []
@@ -191,6 +215,8 @@ last_mid_year = first_mid_year
 while end < g.data.shape[0]:
     cnt += 1
     data_temp = g.data[start : end].copy()
+    if AMPLITUDE:
+        amp_temp = amplitude[start : end].copy()
     #last_mid_year = date.fromordinal(g.time[start + WINDOW_LENGTH/2]).year
     last_mid_year += 1
     phase_temp = phase[start : end].copy()
@@ -198,9 +224,15 @@ while end < g.data.shape[0]:
     for i in range(cond_means.shape[0]): # get conditional means for current phase range
         ndx = ((phase_temp >= phase_bins[i]) & (phase_temp <= phase_bins[i+1]))
         if MEANS:
-            cond_means[i] = np.mean(data_temp[ndx])
+            if AMPLITUDE:
+                cond_means[i] = np.mean(amp_temp[ndx])
+            else:
+                cond_means[i] = np.mean(data_temp[ndx])
         else:
-            cond_means[i] = np.var(data_temp[ndx], ddof = 1)
+            if AMPLITUDE:
+                cond_means[i] = np.var(amp_temp[ndx], ddof = 1)
+            else:
+                cond_means[i] = np.var(data_temp[ndx], ddof = 1)
 #    print last_mid_year, cond_means
     difference_data.append(cond_means.max() - cond_means.min()) # append difference to list    
     meanvar_data.append(np.mean(cond_means))
@@ -225,28 +257,57 @@ print("[%s] Wavelet analysis on data done. Starting analysis on surrogates..." %
 
 if SURR_TYPE == 'AR':
     sg.prepare_AR_surrogates()
+    if AMPLITUDE:
+        sg_amp.prepare_AR_surrogates()
 
 
-def _cond_difference_surrogates(sg, a, jobq, resq):
+def _cond_difference_surrogates(sg, sg_amp, a, a2, jobq, resq):
     mean, var, trend = a
+    mean2, var2, trend2 = a2
     last_mid_year = first_mid_year
     cond_means_out = np.zeros((8,))
     while jobq.get() is not None:
         if SURR_TYPE == 'MF':
             sg.construct_multifractal_surrogates()
             sg.add_seasonality(mean, var, trend)
+            if AMPLITUDE:
+                sg_amp.construct_multifractal_surrogates()
+                sg_amp.add_seasonality(mean2, var2, trend2)
         elif SURR_TYPE == 'FT':
             sg.construct_fourier_surrogates_spatial()
             sg.add_seasonality(mean, var, trend)
+            if AMPLITUDE:
+                sg_amp.construct_fourier_surrogates_spatial()
+                sg_amp.add_seasonality(mean2, var2, trend2)
         elif SURR_TYPE == 'AR':
             sg.construct_surrogates_with_residuals()
             sg.add_seasonality(mean[:-1, ...], var[:-1, ...], trend[:-1, ...])
+            if AMPLITUDE:
+                sg_amp.construct_surrogates_with_residuals()
+                sg_amp.add_seasonality(mean2[:-1, ...], var2[:-1, ...], trend2[:-1, ...])
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase = np.arctan2(np.imag(wave), np.real(wave))
+        if AMPLITUDE:
+            wave, _, _, _ = wavelet_analysis.continous_wavelet(sg_amp.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
+            amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+            amplitude = amplitude[0, :]
+            phase_amp = np.arctan2(np.imag(wave), np.real(wave))
+            phase_amp = phase_amp[0, :]
+
+            # fitting oscillatory phase / amplitude to actual SAT
+            reconstruction = amplitude * np.cos(phase_amp)
+            fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+            m, c = np.linalg.lstsq(fit_x, sg_amp.surr_data)[0]
+            amplitude = m * amplitude + c
+
         if SURR_TYPE == 'AR':
             sg.surr_data = sg.surr_data[main_cut_ndx[:-1]]
+            if AMPLITUDE:
+                amplitude = amplitude[main_cut_ndx[:-1]]
         else:
             sg.surr_data = sg.surr_data[main_cut_ndx]
+            if AMPLITUDE:
+                amplitude = amplitude[main_cut_ndx]
         phase = phase[0, main_cut_ndx]
         phase_bins = get_equidistant_bins() # equidistant bins
         cnt = 0
@@ -261,14 +322,22 @@ def _cond_difference_surrogates(sg, a, jobq, resq):
             cnt += 1
             surr_temp = sg.surr_data[start : end].copy()
             phase_temp = phase[start : end].copy()
+            if AMPLITUDE:
+                amp_temp = amplitude[start : end].copy()
             last_mid_year += 1
             for i in range(cond_means.shape[0]): # get conditional means for current phase range
                 #phase_bins = get_equiquantal_bins(phase_temp) # equiquantal bins
                 ndx = ((phase_temp >= phase_bins[i]) & (phase_temp <= phase_bins[i+1]))
                 if MEANS:
-                    cond_means[i] = np.mean(surr_temp[ndx])
+                    if AMPLITUDE:
+                        cond_means[i] = np.mean(amp_temp[ndx])
+                    else:
+                        cond_means[i] = np.mean(surr_temp[ndx])
                 else:
-                    cond_means[i] = np.var(surr_temp[ndx], ddof = 1)
+                    if AMPLITUDE:
+                        cond_means[i] = np.var(amp_temp[ndx], ddof = 1)
+                    else:
+                        cond_means[i] = np.var(surr_temp[ndx], ddof = 1)
             if PHASE_ANALYSIS_YEAR == last_mid_year:
                 cond_means_out = cond_means.copy()
             difference_surr.append(cond_means.max() - cond_means.min()) # append difference to list    
@@ -292,7 +361,9 @@ for i in range(WORKERS):
     jobQ.put(None)
     
 a = (mean, var, trend)
-workers = [Process(target = _cond_difference_surrogates, args = (sg, a, jobQ, resQ)) for iota in range(WORKERS)]
+if AMPLITUDE:
+    a2 = (mean2, var2, trend2)
+workers = [Process(target = _cond_difference_surrogates, args = (sg, sg_amp, a, a2, jobQ, resQ)) for iota in range(WORKERS)]
 
 for w in workers:
     w.start()
@@ -331,20 +402,22 @@ for i in range(cnt):
     percentil = meanvar_data[i] > meanvars_surr[:, i]
     no_true = percentil[percentil == True].shape[0]
     mean_95perc.append(True if (no_true > NUM_SURR * 0.95) else False)
-    
-fn = ('debug/detail/%d_%s_phase_bins_time_point.png' % (PHASE_ANALYSIS_YEAR, 'wavelet_first'))
-render_phase_and_bins(plot_vars[0], plot_vars[1], cond_means_surrs, plot_vars[2], 
-                      plot_vars[3], percentil = difference_95perc[plot_vars[4]], fname = fn)
+ 
+if PHASE_ANALYSIS_YEAR != None:   
+    fn = ('debug/detail/%d_%s_phase_bins_time_point.png' % (PHASE_ANALYSIS_YEAR, 'wavelet_first'))
+    render_phase_and_bins(plot_vars[0], plot_vars[1], cond_means_surrs, plot_vars[2], 
+                          plot_vars[3], percentil = difference_95perc[plot_vars[4]], fname = fn)
     
 difference_95perc = np.array(difference_95perc)
 mean_95perc = np.array(mean_95perc)
 
 where_percentil = np.column_stack((difference_95perc, mean_95perc))
 
-fn = ("debug/PRG_%s_%d_%ssurr_wavelet_first%s.png" % ('means' if MEANS else 'var', NUM_SURR, SURR_TYPE, '_phase' if PLOT_PHASE else ''))
+fn = ("debug/PRG_%s_%s%d_%ssurr_wavelet_first%s.png" % ('means' if MEANS else 'var', 'SATamplitude_' if AMPLITUDE else '', NUM_SURR, 
+                                                        SURR_TYPE, '_phase' if PLOT_PHASE else ''))
 
-if PLOT_PHASE:
-    render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
-            subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
-            percentil = where_percentil, phase = phase, fname = fn)
+
+render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
+        subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)), 
+        percentil = where_percentil, phase = None, fname = fn)
                 
