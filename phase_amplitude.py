@@ -17,11 +17,12 @@ import scipy.stats as sts
 
 
 ANOMALISE = True
-PERIOD = 8 # years, period of wavelet
+PERIOD = 4 # years, period of wavelet
+BINS = 4
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance
-NUM_SURR = 100
+NUM_SURR = 0
 EVAL_SEASON = False
 season = [6,7,8]
 s_name = 'JJA'
@@ -31,12 +32,12 @@ SURR_TYPE = 'MF'
 SURR_DETAIL = False
 SURR_ANALYSIS = False
 MOMENT = 'mean'
-AMPLITUDE = True
+AMPLITUDE = False
 
 if MOMENT == 'mean':
     func = np.mean
     if AMPLITUDE:
-        axplot = [15, 20] # if evaluating amplitude
+        axplot = [15, 25] # if evaluating amplitude
     else:
         axplot = [-1.5, 1.5]
 elif MOMENT == 'std':
@@ -51,9 +52,9 @@ elif MOMENT == 'kurtosis':
 
 # load data - at least 32k of data because of surrogates
 # 00047 - Hamburg, 00054 - Potsdam 
-g = load_station_data('TG_STAID000054.txt', date(1924, 1, 1), date(2013,9,18), ANOMALISE)
+g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), ANOMALISE)
 if AMPLITUDE:
-    g_amp = load_station_data('TG_STAID000047.txt', date(1924, 1, 1), date(2013, 9, 18), False)
+    g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013, 10, 1), False)
 g_data = DataField()
 
 
@@ -84,10 +85,10 @@ if AMPLITUDE:
     amplitude = m * amplitude + c
     print("Oscillatory series fitted to SAT data with coeff. %.3f and intercept %.3f" % (m, c))
 
-cond_means = np.zeros((8,))
+cond_means = np.zeros((BINS,))
 
-def get_equidistant_bins():
-    return np.array(np.linspace(-np.pi, np.pi, 9))
+def get_equidistant_bins(num):
+    return np.array(np.linspace(-np.pi, np.pi, num+1))
     
 
 start_cut = date(1958,1,1)
@@ -102,7 +103,7 @@ if EVAL_SEASON:
     if AMPLITUDE:
         amplitude = amplitude[ndx_season]
 
-phase_bins = get_equidistant_bins() # equidistant bins
+phase_bins = get_equidistant_bins(BINS) # equidistant bins
 
 if AMPLITUDE:
     data_mom = func(amplitude)
@@ -218,7 +219,7 @@ def plot_surr_analysis(bins_surrs, fname = None):
     
     
     
-cond_means_surr = np.zeros((NUM_SURR, 8))
+cond_means_surr = np.zeros((NUM_SURR, BINS))
 surr_mom = []
 
 mean, var, trend = g.get_seasonality(True)
@@ -331,19 +332,21 @@ if SURR_DETAIL:
 
 diff = (phase_bins[1]-phase_bins[0])
 fig = plt.figure(figsize=(6,10))
-b1 = plt.bar(phase_bins[:-1], cond_means, width = diff*0.45, bottom = None, fc = '#403A37', figure = fig)
-b2 = plt.bar(phase_bins[:-1] + diff*0.5, np.mean(cond_means_surr, axis = 0), width = diff*0.45, bottom = None, fc = '#A09793', figure = fig)
+b1 = plt.bar(phase_bins[:-1] + diff*0.05, cond_means, width = diff*0.9, bottom = None, fc = '#403A37', figure = fig)
+# b2 = plt.bar(phase_bins[:-1] + diff*0.5, np.mean(cond_means_surr, axis = 0), width = diff*0.45, bottom = None, fc = '#A09793', figure = fig)
 plt.xlabel('phase [rad]')
-mean_of_surr_mom = np.mean(np.array(surr_mom))
-std_of_surr_mom = np.std(np.array(surr_mom), ddof = 1)
-plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
+# mean_of_surr_mom = np.mean(np.array(surr_mom))
+# std_of_surr_mom = np.std(np.array(surr_mom), ddof = 1)
+# plt.legend( (b1[0], b2[0]), ('data', 'mean of %d surr' % NUM_SURR) )
 # plt.ylabel('cond %s temperature [$^{\circ}$C]' % (MOMENT))
-plt.ylabel('cond %s SAT amplitude' % (MOMENT))
+if AMPLITUDE:
+    plt.ylabel('cond %s SAT amplitude' % (MOMENT))
+else:
+    plt.ylabel('cond %s temperature' % (MOMENT))
 plt.axis([-np.pi, np.pi, axplot[0], axplot[1]])
 # plt.xlim(-np.pi, np.pi)
-plt.title('%s cond %s \n difference data: %.2f\n mean of surr diffs: %.2f \n std of surr diffs: %.2f' % (g.location, 
-           MOMENT, cond_means.max() - cond_means.min(), mean_of_surr_mom, std_of_surr_mom))
+plt.title('%s cond %s \n difference data: %.2f' % (g.location, MOMENT, cond_means.max() - cond_means.min()))
 s_name = s_name if EVAL_SEASON else ''
 MOMENT_SHRTCT = MOMENT[:4] if len(MOMENT) > 4 else MOMENT
-plt.savefig('debug/POTScond_%s_%s%s%s%s.png' % (MOMENT_SHRTCT, 'SATamplitude_' if AMPLITUDE else '', SURR_TYPE, '_' + s_name if EVAL_SEASON else '', '_amplitude_adjusted_before_phase' if AA else ''))
+plt.savefig('debug/PRGlong_cond_%s_%s%dperiod_%dbins%s.png' % (MOMENT_SHRTCT, 'SATamplitude_' if AMPLITUDE else '', PERIOD, BINS, '_' + s_name if EVAL_SEASON else ''))
         

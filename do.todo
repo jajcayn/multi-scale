@@ -21,10 +21,16 @@ amplitude - (13-10-2014):
  ✔ wavelet first with amp PRG, POTS, HAM @done (14-10-15 13:46)
 --- ✄ -----------------------
 
+ ✔ other cycles (4, 6, 11-year) to SATamplitude 1-year histo (bins: 8 and cycle - 4,6,11), no surrogates @done (14-10-22 13:57)
+ ✔ POTS and HAM evolution, also seasons (not SATamplitude, overall SAT var.) @done (14-10-22 12:15)
 publication:
   ✔ grl - forma, pocet stran, atd @done (14-10-13 15:50)
      *Total publishing units = # of words/500 + # of figures + # of tables, MAX is 12!!!!
   ✔ set-up LaTeX layout, write outline - DAMES-like @done (14-10-15 14:16)
+      outline:
+          * 1. histogram mean / var (supp. 11-year cycle), some period - difference between max and min, -> evolving, testing against surrogates 
+          * 2. variability in other scales, show amplitude of yearly cycle (histogram, evolving?)
+          * 3. other station - HAM, POTS - something
 --- ✄ -----------------------
 
 others:
