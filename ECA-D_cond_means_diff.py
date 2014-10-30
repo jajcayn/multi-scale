@@ -32,7 +32,29 @@ def _get_oscillatory_modes(a):
         phase = np.nan
     
     return i, j, phase
-    
+
+
+def _get_amplitude(a):
+    """
+    Gets amplitude of yearly cycle from SAT data.
+    """
+    i, j, s0_amp, data = a
+    if not np.all(np.isnan(data)):
+        wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = 6.) # perform wavelet
+        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+        amplitude = amplitude[0, :]
+        phase_amp = np.arctan2(np.imag(wave), np.real(wave))
+        phase_amp = phase_amp[0, :]
+        # fitting oscillatory phase / amplitude to actual SAT
+        reconstruction = amplitude * np.cos(phase_amp)
+        fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+        m, c = np.linalg.lstsq(fit_x, data)[0]
+        amplitude = m * amplitude + c
+    else:
+        amplitude = np.nan
+
+    return i, j, amplitude
+        
     
 def _get_cond_means(a):
     """
@@ -45,21 +67,12 @@ def _get_cond_means(a):
         for iota in range(cond_means_temp_m.shape[0]):
             ndx = ((phase >= phase_bins[iota]) & (phase <= phase_bins[iota+1]))
             cond_means_temp_m[iota] = np.mean(data[ndx])
-            cond_means_temp_v[iota] = np.var(data[ndx], ddof = 1)
-#        diff_temp_m = cond_means_temp_m.max() - cond_means_temp_m.min()
-#        mean_temp_m = np.mean(cond_means_temp_m)
-#        diff_temp_v = cond_means_temp_v.max() - cond_means_temp_v.min()
-#        mean_temp_v = np.mean(cond_means_temp_v)
+            cond_means_temp_v[iota] = np.std(data[ndx], ddof = 1)
     else:
-#        diff_temp_m = np.nan
-#        mean_temp_m = np.nan
-#        diff_temp_v = np.nan
-#        mean_temp_v = np.nan
         cond_means_temp_m = [np.nan for ii in range(8)]
         cond_means_temp_v = [np.nan for ii in range(8)]
 
     return i, j, cond_means_temp_m, cond_means_temp_v 
-#    diff_temp_m, mean_temp_m, diff_temp_v, mean_temp_v
     
     
 
@@ -75,6 +88,7 @@ NUM_SURR = 1000 # number of surrogates to be evaluated
 NUM_FILES = 10
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 SEASON = None
+AMPLITUDE = False # season cannot be used with amplitude, it does not make any sense
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
 
 
@@ -94,24 +108,33 @@ def log(msg):
 # ECA&D
 if ECA:
     g = load_ECA_D_data_daily('tg_0.25deg_reg_v10.0.nc', 'tg', date(1950,1,1), date(2014,1,1), 
-                                LATS, LONS, ANOMALISE, logger_function = log)
+                                LATS, LONS, False, logger_function = log)
+    if AMPLITUDE:
+        log("Evaluating amplitude of the yearly cycle instead of total SAT(A) variability...")
+        g_amp = g.copy_data()
+        log("SAT data copied...")
                             
 # ERA-40 + ERA-Interim
 else:
-    g = load_ERA_data_daily('ERA40_EU', 't2m', date(1958,1,1), date(2004,1,1), LATS, LONS, ANOMALISE, 
+    g = load_ERA_data_daily('ERA40_EU', 't2m', date(1958,1,1), date(2004,1,1), LATS, LONS, False, 
                              parts = 3, logger_function = log)
                              
-g.get_data_of_precise_length('16k', START_DATE, None, True) # get 2^n data because of MF surrogates
+idx = g.get_data_of_precise_length('16k', START_DATE, None, True) # get 2^n data because of MF surrogates
+if AMPLITUDE:
+    g_amp = g_amp[idx[0] : idx[1], ...]
 END_DATE = g.get_date_from_ndx(-1)
 
 if SURR_TYPE is not None:
     log("Creating surrogate fields...")
     sg = SurrogateField() # for MF and FT surrs
     log("De-seasonalising the data and copying to surrogate field...")
-    _, var, trend = g.get_seasonality(True) # subtract mean, divide by std and subtract trend from data
+    mean, var, trend = g.get_seasonality(True) # subtract mean, divide by std and subtract trend from data
     sg.copy_field(g) # copy standartised data to SurrogateField
-    g.return_seasonality(0, var, trend) # return seasonality to data
+    g.return_seasonality(mean, var, trend) # return seasonality to data
     log("Surrogate fields created.")
+
+if ANOMALISE:
+    g.anomalise()
 
 
 
@@ -140,11 +163,26 @@ for i, j, ph in job_result:
     phase_data[:, i, j] = ph
 del job_result
 
+if AMPLITUDE:
+    log("Computing amplitude from SAT data using %d workers..." % (WORKERS))
+    s0_amp = 1 * y / fourier_factor
+    amp_data = np.zeros_like(g_amp)
+
+    job_args = [ (i, j, s0_amp, g_amp[:, i, j]) for i in range(g.lats.shape[0]) for j in range(g.lons.shape[0]) ]
+    job_results = map_func(_get_amplitude, job_args)
+    del job_args
+    # map results
+    for i, j, amp in job_results:
+        amp_data[:, i, j] = amp
+    del job_results
+
 # select interior of wavelet to suppress unwanted edge effects
 IDX = g.select_date(date(START_DATE.year + 4, START_DATE.month, START_DATE.day), 
                     date(END_DATE.year - 4, END_DATE.month, END_DATE.day))
 
 phase_data = phase_data[IDX, ...]
+if AMPLITUDE:
+    amp_data = amp_data[IDX, ...]
 
 log("Wavelet on data done. Computing conditional mean and variance on data...")
 
@@ -155,28 +193,18 @@ if SEASON != None:
     NDX_SEASON = g.select_months(SEASON)
     phase_data = phase_data[NDX_SEASON, ...]
 
-## conditional means / variance data
-#==============================================================================
-# difference_data = np.zeros(g.get_spatial_dims())
-# mean_data = np.zeros(g.get_spatial_dims())
-# difference_data_var = np.zeros(g.get_spatial_dims())
-# mean_data_var = np.zeros(g.get_spatial_dims())
-#==============================================================================
+
 bins_data = np.zeros(g.get_spatial_dims() + [8])
 bins_data_var = np.zeros(g.get_spatial_dims() + [8])
 phase_bins = get_equidistant_bins()
 
-job_args = [ (i, j, phase_data[:, i, j], g.data[:, i, j], phase_bins) for i in range(g.lats.shape[0]) for j in range(g.lons.shape[0]) ]
+if AMPLITUDE:
+    job_args = [ (i, j, phase_data[:, i, j], amp_data[:, i, j], phase_bins) for i in range(g.lats.shape[0]) for j in range(g.lons.shape[0]) ]
+else:
+    job_args = [ (i, j, phase_data[:, i, j], g.data[:, i, j], phase_bins) for i in range(g.lats.shape[0]) for j in range(g.lons.shape[0]) ]
 job_result = map_func(_get_cond_means, job_args)
 del job_args, phase_data
 # map results
-#==============================================================================
-# for i, j, diff_t, mean_t, diff_var, mean_var in job_result:
-#     difference_data[i, j] = diff_t
-#     mean_data[i, j] = mean_t
-#     difference_data_var[i, j] = diff_var
-#     mean_data_var[i, j] = mean_var
-#==============================================================================
 for i, j, cmm, cmv in job_result:
     bins_data[i, j, :] = cmm
     bins_data_var[i, j, :] = cmv
@@ -196,13 +224,8 @@ if pool is not None:
 log("Analysis on data done. Saving file...")
 ## save file in case something will go wrong with surrogates..
 # from variance to standard deviation
-#==============================================================================
-# difference_data_var = np.sqrt(difference_data_var)
-# mean_data_var = np.sqrt(mean_data_var)
-#==============================================================================
-bins_data_var = np.sqrt(bins_data_var)
 if ECA:
-    fname = ('result/ECA-D_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))
+    fname = ('result/ECA-D_%s%s_cond_mean_var_data_from_%s_16k' % ('SATamplitude_' if AMPLITUDE else '', 'SATA' if ANOMALISE else 'SAT', str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))    
 with open(fname + '.bin', 'wb') as f:
@@ -261,25 +284,40 @@ if SURR_TYPE is not None:
                 for i, j, ph in job_result:
                     phase_surrs[:, i, j] = ph
                 del job_result
+
+                if AMPLITUDE:
+                    # surrogates are now SATA, for amplitude we need SAT
+                    if SURR_TYPE == 'MF' or SURR_TYPE == 'FT':
+                        sg.add_seasonality(mean, 1, 0)
+                    elif SURR_TYPE == 'AR':
+                        sg.add_seasonality(mean[:-1, ...], 1, 0)
+
+                    amp_surrs = np.zeros_like(sg.surr_data)
+
+                    job_args = [ (i, j, s0_amp, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
+                    job_results = map_func(_get_amplitude, job_args)
+                    del job_args
+                    # map results
+                    for i, j, amp in job_results:
+                        amp_surrs[:, i, j] = amp
+                    del job_results
         
                 sg.surr_data = sg.surr_data[IDX, ...]
                 phase_surrs = phase_surrs[IDX, ...]
+                if AMPLITUDE:
+                    amp_surrs = amp_surrs[IDX, ...]
                 
                 if SEASON != None:
                     sg.surr_data = sg.surr_data[NDX_SEASON, ...]
                     phase_surrs = phase_surrs[NDX_SEASON, ...]
-        
-                job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
+                
+                if AMPLITUDE:
+                    job_args = [ (i, j, phase_surrs[:, i, j], amp_surrs[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
+                else:
+                    job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
                 job_result = pool.map(_get_cond_means, job_args)
                 del job_args, phase_surrs
                 # map results
-    #==============================================================================
-    #             for i, j, diff_t, mean_t, diff_var, mean_var in job_result:
-    #                 surr_diff[su_type, surr_completed, i, j] = diff_t
-    #                 surr_mean[su_type, surr_completed, i, j] = mean_t
-    #                 surr_diff_var[su_type, surr_completed, i, j] = diff_var
-    #                 surr_mean_var[su_type, surr_completed, i, j] = mean_var
-    #==============================================================================
                 for i, j, cmm, cmv in job_result:
                     bins_surrogates[su_type, surr_completed, i, j, :] = cmm
                     bins_surrogates_var[su_type, surr_completed, i, j, :] = cmv
@@ -293,7 +331,6 @@ if SURR_TYPE is not None:
                     log("PROGRESS: %d/%d surrogate done, predicted completition at %s" % (surr_completed, NUM_SURR, 
                         str(t_now + dt)))
 
-            bins_surrogates_var = np.sqrt(bins_surrogates_var)
             if ECA:
                 fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k_%d' % ('SATA' if ANOMALISE else 'SAT', 
                             SURR_TYPE, str(START_DATE), file_num))
