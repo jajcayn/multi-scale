@@ -31,8 +31,20 @@ publication:
           * 1. histogram mean / var (supp. 11-year cycle), some period - difference between max and min, -> evolving, testing against surrogates 
           * 2. variability in other scales, show amplitude of yearly cycle (histogram, evolving?)
           * 3. other station - HAM, POTS - something
+          * supp: 4, 11-year cycle
+          * histo means/var bez surr, seasons z toho v supp, evolving s MF surr, overall - DJF jeden obrazok, FT, AR surr v supp, 
+          * overall variability doteraz, teraz SAT amplitude 1-year cycle,  evolving kratsi PRG, asi histo k tomu do jedneho obr
+--- ✄ -----------------------
+
+ ECA&D reanalysis:
+ ☐ DJF overall variability
+ ☐ SATamplitude vs MF surr (save diff, mean)
+
 --- ✄ -----------------------
 
 others:
  ☐ GAUK - navrh
+     nazov:
+         * Synopticke a mezosynopticke casove skaly v dynamice atmosfery
+         * Kauzalita v synoptickych skalach dynamiky atmosfery
  ☐ napis konecne na zahranicne oddelenie ze ako, kedy, kde, preco a love Montreal!

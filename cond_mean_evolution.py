@@ -147,14 +147,14 @@ PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
 AA = False
 SAME_BINS = False
 CONDITION = False
-SEASON = [6,7,8]
+SEASON = None
 AMPLITUDE = False
 
 
 ## loading data
-g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
+g = load_station_data('TG_STAID000048.txt', date(1834,4,28), date(2013,10,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
 if AMPLITUDE:
-    g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013, 10, 1), False)
+    g_amp = load_station_data('TG_STAID000048.txt', date(1834,4,28), date(2013, 10, 1), False)
 # ERA
 #g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1958,4,28), date(2013,10,1), ANOMALISE)
 # ECA
@@ -498,7 +498,7 @@ if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/PRGlong_%s_%s%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT, 'SATamplitude_' if AMPLITUDE else '', 
+    fn = ("debug/HOHENlong_%s_%s%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT, 'SATamplitude_' if AMPLITUDE else '', 
             NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', 
             '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else '', 
             ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
