@@ -87,8 +87,8 @@ SURR_TYPE = 'MF' # None, for data, MF, FT, AR or ALL (use only with ERA reanalys
 NUM_SURR = 100 # number of surrogates to be evaluated
 NUM_FILES = 1
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
-SEASON = [12,1,2]
-AMPLITUDE = False # season cannot be used with amplitude, it does not make any sense
+SEASON = None
+AMPLITUDE = True # season cannot be used with amplitude, it does not make any sense
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
 
 
@@ -332,8 +332,8 @@ if SURR_TYPE is not None:
                         str(t_now + dt)))
 
             if ECA:
-                fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k_%d' % ('SATA' if ANOMALISE else 'SAT', 
-                            SURR_TYPE, str(START_DATE), file_num))
+                fname = ('result/ECA-D_%s%s_cond_mean_var_%ssurrogates_from_%s_16k_%d' % ('SATamplitude_' if AMPLITUDE else '', 
+                            'SATA' if ANOMALISE else 'SAT', SURR_TYPE, str(START_DATE), file_num))
             else:
                 fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k_%d' % ('SATA' if ANOMALISE else 'SAT', 
                             SURR_TYPE, str(START_DATE), file_num))

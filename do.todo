@@ -1,4 +1,4 @@
-cycles:
+Tjhiscycles:
  ✔ potsdam - cond. means + seasons, temporal evolution @done (14-10-10 15:18)
     ✔ means @done (14-10-10 12:25)
     ✔ temporal @done (14-10-10 15:18)
@@ -37,7 +37,7 @@ publication:
 --- ✄ -----------------------
 
  ECA&D reanalysis:
- ☐ DJF overall variability
+ ✔ DJF overall variability @done (14-10-31 11:15)
  ☐ SATamplitude vs MF surr (save diff, mean)
 
 --- ✄ -----------------------
