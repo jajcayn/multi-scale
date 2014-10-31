@@ -66,9 +66,11 @@ START_DATE = date(1958,1,1)
 MEANS = True
 ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
-SIGN = False # wheter to check significance or just plot results
+SIGN = True # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
 PERCENTIL = 95
+SAME_BINS = False
+CONDITION = True
 
 
 
@@ -124,88 +126,136 @@ for i in range(10):
     bins_surrogates_var[pointer:pointer+100, ...] = bins_surrogates_var_list[i][0, ...]
     pointer += 100
 del bins_surrogates_var_list
+print("[%s] Data prepared to test and plot..." % (str(datetime.now())))
+
+print bins_data.shape
+print bins_surrogates.shape
 
 
 
 if SIGN:
-    SU = 2 # 0 - MF, 1 - FT, 2 - AR
+    # SU = 2 # 0 - MF, 1 - FT, 2 - AR
     # compute significance
-    result_sigma = np.zeros_like(difference_data)
-    result_percentil = np.zeros_like(difference_data)
-    num_surr = difference_surrogates.shape[1]
+    result_sigma = np.zeros((bins_data.shape[0], bins_data.shape[1]))
+    result_percentil = np.zeros_like(result_sigma)
+    num_surr = bins_surrogates.shape[0]
     for lat in range(lats.shape[0]):
         for lon in range(lons.shape[0]):
             if MEANS:
-                if np.isnan(difference_data[lat, lon]): # if on lat x lon is NaN
+                if np.any(np.isnan(bins_data[lat, lon, ...])): # if on lat x lon is NaN
                     result_sigma[lat, lon] = np.nan
                     result_percentil[lat, lon] = np.nan
                 else:
                     # sigma-based significance
-                    sigma = np.std(difference_surrogates[SU, :, lat, lon], axis = 0, ddof = 1)
-                    mean = np.mean(difference_surrogates[SU, :, lat, lon], axis = 0)
-                    if difference_data[lat, lon] >= mean + SIGMAS_ABOVE*sigma:
-                        result_sigma[lat, lon] = difference_data[lat, lon]
+                    if SAME_BINS:
+                        ma = bins_data[lat, lon, :].argmax()
+                        mi = bins_data[lat, lon, :].argmin()
+                        diff_data = bins_data[lat, lon, ma] - bins_data[lat, lon, mi]
+                    else:
+                        diff_data = bins_data[lat, lon, :].max() - bins_data[lat, lon, :].min()
+                    diff_surrs = np.zeros((num_surr))
+                    if CONDITION:
+                        cnt = 0
+                    for i in range(num_surr):
+                        if SAME_BINS:
+                            diff_surrs[i] = bins_surrogates[i, lat, lon, ma] - bins_surrogates[i, lat, lon, mi]
+                        elif CONDITION:
+                            ma_surr = bins_surrogates[i, lat, lon, :].argmax()
+                            mi_surr = bins_surrogates[i, lat, lon, :].argmin()
+                            if (np.abs(ma_surr - mi_surr) > 2) and (np.abs(ma_surr - mi_surr) < 6):
+                                diff_surrs[cnt] = bins_surrogates[i, lat, lon, ma_surr] - bins_surrogates[i, lat, lon, mi_surr]
+                                cnt += 1
+                        else:
+                            diff_surrs[i] = bins_surrogates[i, lat, lon, :].max() - bins_surrogates[i, lat, lon, :].min()
+                    if CONDITION:
+                        diff_surrs = np.delete(diff_surrs, np.s_[cnt:])
+                    sigma = np.std(diff_surrs, axis = 0, ddof = 1)
+                    mean = np.mean(diff_surrs, axis = 0)
+                    if diff_data >= mean + SIGMAS_ABOVE*sigma:
+                        result_sigma[lat, lon] = diff_data
                     else:
                         result_sigma[lat, lon] = np.nan # or np.nan
-#                    print 'lat x lon - ', lats[lat],'x', lons[lon]
-#                    print 'data - ', difference_data[lat, lon]
-#                    print 'exceedance should be - ', mean + SIGMAS_ABOVE*sigma
-#                    print 
                         
                     # percentil-based significance
-                    greater_mat = np.greater(difference_data[lat, lon], difference_surrogates[SU, :, lat, lon])
-                    if np.sum(greater_mat) > PERCENTIL/100. * num_surr:
-                        result_percentil[lat, lon] = difference_data[lat, lon]
+                    greater_mat = np.greater(diff_data, diff_surrs)
+                    if np.sum(greater_mat) > PERCENTIL/100. * cnt:
+                        result_percentil[lat, lon] = diff_data
                     else:
                         result_percentil[lat, lon] = np.nan # or np.nan
+            # var
             else:
-                if np.isnan(difference_data_var[lat, lon]): # if on lat x lon is NaN
+                if np.any(np.isnan(bins_data_var[lat, lon])): # if on lat x lon is NaN
                     result_sigma[lat, lon] = np.nan
                     result_percentil[lat, lon] = np.nan
                 else:
                     # sigma-based significance
-                    sigma = np.std(difference_surrogates_var[SU, :, lat, lon], axis = 0, ddof = 1)
-                    mean = np.mean(difference_surrogates_var[SU, :, lat, lon], axis = 0)
-                    if difference_data_var[lat, lon] >= mean + SIGMAS_ABOVE*sigma:
-                        result_sigma[lat, lon] = difference_data_var[lat, lon]
+                    if SAME_BINS:
+                        ma = bins_data_var[lat, lon, :].argmax()
+                        mi = bins_data_var[lat, lon, :].argmin()
+                        diff_data = bins_data_var[lat, lon, ma] - bins_data_var[lat, lon, mi]
+                    else:
+                        diff_data = bins_data_var[lat, lon, :].max() - bins_data_var[lat, lon, :].min()
+                    diff_surrs = np.zeros((num_surr))
+                    if CONDITION:
+                        cnt = 0
+                    for i in range(num_surr):
+                        if SAME_BINS:
+                            diff_surrs[i] = bins_surrogates_var[i, lat, lon, ma] - bins_surrogates_var[i, lat, lon, mi]
+                        elif CONDITION:
+                            ma_surr = bins_surrogates_var[i, lat, lon, :].argmax()
+                            mi_surr = bins_surrogates_var[i, lat, lon, :].argmin()
+                            if (np.abs(ma_surr - mi_surr) > 2) and (np.abs(ma_surr - mi_surr) < 6):
+                                diff_surrs[cnt] = bins_surrogates_var[i, lat, lon, ma_surr] - bins_surrogates_var[i, lat, lon, mi_surr]
+                                cnt += 1
+                        else:
+                            diff_surrs[i] = bins_surrogates_var[i, lat, lon, :].max() - bins_surrogates_var[i, lat, lon, :].min()
+                    if CONDITION:
+                        diff_surrs = np.delete(diff_surrs, np.s_[cnt:])
+                    sigma = np.std(diff_surrs, axis = 0, ddof = 1)
+                    mean = np.mean(diff_surrs, axis = 0)
+                    if diff_data >= mean + SIGMAS_ABOVE*sigma:
+                        result_sigma[lat, lon] = diff_data
                     else:
                         result_sigma[lat, lon] = np.nan # or np.nan
                         
                     # percentil-based significance
-                    greater_mat = np.greater(difference_data_var[lat, lon], difference_surrogates_var[SU, :, lat, lon])
+                    greater_mat = np.greater(diff_data, diff_surrs)
                     if np.sum(greater_mat) > PERCENTIL/100. * num_surr:
-                        result_percentil[lat, lon] = difference_data_var[lat, lon]
+                        result_percentil[lat, lon] = diff_data
                     else:
-                        result_percentil[lat, lon] = np.nan # or np.nan
-                   
-    if not ECA:
-        if SU == 0:
-            SURR_TYPE = 'MF'
-        elif SU == 1:
-            SURR_TYPE = 'FT'
-        elif SU == 2:
-            SURR_TYPE = 'AR'
+                        result_percentil[lat, lon] = np.nan # or np.nan              
+    # if not ECA:
+    #     if SU == 0:
+    #         SURR_TYPE = 'MF'
+    #     elif SU == 1:
+    #         SURR_TYPE = 'FT'
+    #     elif SU == 2:
+    #         SURR_TYPE = 'AR'
     print('total grid points: %d -- not significant grid points: %d' % (np.prod(result_sigma.shape), np.sum(np.isnan(result_sigma))))
-    fname = ('debug/%s_%s_cond_%s_%ssurrogates_from_%s_16k_above_%.1fsigma.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
-                 'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), SIGMAS_ABOVE))
-    render_differences_map(result_sigma, lats, lons, subtit = (' - above %.2f $\sigma$ (STDs)' % SIGMAS_ABOVE), 
-                           fname = fname)
+    fname = ('debug/%s_%s_cond_%s_%ssurrogates_from_%s_16k_above_%.1fsigma_%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
+                 'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), SIGMAS_ABOVE, '_same_bins' if SAME_BINS else '', 
+                 '_condition' if CONDITION else ''))
+    render_differences_map(result_sigma, lats, lons, subtit = (' - above %.2f $\sigma$ (STDs) %s' % 
+                            (SIGMAS_ABOVE, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     
-    fname = ('debug/%s_%s_cond_%s_%ssurrogates_from_%s_16k_above_%dpercentil.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
-                 'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), PERCENTIL))
-    render_differences_map(result_percentil, lats, lons, subtit = (' - %d percentil' % PERCENTIL), fname = fname)
+    fname = ('debug/%s_%s_cond_%s_%ssurrogates_from_%s_16k_above_%dpercentil_%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
+                 'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), PERCENTIL, '_same_bins' if SAME_BINS else '', 
+                 '_condition' if CONDITION else ''))
+    render_differences_map(result_percentil, lats, lons, subtit = (' - %d percentil %s' % 
+                            (PERCENTIL, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     
 else:
-    if ECA:
-        fname = ('debug/ECA-D_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
-                                                                       str(START_DATE)))
-    else:
-        fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
-                                                                       str(START_DATE)))
-    if MEANS:
-        render_differences_map(np.std(difference_surrogates[1, ...], axis = 0, ddof = 1), lats, lons, subtit = (' - no significance test'), 
-                                fname = fname)
-    else:
-        render_differences_map(np.std(difference_surrogates_var[0, ...], axis = 0, ddof = 1), lats, lons, subtit = (' - no significance test'), 
-                                fname = fname)
+    pass
+    # if ECA:
+    #     fname = ('debug/ECA-D_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+    #                                                                    str(START_DATE)))
+    # else:
+    #     fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+    #                                                                    str(START_DATE)))
+    # if MEANS:
+    #     render_differences_map(np.std(difference_surrogates[1, ...], axis = 0, ddof = 1), lats, lons, subtit = (' - no significance test'), 
+    #                             fname = fname)
+    # else:
+    #     render_differences_map(np.std(difference_surrogates_var[0, ...], axis = 0, ddof = 1), lats, lons, subtit = (' - no significance test'), 
+    #                             fname = fname)
 

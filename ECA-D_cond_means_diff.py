@@ -78,16 +78,16 @@ def _get_cond_means(a):
 
 ECA = True # if False ERA-40 will be evaluated instead
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 20 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 10 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 SURR_TYPE = 'MF' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
-NUM_SURR = 1000 # number of surrogates to be evaluated
-NUM_FILES = 10
+NUM_SURR = 100 # number of surrogates to be evaluated
+NUM_FILES = 1
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
-SEASON = None
+SEASON = [12,1,2]
 AMPLITUDE = False # season cannot be used with amplitude, it does not make any sense
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
 
@@ -286,7 +286,7 @@ if SURR_TYPE is not None:
                 del job_result
 
                 if AMPLITUDE:
-                    # surrogates are now SATA, for amplitude we need SAT
+                    # surrogates are now SATA, for amplitude we need SAT so plus mean, times 1 var, plus 0 trend
                     if SURR_TYPE == 'MF' or SURR_TYPE == 'FT':
                         sg.add_seasonality(mean, 1, 0)
                     elif SURR_TYPE == 'AR':
