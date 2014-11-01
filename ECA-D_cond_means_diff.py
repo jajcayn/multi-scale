@@ -48,8 +48,8 @@ def _get_amplitude(a):
         # fitting oscillatory phase / amplitude to actual SAT
         reconstruction = amplitude * np.cos(phase_amp)
         fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
-        log("reconstruction %s" % (str(np.any(np.isnan(reconstruction)))))
-        log("matrix fit_x %s" % (str(np.any(np.isnan(fit_x)))))
+        log("reconstruction %s" % (str(np.all(np.isnan(reconstruction)))))
+        log("matrix fit_x %s" % (str(np.all(np.isnan(fit_x)))))
         m, c = np.linalg.lstsq(fit_x, data)[0]
         log("least square fit done")
         amplitude = m * amplitude + c
