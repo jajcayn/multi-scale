@@ -38,17 +38,24 @@ def _get_amplitude(a):
     """
     Gets amplitude of yearly cycle from SAT data.
     """
+    log("amplitude function")
     i, j, s0_amp, data = a
     if not np.all(np.isnan(data)):
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = 6.) # perform wavelet
+        log("wavelet done")
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
         amplitude = amplitude[0, :]
+        log("amplitude created")
         phase_amp = np.arctan2(np.imag(wave), np.real(wave))
         phase_amp = phase_amp[0, :]
+        log("phase created")
         # fitting oscillatory phase / amplitude to actual SAT
         reconstruction = amplitude * np.cos(phase_amp)
+        log("reconstruction done")
         fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+        log("matrix for fit created")
         m, c = np.linalg.lstsq(fit_x, data)[0]
+        log("least square fit done")
         amplitude = m * amplitude + c
     else:
         amplitude = np.nan
@@ -112,7 +119,6 @@ if ECA:
     if AMPLITUDE:
         log("Evaluating amplitude of the yearly cycle instead of total SAT(A) variability...")
         g_amp = g.copy_data()
-        log("data shape: %s and g_amp shape: %s" % (str(g.data.shape), str(g_amp.shape)))
         log("SAT data copied...")
                             
 # ERA-40 + ERA-Interim
@@ -123,7 +129,6 @@ else:
 idx = g.get_data_of_precise_length('16k', START_DATE, None, True) # get 2^n data because of MF surrogates
 if AMPLITUDE:
     g_amp = g_amp[idx[0] : idx[1], ...]
-    log("data shape: %s and g_amp shape: %s" % (str(g.data.shape), str(g_amp.shape)))
 END_DATE = g.get_date_from_ndx(-1)
 
 if SURR_TYPE is not None:
@@ -166,13 +171,11 @@ for i, j, ph in job_result:
 del job_result
 
 if AMPLITUDE:
-    log("data shape: %s and g_amp shape: %s" % (str(g.data.shape), str(g_amp.shape)))
     log("Computing amplitude from SAT data using %d workers..." % (WORKERS))
     s0_amp = 1 * y / fourier_factor
     amp_data = np.zeros_like(g_amp)
 
     job_args = [ (i, j, s0_amp, g_amp[:, i, j]) for i in range(g.lats.shape[0]) for j in range(g.lons.shape[0]) ]
-    log("amplitude job args created, %d args created.." % (len(job_args)))
     job_results = map_func(_get_amplitude, job_args)
     del job_args
     # map results
