@@ -42,9 +42,9 @@ def _get_amplitude(a):
     if not np.all(np.isnan(data)):
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = 6.) # perform wavelet
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
-        amplitude = amplitude[0, :]
+        # amplitude = amplitude[0, :]
         phase_amp = np.arctan2(np.imag(wave), np.real(wave))
-        phase_amp = phase_amp[0, :]
+        # phase_amp = phase_amp[0, :]
         # fitting oscillatory phase / amplitude to actual SAT
         reconstruction = amplitude * np.cos(phase_amp)
         fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
