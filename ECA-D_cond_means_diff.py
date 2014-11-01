@@ -42,16 +42,22 @@ def _get_amplitude(a):
     if not np.all(np.isnan(data)):
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = 6.) # perform wavelet
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+        log("amplitude before %s" % (str(amplitude.shape)))
         amplitude = amplitude[0, :]
+        log("amplitude after %s" % (str(amplitude.shape)))
+        log("%s" % (str(np.any(np.isnan(amplitude)))))
         phase_amp = np.arctan2(np.imag(wave), np.real(wave))
+        log("phase before %s" % (str(phase_amp.shape)))
         phase_amp = phase_amp[0, :]
+        log("phase after %s" % (str(phase_amp.shape)))
+        log("%s" % (str(np.any(np.isnan(phase_amp)))))
         # fitting oscillatory phase / amplitude to actual SAT
         reconstruction = amplitude * np.cos(phase_amp)
         log("reconstruction shape: %s" % (str(reconstruction.shape)))
         fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
         log("fit x shape: %s" % (str(fit_x.shape)))
         log("reconstruction %s" % (str(np.all(np.isnan(reconstruction)))))
-        log("matrix fit_x %s" % (str(np.all(np.isnan(fit_x)))))
+        log("matrix fit_x %s" % (str(np.any(np.isnan(fit_x)))))
         m, c = np.linalg.lstsq(fit_x, data)[0]
         log("least square fit done")
         amplitude = m * amplitude + c
