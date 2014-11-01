@@ -112,6 +112,7 @@ if ECA:
     if AMPLITUDE:
         log("Evaluating amplitude of the yearly cycle instead of total SAT(A) variability...")
         g_amp = g.copy_data()
+        log("data shape: %s and g_amp shape: %s" % (str(g.data.shape), str(g_amp.shape)))
         log("SAT data copied...")
                             
 # ERA-40 + ERA-Interim
@@ -122,6 +123,7 @@ else:
 idx = g.get_data_of_precise_length('16k', START_DATE, None, True) # get 2^n data because of MF surrogates
 if AMPLITUDE:
     g_amp = g_amp[idx[0] : idx[1], ...]
+    log("data shape: %s and g_amp shape: %s" % (str(g.data.shape), str(g_amp.shape)))
 END_DATE = g.get_date_from_ndx(-1)
 
 if SURR_TYPE is not None:
@@ -164,11 +166,13 @@ for i, j, ph in job_result:
 del job_result
 
 if AMPLITUDE:
+    log("data shape: %s and g_amp shape: %s" % (str(g.data.shape), str(g_amp.shape)))
     log("Computing amplitude from SAT data using %d workers..." % (WORKERS))
     s0_amp = 1 * y / fourier_factor
     amp_data = np.zeros_like(g_amp)
 
     job_args = [ (i, j, s0_amp, g_amp[:, i, j]) for i in range(g.lats.shape[0]) for j in range(g.lons.shape[0]) ]
+    log("amplitude job args created, %d args created.." % (len(job_args)))
     job_results = map_func(_get_amplitude, job_args)
     del job_args
     # map results

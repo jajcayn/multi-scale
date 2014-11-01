@@ -99,8 +99,7 @@ def _cond_difference_surrogates(sg, a, jobq, resq):
                 cond_means_temp[i] = np.mean(sg.surr_data[ndx])
             else:
                 cond_means_temp[i] = np.var(sg.surr_data[ndx], ddof = 1)
-        resq.put(cond_means_temp)
-
+         resq.put(cond_means_temp)
 
 
 print("[%s] Conditional means on data done, now computing %d surrogates in parallel using %d threads..." % (str(datetime.now()), NUM_SURR, WORKERS))
