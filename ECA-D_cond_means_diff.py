@@ -283,7 +283,7 @@ if SURR_TYPE is not None:
                 # oscillatory modes
                 phase_surrs = np.zeros_like(sg.surr_data)
                 job_args = [ (i, j, s0, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
-                job_result = pool.map(_get_oscillatory_modes, job_args)
+                job_result = map_func(_get_oscillatory_modes, job_args)
                 del job_args
                 # map results
                 for i, j, ph in job_result:
@@ -320,7 +320,7 @@ if SURR_TYPE is not None:
                     job_args = [ (i, j, phase_surrs[:, i, j], amp_surrs[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
                 else:
                     job_args = [ (i, j, phase_surrs[:, i, j], sg.surr_data[:, i, j], phase_bins) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
-                job_result = pool.map(_get_cond_means, job_args)
+                job_result = map_func(_get_cond_means, job_args)
                 del job_args, phase_surrs
                 # map results
                 for i, j, cmm, cmv in job_result:
