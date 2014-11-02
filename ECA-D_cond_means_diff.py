@@ -293,8 +293,10 @@ if SURR_TYPE is not None:
                         sg.add_seasonality(mean[:-1, ...], 1, 0)
 
                     amp_surrs = np.zeros_like(sg.surr_data)
-
+                    log("surr data shape %s" % (sg.surr_data.shape))
                     job_args = [ (i, j, s0_amp, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
+                    log("arg created with len %d" % len(job_args))
+                    log(map_func)
                     job_results = map_func(_get_amplitude, job_args)
                     del job_args
                     # map results
