@@ -78,7 +78,7 @@ def _get_cond_means(a):
 
 ECA = True # if False ERA-40 will be evaluated instead
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 10 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 0 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
 LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
@@ -292,12 +292,8 @@ if SURR_TYPE is not None:
                     elif SURR_TYPE == 'AR':
                         sg.add_seasonality(mean[:-1, ...], 1, 0)
 
-                    pool = Pool(WORKERS)
-                    log(pool)
                     amp_surrs = np.zeros_like(sg.surr_data)
-                    log("surr data shape %s" % (str(sg.surr_data.shape)))
                     job_args = [ (i, j, s0_amp, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
-                    log("arg created with len %d" % len(job_args))
                     log(map_func)
                     job_results = map_func(_get_amplitude, job_args)
                     del job_args
