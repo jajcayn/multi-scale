@@ -40,11 +40,7 @@ def _get_amplitude(a):
     """
     i, j, s0_amp, data = a
     if not np.any(np.isnan(data)):
-        log("input data %s" % (str(np.any(np.isnan(data)))))
-        nan_mask = np.isnan(data)
-        log("nans: %d of all %d" % (nan_mask[nan_mask == True].shape[0], data.shape[0]))
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = 6.) # perform wavelet
-        log("wavelet wave - shape: %s, any: %s, all: %s" % (str(wave.shape), str(np.any(np.isnan(wave))), str(np.all(np.isnan(wave)))))
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
         amplitude = amplitude[0, :]
         phase_amp = np.arctan2(np.imag(wave), np.real(wave))
