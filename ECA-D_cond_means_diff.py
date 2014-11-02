@@ -292,6 +292,8 @@ if SURR_TYPE is not None:
                     elif SURR_TYPE == 'AR':
                         sg.add_seasonality(mean[:-1, ...], 1, 0)
 
+                    pool = Pool(WORKERS)
+                    log(pool)
                     amp_surrs = np.zeros_like(sg.surr_data)
                     log("surr data shape %s" % (str(sg.surr_data.shape)))
                     job_args = [ (i, j, s0_amp, sg.surr_data[:, i, j]) for i in range(sg.lats.shape[0]) for j in range(sg.lons.shape[0]) ]
