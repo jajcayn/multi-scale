@@ -257,7 +257,12 @@ if SURR_TYPE is not None:
     phase_bins = get_equidistant_bins()
     t_start = datetime.now()
     t_last = t_start
-    pool = Pool(WORKERS)
+    if WORKERS != 0:
+        pool = Pool(WORKERS)
+        map_func = pool.map
+    else:
+        pool = None
+        map_func = map
     
     for su_type in range(SU):
         for file_num in range(NUM_FILES):
