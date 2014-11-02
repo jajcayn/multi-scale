@@ -39,7 +39,7 @@ def _get_amplitude(a):
     Gets amplitude of yearly cycle from SAT data.
     """
     i, j, s0_amp, data = a
-    if not np.all(np.isnan(data)):
+    if not np.any(np.isnan(data)):
         log("input data %s" % (str(np.any(np.isnan(data)))))
         nan_mask = np.isnan(data)
         log("nans: %d of all %d" % (nan_mask[nan_mask == True].shape[0], data.shape[0]))
