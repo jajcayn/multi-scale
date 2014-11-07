@@ -31,7 +31,7 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
     if not MEANS:
         levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
     else:
-        levs = np.arange(0,4,0.2) # 0 - 4 / 0.2
+        levs = np.arange(0,2.1,0.1) # 0 - 4 / 0.2
     if ECA:
         cs = m.contourf(x, y, diffs, levels = levs, cmap = plt.get_cmap('CMRmap'))
     else:
@@ -43,14 +43,14 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
         cbar.set_label("differecnce in standard deviation [$^{\circ}$C]", size = 18)
     if SIGN:
         if MEANS:
-            title = ("%s reanalysis - differences of conditional means \n %d %s surrogates" % ('ECA & D' if ECA else 'ERA-40', num_surr, SURR_TYPE))
+            title = ("%s reanalysis - differences of conditional means \n SAT amplitude - %d %s surrogates" % ('ECA & D' if ECA else 'ERA-40', num_surr, SURR_TYPE))
         else:
             title = ("%s reanalysis - differences of conditional standard deviation \n %d %s surrogates" % ('ECA & D' if ECA else 'ERA-40', num_surr, SURR_TYPE))        
     else:
         if MEANS:
-            title = ("%s reanalysis - differences of conditional means \n FT SURROGATE STD" % ('ECA % D' if ECA else 'ERA-40'))
+            title = ("%s reanalysis - differences of conditional means \n SAT amplitude - DATA" % ('ECA & D' if ECA else 'ERA-40'))
         else:
-            title = ("%s reanalysis - differences of conditional standard deviation \n MF SURROGATE STD" % ('ECA % D' if ECA else 'ERA-40'))
+            title = ("%s reanalysis - differences of conditional standard deviation \n MF SURROGATE STD" % ('ECA & D' if ECA else 'ERA-40'))
     title += subtit
     plt.title(title, size = 22)
     
@@ -66,18 +66,19 @@ START_DATE = date(1958,1,1)
 MEANS = True
 ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
-SIGN = True # wheter to check significance or just plot results
+SIGN = False # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
 PERCENTIL = 95
 SAME_BINS = False
 CONDITION = True
+NUM_FILES = 1
 
 
 
 # load data 
 print("[%s] Loading data..." % (str(datetime.now())))
 if ECA:
-    fname = ('result/ECA-D_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_SATamplitude_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                                                               str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
@@ -98,13 +99,13 @@ bins_surrogates_list = []
 bins_surrogates_var_list = []
 print("[%s] Data loaded. Now loading surrogates..." % (str(datetime.now())))
 if ECA:
-    fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_SATamplitude_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                  SURR_TYPE, str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
                  SURR_TYPE, str(START_DATE)))
 if PICKLE:
-    for i in range(10):
+    for i in range(NUM_FILES):
         with open(fname + '_%d' % (i) + '.bin', 'rb') as f:
             data = cPickle.load(f)
         bins_surrogates_list.append(data['bins_surrogates'])
@@ -114,17 +115,17 @@ else:
     data = hkl.load(fname + '.hkl')
 del data
 print("[%s] Surrogates loaded." % (str(datetime.now())))
-bins_surrogates = np.zeros(([10 * bins_surrogates_list[0].shape[1]] + list(bins_surrogates_list[0].shape[2:])))
+bins_surrogates = np.zeros(([NUM_FILES * bins_surrogates_list[0].shape[1]] + list(bins_surrogates_list[0].shape[2:])))
 pointer = 0
-for i in range(10):
+for i in range(NUM_FILES):
     bins_surrogates[pointer:pointer+100, ...] = bins_surrogates_list[i][0, ...]
-    pointer += 100
+    pointer += bins_surrogates_list[0].shape[1]
 del bins_surrogates_list
 bins_surrogates_var = np.zeros_like(bins_surrogates)
 pointer = 0
-for i in range(10):
+for i in range(NUM_FILES):
     bins_surrogates_var[pointer:pointer+100, ...] = bins_surrogates_var_list[i][0, ...]
-    pointer += 100
+    pointer += bins_surrogates_var_list[0].shape[1]
 del bins_surrogates_var_list
 print("[%s] Data prepared to test and plot..." % (str(datetime.now())))
 
@@ -178,6 +179,8 @@ if SIGN:
                         
                     # percentil-based significance
                     greater_mat = np.greater(diff_data, diff_surrs)
+                    if not CONDITION:
+                        cnt = num_surr
                     if np.sum(greater_mat) > PERCENTIL/100. * cnt:
                         result_percentil[lat, lon] = diff_data
                     else:
@@ -232,29 +235,33 @@ if SIGN:
     #     elif SU == 2:
     #         SURR_TYPE = 'AR'
     print('total grid points: %d -- not significant grid points: %d' % (np.prod(result_sigma.shape), np.sum(np.isnan(result_sigma))))
-    fname = ('debug/%s_%s_cond_%s_%ssurrogates_from_%s_16k_above_%.1fsigma_%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
+    fname = ('debug/%s_SATamplitude_%s_cond_%s_%ssurrogates_DJF_from_%s_16k_above_%.1fsigma%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
                  'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), SIGMAS_ABOVE, '_same_bins' if SAME_BINS else '', 
                  '_condition' if CONDITION else ''))
     render_differences_map(result_sigma, lats, lons, subtit = (' - above %.2f $\sigma$ (STDs) %s' % 
                             (SIGMAS_ABOVE, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     
-    fname = ('debug/%s_%s_cond_%s_%ssurrogates_from_%s_16k_above_%dpercentil_%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
+    fname = ('debug/%s_SATamplitude_%s_cond_%s_%ssurrogates_DJF_from_%s_16k_above_%dpercentil%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
                  'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), PERCENTIL, '_same_bins' if SAME_BINS else '', 
                  '_condition' if CONDITION else ''))
     render_differences_map(result_percentil, lats, lons, subtit = (' - %d percentil %s' % 
                             (PERCENTIL, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     
 else:
-    pass
-    # if ECA:
-    #     fname = ('debug/ECA-D_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
-    #                                                                    str(START_DATE)))
-    # else:
-    #     fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
-    #                                                                    str(START_DATE)))
-    # if MEANS:
-    #     render_differences_map(np.std(difference_surrogates[1, ...], axis = 0, ddof = 1), lats, lons, subtit = (' - no significance test'), 
-    #                             fname = fname)
+    if ECA:
+        fname = ('debug/ECA-D_SATamplitude_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+                                                                       str(START_DATE)))
+    else:
+        fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+                                                                       str(START_DATE)))
+    if MEANS:
+        result = np.zeros((bins_data.shape[0], bins_data.shape[1]))
+        for lat in range(lats.shape[0]):
+            for lon in range(lons.shape[0]):
+                result[lat, lon] = bins_data[lat, lon, :].max() - bins_data[lat, lon].min()
+                # result[lat, lon] = np.mean([bins_surrogates[i, lat, lon, :].max() - bins_surrogates[i, lat, lon, :].min() for i in range(bins_surrogates.shape[0])])
+        render_differences_map(result, lats, lons, subtit = (' - no significance test'), 
+                                fname = fname)
     # else:
     #     render_differences_map(np.std(difference_surrogates_var[0, ...], axis = 0, ddof = 1), lats, lons, subtit = (' - no significance test'), 
     #                             fname = fname)

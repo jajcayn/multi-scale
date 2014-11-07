@@ -39,12 +39,14 @@ publication:
  ECA&D reanalysis:
  ✔ DJF overall variability @done (14-10-31 11:15)
  ☐ SATamplitude vs MF surr (save diff, mean)
-
+     ☐ mean thru 8 bins
+     ☐ (max - min) in bins divide by avg amplitude
+     ☐ both also surr testing
 --- ✄ -----------------------
 
 others:
- ☐ GAUK - navrh
+ ✔ GAUK - navrh @done (14-11-07 14:41)
      nazov:
          * Synopticke a mezosynopticke casove skaly v dynamice atmosfery
          * Kauzalita v synoptickych skalach dynamiky atmosfery
- ☐ napis konecne na zahranicne oddelenie ze ako, kedy, kde, preco a love Montreal!
+ ✔ napis konecne na zahranicne oddelenie ze ako, kedy, kde, preco a love Montreal! @done (14-11-03 16:32)
