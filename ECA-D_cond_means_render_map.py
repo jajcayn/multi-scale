@@ -31,7 +31,7 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
     if not MEANS:
         levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
     else:
-        levs = np.arange(0,2.1,0.1) # 0 - 4 / 0.2
+        levs = np.arange(0,0.305,0.005) # 0 - 4 / 0.2
     if ECA:
         cs = m.contourf(x, y, diffs, levels = levs, cmap = plt.get_cmap('CMRmap'))
     else:
@@ -43,12 +43,13 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
         cbar.set_label("differecnce in standard deviation [$^{\circ}$C]", size = 18)
     if SIGN:
         if MEANS:
-            title = ("%s reanalysis - differences of conditional means \n SAT amplitude - %d %s surrogates" % ('ECA & D' if ECA else 'ERA-40', num_surr, SURR_TYPE))
+            title = ("%s reanalysis - scaled differences of conditional means \n SAT amplitude - %d %s surrogates" % ('ECA & D' if ECA else 'ERA-40', num_surr, SURR_TYPE))
         else:
             title = ("%s reanalysis - differences of conditional standard deviation \n %d %s surrogates" % ('ECA & D' if ECA else 'ERA-40', num_surr, SURR_TYPE))        
     else:
         if MEANS:
-            title = ("%s reanalysis - differences of conditional means \n SAT amplitude - DATA" % ('ECA & D' if ECA else 'ERA-40'))
+            title = ("%s reanalysis - scaled differences of conditional means \n SAT amplitude - DATA" % ('ECA & D' if ECA else 'ERA-40'))
+            # title = ("%s reanalysis - scaled mean of bins \n SAT amplitude - DATA" % ('ECA & D' if ECA else 'ERA-40'))
         else:
             title = ("%s reanalysis - differences of conditional standard deviation \n MF SURROGATE STD" % ('ECA & D' if ECA else 'ERA-40'))
     title += subtit
@@ -66,11 +67,11 @@ START_DATE = date(1958,1,1)
 MEANS = True
 ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
-SIGN = False # wheter to check significance or just plot results
+SIGN = True # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
 PERCENTIL = 95
-SAME_BINS = False
-CONDITION = True
+SAME_BINS = True
+CONDITION = False
 NUM_FILES = 1
 
 
@@ -154,6 +155,8 @@ if SIGN:
                         diff_data = bins_data[lat, lon, ma] - bins_data[lat, lon, mi]
                     else:
                         diff_data = bins_data[lat, lon, :].max() - bins_data[lat, lon, :].min()
+                    # scaled
+                    diff_data /= np.mean(bins_data[lat, lon, :])
                     diff_surrs = np.zeros((num_surr))
                     if CONDITION:
                         cnt = 0
@@ -168,6 +171,8 @@ if SIGN:
                                 cnt += 1
                         else:
                             diff_surrs[i] = bins_surrogates[i, lat, lon, :].max() - bins_surrogates[i, lat, lon, :].min()
+                        # scaled
+                        diff_surrs[i] /= np.mean(bins_surrogates[i, lat, lon, :])
                     if CONDITION:
                         diff_surrs = np.delete(diff_surrs, np.s_[cnt:])
                     sigma = np.std(diff_surrs, axis = 0, ddof = 1)
@@ -198,6 +203,8 @@ if SIGN:
                         diff_data = bins_data_var[lat, lon, ma] - bins_data_var[lat, lon, mi]
                     else:
                         diff_data = bins_data_var[lat, lon, :].max() - bins_data_var[lat, lon, :].min()
+                    # scaled
+                    diff_data /= np.mean(bins_data[lat, lon, :])
                     diff_surrs = np.zeros((num_surr))
                     if CONDITION:
                         cnt = 0
@@ -212,6 +219,8 @@ if SIGN:
                                 cnt += 1
                         else:
                             diff_surrs[i] = bins_surrogates_var[i, lat, lon, :].max() - bins_surrogates_var[i, lat, lon, :].min()
+                        # scaled
+                        diff_surrs[i] /= np.mean(bins_surrogates[i, lat, lon, :])
                     if CONDITION:
                         diff_surrs = np.delete(diff_surrs, np.s_[cnt:])
                     sigma = np.std(diff_surrs, axis = 0, ddof = 1)
@@ -235,13 +244,13 @@ if SIGN:
     #     elif SU == 2:
     #         SURR_TYPE = 'AR'
     print('total grid points: %d -- not significant grid points: %d' % (np.prod(result_sigma.shape), np.sum(np.isnan(result_sigma))))
-    fname = ('debug/%s_SATamplitude_%s_cond_%s_%ssurrogates_DJF_from_%s_16k_above_%.1fsigma%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
+    fname = ('debug/%s_SATamplitude_%s_scaled_%s_bins_%ssurrogates_from_%s_16k_above_%.1fsigma%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
                  'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), SIGMAS_ABOVE, '_same_bins' if SAME_BINS else '', 
                  '_condition' if CONDITION else ''))
     render_differences_map(result_sigma, lats, lons, subtit = (' - above %.2f $\sigma$ (STDs) %s' % 
                             (SIGMAS_ABOVE, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     
-    fname = ('debug/%s_SATamplitude_%s_cond_%s_%ssurrogates_DJF_from_%s_16k_above_%dpercentil%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
+    fname = ('debug/%s_SATamplitude_%s_scaled_%s_bins_%ssurrogates_from_%s_16k_above_%dpercentil%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
                  'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), PERCENTIL, '_same_bins' if SAME_BINS else '', 
                  '_condition' if CONDITION else ''))
     render_differences_map(result_percentil, lats, lons, subtit = (' - %d percentil %s' % 
@@ -249,17 +258,21 @@ if SIGN:
     
 else:
     if ECA:
-        fname = ('debug/ECA-D_SATamplitude_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+        # fname = ('debug/ECA-D_SATamplitude_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+        #                                                                str(START_DATE)))
+        fname = ('debug/ECA-D_SATamplitude_%s_scaled_%s_bins_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
                                                                        str(START_DATE)))
     else:
         fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
                                                                        str(START_DATE)))
     if MEANS:
         result = np.zeros((bins_data.shape[0], bins_data.shape[1]))
+        result_data = np.zeros_like(result)
         for lat in range(lats.shape[0]):
             for lon in range(lons.shape[0]):
                 result[lat, lon] = bins_data[lat, lon, :].max() - bins_data[lat, lon].min()
-                # result[lat, lon] = np.mean([bins_surrogates[i, lat, lon, :].max() - bins_surrogates[i, lat, lon, :].min() for i in range(bins_surrogates.shape[0])])
+                result[lat, lon] /= np.mean(bins_data[lat, lon, :])
+                # result[lat, lon] = np.mean([np.mean(bins_surrogates[i, lat, lon, :]) for i in range(bins_surrogates.shape[0])])
         render_differences_map(result, lats, lons, subtit = (' - no significance test'), 
                                 fname = fname)
     # else:

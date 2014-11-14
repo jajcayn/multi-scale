@@ -17,8 +17,8 @@ import scipy.stats as sts
 
 
 ANOMALISE = True
-PERIOD = 4 # years, period of wavelet
-BINS = 4
+PERIOD = 8 # years, period of wavelet
+BINS = 8
 WINDOW_LENGTH = 16384 / 365.25
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MEANS = True # if True, compute conditional means, if False, compute conditional variance

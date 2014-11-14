@@ -38,10 +38,10 @@ publication:
 
  ECA&D reanalysis:
  ✔ DJF overall variability @done (14-10-31 11:15)
- ☐ SATamplitude vs MF surr (save diff, mean)
-     ☐ mean thru 8 bins
-     ☐ (max - min) in bins divide by avg amplitude
-     ☐ both also surr testing
+ ✔ SATamplitude vs MF surr (save diff, mean) @done (14-11-13 16:49)
+     ✔ mean thru 8 bins @done (14-11-13 10:41)
+     ✔ (max - min) in bins divide by avg amplitude @done (14-11-13 11:05)
+     ✔ both also surr testing @done (14-11-13 16:23)
 --- ✄ -----------------------
 
 others:
