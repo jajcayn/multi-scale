@@ -6,6 +6,8 @@ result/
 results/
 *.pyc
 *.png
+*.eps
+*.pdf
 test.py
 *.py~
 *.jpg

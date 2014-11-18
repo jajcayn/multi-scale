@@ -12,6 +12,7 @@ from datetime import datetime, date
 import matplotlib.pyplot as plt
 from multiprocessing import Process, Queue
 import scipy.stats as sts
+import cPickle
 
 
 def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = None, fname = None):
@@ -136,7 +137,7 @@ WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MOMENT = 'mean' # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 4
-NUM_SURR = 100 # how many surrs will be used to evaluate
+NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
 mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
@@ -152,9 +153,9 @@ AMPLITUDE = False
 
 
 ## loading data
-g = load_station_data('TG_STAID000048.txt', date(1834,4,28), date(2013,10,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
+g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
 if AMPLITUDE:
-    g_amp = load_station_data('TG_STAID000048.txt', date(1834,4,28), date(2013, 10, 1), False)
+    g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013, 10, 1), False)
 # ERA
 #g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1958,4,28), date(2013,10,1), ANOMALISE)
 # ECA
@@ -508,6 +509,10 @@ if PLOT:
                 subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
                 percentil = where_percentil, phase = phase_tot, fname = fn)
     else:
+        with open('debug/PRGevolution.bin', 'wb') as f:
+            cPickle.dump({'difference_data' : difference_data, 'difference_surr' : np.array(difference_surr), 'meanvar_data' : meanvar_data, 
+                            'meanvar_surr' : np.array(meanvar_surr), 'difference_surr_std' : np.array(difference_surr_std), 
+                            'meanvar_surr_std' : np.array(meanvar_surr_std)}, f, protocol = cPickle.HIGHEST_PROTOCOL)
         render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
                 subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
                 percentil = where_percentil, fname = fn)
