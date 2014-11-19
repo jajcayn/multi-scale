@@ -148,7 +148,7 @@ PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
 AA = False
 SAME_BINS = False
 CONDITION = False
-SEASON = [6,7,8]
+SEASON = None
 AMPLITUDE = False
 
 
@@ -509,10 +509,11 @@ if PLOT:
                 subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
                 percentil = where_percentil, phase = phase_tot, fname = fn)
     else:
-        with open('debug/PRGevolutionJJA.bin', 'wb') as f:
+        with open('debug/PRGevolution.bin', 'wb') as f:
             cPickle.dump({'difference_data' : difference_data, 'difference_surr' : np.array(difference_surr), 'meanvar_data' : meanvar_data, 
                             'meanvar_surr' : np.array(meanvar_surr), 'difference_surr_std' : np.array(difference_surr_std), 
-                            'meanvar_surr_std' : np.array(meanvar_surr_std)}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+                            'meanvar_surr_std' : np.array(meanvar_surr_std), 'cnt' : cnt, 'difference_95perc' : difference_95perc,
+                            'mean_95perc' : mean_95perc, 'where_percentil' : where_percentil}, f, protocol = cPickle.HIGHEST_PROTOCOL)
         render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
                 subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
                 percentil = where_percentil, fname = fn)
