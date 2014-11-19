@@ -136,7 +136,7 @@ PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MOMENT = 'mean' # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 4
+WORKERS = 20
 NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'MF'
 diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
@@ -148,7 +148,7 @@ PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
 AA = False
 SAME_BINS = False
 CONDITION = False
-SEASON = None
+SEASON = [6,7,8]
 AMPLITUDE = False
 
 
@@ -509,7 +509,7 @@ if PLOT:
                 subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
                 percentil = where_percentil, phase = phase_tot, fname = fn)
     else:
-        with open('debug/PRGevolution.bin', 'wb') as f:
+        with open('debug/PRGevolutionJJA.bin', 'wb') as f:
             cPickle.dump({'difference_data' : difference_data, 'difference_surr' : np.array(difference_surr), 'meanvar_data' : meanvar_data, 
                             'meanvar_surr' : np.array(meanvar_surr), 'difference_surr_std' : np.array(difference_surr_std), 
                             'meanvar_surr_std' : np.array(meanvar_surr_std)}, f, protocol = cPickle.HIGHEST_PROTOCOL)
