@@ -31,7 +31,7 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
     if not MEANS:
         levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
     else:
-        levs = np.arange(0,0.305,0.005) # 0 - 4 / 0.2
+        levs = np.arange(15,20,0.05) # 0 - 4 / 0.2
     if ECA:
         cs = m.contourf(x, y, diffs, levels = levs, cmap = plt.get_cmap('CMRmap'))
     else:
@@ -67,10 +67,10 @@ START_DATE = date(1958,1,1)
 MEANS = True
 ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
-SIGN = True # wheter to check significance or just plot results
+SIGN = False # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
 PERCENTIL = 95
-SAME_BINS = True
+SAME_BINS = False
 CONDITION = False
 NUM_FILES = 1
 
@@ -270,8 +270,9 @@ else:
         result_data = np.zeros_like(result)
         for lat in range(lats.shape[0]):
             for lon in range(lons.shape[0]):
-                result[lat, lon] = bins_data[lat, lon, :].max() - bins_data[lat, lon].min()
-                result[lat, lon] /= np.mean(bins_data[lat, lon, :])
+                # result[lat, lon] = bins_data[lat, lon, :].max() - bins_data[lat, lon].min()
+                result[lat, lon] = np.mean(bins_data[lat, lon, :])
+                # result[lat, lon] /= np.mean(bins_data[lat, lon, :])
                 # result[lat, lon] = np.mean([np.mean(bins_surrogates[i, lat, lon, :]) for i in range(bins_surrogates.shape[0])])
         render_differences_map(result, lats, lons, subtit = (' - no significance test'), 
                                 fname = fname)
