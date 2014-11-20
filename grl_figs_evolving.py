@@ -8,6 +8,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     ax1.spines['top'].set_visible(False)
     ax1.spines['right'].set_visible(False)
     ax1.spines['left'].set_visible(False)
+    ax.tick_params(color = '#6A4A3C')
     if len(diffs) > 3:
         ax1.plot(diffs, color = '#403A37', linewidth = 2, figure = fig)
     else:
@@ -21,15 +22,9 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
         if percentil != None:
             for pos in np.where(percentil[:, 0] == True)[0]:
                 ax1.plot(pos, diffs[0][pos], 'o', markersize = 8, color = '#403A37')
-    #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
     ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
     ax1.set_xlabel('middle year of %.2f-year wide window' % (WINDOW_LENGTH / 365.25), size = 14)
     ax1.set_ylabel('difference in cond. means in temperature [$^{\circ}$C]', size = 14)
-    # year_diff = np.round((last_mid_year - first_mid_year) / 10)
-    # print last_mid_year, first_mid_year, year_diff
-    # xnames = np.arange(first_mid_year, last_mid_year, year_diff)
-    # print xnames
-    # plt.xticks(np.linspace(0, cnt, len(xnames)), xnames, rotation = 30)
     plt.xticks(np.arange(0, cnt+8, 8), np.arange(first_mid_year, last_mid_year+8, 8), rotation = 30)
     ax2 = ax1.twinx()
     if len(meanvars) > 3:
@@ -85,7 +80,13 @@ with open('data_temp/PRGlong_1000MFevolution.bin', 'rb') as f:
     data = cPickle.load(f)
 
 for k, v in data.iteritems():
-    cnt = v.shape[0]
+    locals()[k] = v
+
+fn = ("debug/PRGlong1000MFevolving.png")  
+SEASON = None  
+render([difference_data, difference_surr], [meanvar_data, meanvar_surr], [difference_surr_std, meanvar_surr_std],
+            subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
+            percentil = where_percentil, fname = fn)
 
 for se in seas:
     SEASON = ''.join([mons[m-1] for m in se])
