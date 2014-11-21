@@ -99,7 +99,7 @@ LONS = [-12.5, 40]
 # load data 
 print("[%s] Loading data..." % (str(datetime.now())))
 if ECA:
-    fname = ('result/ECA-D_%s_cond_mean_var_data_DJF_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_SATamplitude_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                                                               str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
@@ -120,7 +120,7 @@ bins_surrogates_list = []
 bins_surrogates_var_list = []
 print("[%s] Data loaded. Now loading surrogates..." % (str(datetime.now())))
 if ECA:
-    fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_DJF_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_SATamplitude_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                  SURR_TYPE, str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
@@ -303,7 +303,7 @@ if SIGN:
             to_txt[lat*lons.shape[0] + lon, 0] = lats[lat]
             to_txt[lat*lons.shape[0] + lon, 1] = lons[lon]
             to_txt[lat*lons.shape[0] + lon, 2] = result_percentil[lat, lon]
-    np.savetxt('debug/ECA-D_SATA_DJFdiffs_95percentil.txt', to_txt, fmt = '%.3f')
+    np.savetxt('debug/ECA-D_SATamplitude_diffs_95percentil.txt', to_txt, fmt = '%.3f')
     render_differences_map(result_percentil, lats, lons, subtit = (' - %d percentil %s' % 
                             (PERCENTIL, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     
