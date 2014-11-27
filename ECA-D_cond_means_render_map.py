@@ -7,6 +7,8 @@ created on June 13, 2014
 import cPickle
 #import hickle as hkl
 from datetime import datetime, date
+from matplotlib import rc
+rc('ps',usedistiller='xpdf')
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 import numpy as np
@@ -35,30 +37,30 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
     m = Basemap(projection = 'merc',
                 llcrnrlat = lats[0], urcrnrlat = lats[-1],
                 llcrnrlon = lons[0], urcrnrlon = lons[-1],
-                resolution = 'c')
+                resolution = 'h')
                 
     m.fillcontinents(color = "#ECF0F3", lake_color = "#A9E5FF", zorder = 0)
     m.drawmapboundary(fill_color = "#A9E5FF")
     m.drawcoastlines(linewidth = 2, color = "#333333")
     m.drawcountries(linewidth = 1.5, color = "#333333")
-    m.drawparallels(np.arange(20, 80, 10), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
-    m.drawmeridians(np.arange(-40, 80, 10), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
+    m.drawparallels(np.arange(20, 80, 10), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 23)
+    m.drawmeridians(np.arange(-40, 80, 10), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 23)
     x, y = m(*np.meshgrid(lons, lats))
     if not MEANS:
         levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
     else:
-        levs = np.arange(0.5,8.1,0.1) # 0 - 4 / 0.2
+        levs = np.arange(0.1,2.025,0.025) # 0 - 4 / 0.2
     if ECA:
         cs = m.contourf(x, y, diffs, levels = levs, cmap = plt.get_cmap('CMRmap'))
     else:
         cs = m.contourf(x, y, diffs[::-1, :], levels = levs, cmap = plt.get_cmap('CMRmap'))
     # cbar = m.colorbar(cs, location = 'right', size = "5%", pad = "10%")
-    cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05, ticks = np.arange(0, 9, 1))
+    cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05, ticks = np.arange(0, 2.25, 0.25))
     cbar.ax.tick_params(labelsize = 20)
     if MEANS:
-        cbar.set_label("differecnce [$^{\circ}$C]", size = 25, labelpad = 30)
+        cbar.set_label("differecnce [$^{\circ}$C]", size = 27, labelpad = 30)
     else:
-        cbar.set_label("differecnce in standard deviation [$^{\circ}$C]", size = 18)
+        cbar.set_label("differecnce in standard deviation [$^{\circ}$C]", size = 23)
     if SIGN:
         if MEANS:
             title = ("%s reanalysis - differences in cond. mean SATA DJF \n %d %s surrogates" % ('ECA&D' if ECA else 'ERA-40', num_surr, SURR_TYPE))
@@ -71,7 +73,7 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
         else:
             title = ("%s reanalysis - differences of conditional standard deviation \n MF SURROGATE STD" % ('ECA & D' if ECA else 'ERA-40'))
     title += subtit
-    plt.title(title, size = 30)
+    plt.title(title, size = 35)
     
     if fname != None:
         plt.savefig(fname)
@@ -87,7 +89,7 @@ ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
 SIGN = True # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
-PERCENTIL = 95
+PERCENTIL = 99
 SAME_BINS = False
 CONDITION = False
 NUM_FILES = 1
@@ -283,7 +285,7 @@ if SIGN:
     # fname = ('debug/%s_SATamplitude_%s_scaled_%s_bins_%ssurrogates_from_%s_16k_above_%dpercentil%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
     #              'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), PERCENTIL, '_same_bins' if SAME_BINS else '', 
     #              '_condition' if CONDITION else ''))
-    fname = 'debug/ECA-D_SATA__DJF_MFsurrogates_above_95percentil_TEST.png'
+    fname = ('debug/ECA-D_SATamplitude_MFsurrogates_above_%dpercentil_TEST.png' % PERCENTIL)
     # NaNs to 0
     mask = np.isnan(result_percentil)
     result_percentil[mask] = 0.
@@ -303,7 +305,7 @@ if SIGN:
             to_txt[lat*lons.shape[0] + lon, 0] = lats[lat]
             to_txt[lat*lons.shape[0] + lon, 1] = lons[lon]
             to_txt[lat*lons.shape[0] + lon, 2] = result_percentil[lat, lon]
-    np.savetxt('debug/ECA-D_SATamplitude_diffs_95percentil.txt', to_txt, fmt = '%.3f')
+    np.savetxt('debug/ECA-D_SATamplitude_diffs_%dpercentil.txt' % PERCENTIL, to_txt, fmt = '%.3f')
     render_differences_map(result_percentil, lats, lons, subtit = (' - %d percentil %s' % 
                             (PERCENTIL, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     

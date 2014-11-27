@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
-AMPLITUDE = False
+AMPLITUDE = True
 PERIOD = 8
 BINS = 8
 SEASON = None # [[12, 1, 2], [6, 7, 8]]
@@ -95,7 +95,7 @@ else:
         if AMPLITUDE:
             locals()['amplitude' + str(i)] = locals()['amplitude' + str(i)][idx[0] : idx[1]]
 
-
+phase_bins = get_equidistant_bins(BINS)
 mons = {0: 'J', 1: 'F', 2: 'M', 3: 'A', 4: 'M', 5: 'J', 6: 'J', 7: 'A', 8: 'S', 9: 'O', 10: 'N', 11: 'D'}
 if SEASON != None:
     idx = 0
@@ -194,4 +194,4 @@ if AMPLITUDE:
     tit += '\n SAT amplitude'
 plt.suptitle(tit, size = 22)
 
-plt.savefig("grl_fig/PRGhistAMP.pdf")
+plt.savefig("grl_fig/PRGhistAMP.eps")
