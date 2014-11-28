@@ -81,11 +81,11 @@ ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
 WORKERS = 0 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
-LATS = None #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
-LONS = None #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
+LATS = [35, 65] #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
+LONS = [-12.5, 40] #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 SURR_TYPE = 'MF' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
-NUM_SURR = 100 # number of surrogates to be evaluated
-NUM_FILES = 1
+NUM_SURR = 500 # number of surrogates to be evaluated
+NUM_FILES = 5
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
 SEASON = None
 AMPLITUDE = True # season cannot be used with amplitude, it does not make any sense
