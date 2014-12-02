@@ -20,11 +20,11 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
         for pos in np.where(percentil[:, 0] == True)[0]:
             ax1.plot(pos, diffs[0][pos], 'o', markersize = 8, color = '#76C06E')
     ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
-    ax1.set_xlabel('time [year]', size = 20)
-    ax1.set_ylabel('difference in cond. mean SAT amplitude [$^{\circ}$C]', size = 20)
-    ax1.tick_params(axis = 'both', which = 'major', labelsize = 18)
+    ax1.set_xlabel('TIME [YEAR]', size = 24)
+    ax1.set_ylabel('DIFFERENCE IN COND. MEAN SAT AMP [$^{\circ}$C]', size = 24)
+    ax1.tick_params(axis = 'both', which = 'major', labelsize = 20)
     ax1.yaxis.set_minor_locator(AutoMinorLocator(4))
-    plt.xticks(np.arange(0, cnt+8, 8), np.arange(first_mid_year, last_mid_year+8, 8), rotation = 30)
+    plt.xticks(np.arange(0, cnt+8, 12), np.arange(first_mid_year, last_mid_year+8, 12), rotation = 30)
     # ax1.set_rasterized(True)
     # ax2 = ax1.twinx()
     # if stds is not None:
@@ -42,9 +42,9 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     #     tl.set_color('#76C06E')
     # # ax2.set_rasterized(True)
     # plt.legend([p1, p2, p3, p4], ["difference DATA", "difference SURROGATE mean", "mean DATA", "mean SURROGATE mean"], loc = 2)
-    tit = ('Praha-Klementinum, Czech Republic -- SAT amplitude \n %s' % (''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
-    tit += subtit
-    plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 23, transform = ax1.transAxes)
+    # tit = ('Praha-Klementinum, Czech Republic -- SAT amplitude \n %s' % (''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
+    # tit += subtit
+    # plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 23, transform = ax1.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
     
     if fname is not None:
@@ -71,7 +71,7 @@ for k, v in data.iteritems():
     locals()[k] = v
 
 fn = ("debug/PRGlong1000MFevolvingSeasons.eps")  
-SEASON = None  
+# SEASON = None  
 # render([difference_data, difference_surr], [meanvar_data, meanvar_surr], [difference_surr_std, meanvar_surr_std],
 #             subtit = ("95 percentil: difference - %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt)),
 #             percentil = where_percentil, fname = fn)
@@ -86,7 +86,7 @@ for se in seas:
 
 fig = plt.figure(figsize = (14,20), frameon = False, dpi = 600)
 gs = gridspec.GridSpec(2, 1)
-gs.update(left = 0.1, right = 0.95, top = 0.9, bottom = 0.1, wspace = 0.25, hspace = 0.25)
+gs.update(left = 0.1, right = 0.95, top = 0.95, bottom = 0.07, wspace = 0.4, hspace = 0.3)
 
 for i in range(2):
     if i == 0:
@@ -113,7 +113,7 @@ for i in range(2):
     ax.spines['right'].set_visible(False)
     ax.spines['left'].set_visible(False)
     ax.tick_params(color = '#686A69')
-    ax.set_title(axtit, size = 28)
+    ax.set_title(axtit, size = 38)
     if stds is not None:
         ax.fill_between(np.arange(0,diffs[1].shape[0],1), diffs[1] + stds[0], diffs[1] - stds[0],
                          facecolor = "#CA6D57", edgecolor = "#CA6D57", alpha = 0.5)
@@ -123,11 +123,11 @@ for i in range(2):
         for pos in np.where(percentil[:, 0] == True)[0]:
             ax.plot(pos, diffs[0][pos], 'o', markersize = 8, color = '#76C06E')
     ax.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
-    ax.set_xlabel('time [year]', size = 25)
-    ax.set_ylabel('difference in cond. mean SATA [$^{\circ}$C]', size = 25)
+    ax.set_xlabel('TIME [YEAR]', size = 30)
+    ax.set_ylabel('DIFFERENCE IN COND. MEAN SATA [$^{\circ}$C]', size = 30)
     ax.tick_params(axis = 'both', which = 'major', labelsize = 22)
     ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-    plt.xticks(np.arange(0, cnt+8, 8), np.arange(first_mid_year, last_mid_year+8, 8), rotation = 30)
+    plt.xticks(np.arange(0, cnt+8, 12), np.arange(first_mid_year, last_mid_year+8, 12), rotation = 30)
     # ax2 = ax.twinx()
     # if stds is not None:
     #     ax2.fill_between(np.arange(0,diffs[1].shape[0],1), meanvars[1] + stds[1], meanvars[1] - stds[1],
@@ -144,7 +144,7 @@ for i in range(2):
     #     tl.set_color('#76C06E')
     # plt.legend([p1, p2, p3, p4], ["difference DATA", "difference SURROGATE mean", "mean DATA", "mean SURROGATE mean"], loc = 2)
 
-tit = ('Praha-Klementinum, Czech Republic -- SATA seasons \n')
+# tit = ('Praha-Klementinum, Czech Republic -- SATA seasons \n')
 # tit += subtit
-plt.suptitle(tit, size = 34)
+# plt.suptitle(tit, size = 34)
 plt.savefig(fn)

@@ -37,14 +37,14 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
     m = Basemap(projection = 'merc',
                 llcrnrlat = lats[0], urcrnrlat = lats[-1],
                 llcrnrlon = lons[0], urcrnrlon = lons[-1],
-                resolution = 'h')
+                resolution = 'i')
                 
     m.fillcontinents(color = "#ECF0F3", lake_color = "#A9E5FF", zorder = 0)
     m.drawmapboundary(fill_color = "#A9E5FF")
     m.drawcoastlines(linewidth = 2, color = "#333333")
     m.drawcountries(linewidth = 1.5, color = "#333333")
-    m.drawparallels(np.arange(20, 80, 10), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 23)
-    m.drawmeridians(np.arange(-40, 80, 10), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 23)
+    m.drawparallels(np.arange(20, 80, 10), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 30)
+    m.drawmeridians(np.arange(-40, 80, 10), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 30)
     x, y = m(*np.meshgrid(lons, lats))
     if not MEANS:
         levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
@@ -56,9 +56,9 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
         cs = m.contourf(x, y, diffs[::-1, :], levels = levs, cmap = plt.get_cmap('CMRmap'))
     # cbar = m.colorbar(cs, location = 'right', size = "5%", pad = "10%")
     cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05, ticks = np.arange(0, 2.25, 0.25))
-    cbar.ax.tick_params(labelsize = 20)
+    cbar.ax.tick_params(labelsize = 30)
     if MEANS:
-        cbar.set_label("differecnce [$^{\circ}$C]", size = 27, labelpad = 30)
+        cbar.set_label("DIFFERENCE [$^{\circ}$C]", size = 38, labelpad = 30)
     else:
         cbar.set_label("differecnce in standard deviation [$^{\circ}$C]", size = 23)
     if SIGN:
@@ -73,7 +73,7 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
         else:
             title = ("%s reanalysis - differences of conditional standard deviation \n MF SURROGATE STD" % ('ECA & D' if ECA else 'ERA-40'))
     title += subtit
-    plt.title(title, size = 35)
+    # plt.title(title, size = 35)
     
     if fname != None:
         plt.savefig(fname)
@@ -89,19 +89,20 @@ ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
 SIGN = True # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
-PERCENTIL = 99
+PERCENTIL = 95
 SAME_BINS = False
 CONDITION = False
-NUM_FILES = 1
+NUM_FILES = 5
 LATS = [35, 65]
 LONS = [-12.5, 40]
+FALSE_POS = True
 
 
 
 # load data 
 print("[%s] Loading data..." % (str(datetime.now())))
 if ECA:
-    fname = ('result/ECA-D_SATamplitude_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_%s_cond_mean_var_DJF_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                                                               str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
@@ -122,7 +123,7 @@ bins_surrogates_list = []
 bins_surrogates_var_list = []
 print("[%s] Data loaded. Now loading surrogates..." % (str(datetime.now())))
 if ECA:
-    fname = ('result/ECA-D_SATamplitude_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+    fname = ('result/ECA-D_%s_cond_mean_var_%ssurrogates_DJF_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
                  SURR_TYPE, str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
@@ -133,6 +134,10 @@ if PICKLE:
             data = cPickle.load(f)
         bins_surrogates_list.append(data['bins_surrogates'])
         bins_surrogates_var_list.append(data['bins_surrogates_var'])
+    with open("result/ECA-D_SATamplitude_SATA_cond_mean_var_data_from_1958-01-01_16kOLD.bin", 'rb') as f:
+        data = cPickle.load(f)
+        lat_surrs_large = data['lats']
+        lons_surrs_large = data['lons']
 
 else:
     data = hkl.load(fname + '.hkl')
@@ -141,14 +146,21 @@ print("[%s] Surrogates loaded." % (str(datetime.now())))
 bins_surrogates = np.zeros(([NUM_FILES * bins_surrogates_list[0].shape[1]] + list(bins_surrogates_list[0].shape[2:])))
 pointer = 0
 for i in range(NUM_FILES):
-    bins_surrogates[pointer:pointer+100, ...] = bins_surrogates_list[i][0, ...]
+    lat_ndx = np.nonzero(np.logical_and(lat_surrs_large >= LATS[0], lat_surrs_large <= LATS[1]))[0]
+    lon_ndx = np.nonzero(np.logical_and(lons_surrs_large >= LONS[0], lons_surrs_large <= LONS[1]))[0]
+    if bins_surrogates_list[i].shape[2] > 120:
+        a = bins_surrogates_list[i][0, ...]
+        e = a[:, lat_ndx, :, :]
+        bins_surrogates[pointer:pointer+100, ...] = e[:, :, lon_ndx, :]
+    else:
+        bins_surrogates[pointer:pointer+100, ...] = bins_surrogates_list[i][0, ...]
     pointer += bins_surrogates_list[0].shape[1]
 del bins_surrogates_list
 bins_surrogates_var = np.zeros_like(bins_surrogates)
 pointer = 0
-for i in range(NUM_FILES):
-    bins_surrogates_var[pointer:pointer+100, ...] = bins_surrogates_var_list[i][0, ...]
-    pointer += bins_surrogates_var_list[0].shape[1]
+# for i in range(NUM_FILES):
+#     bins_surrogates_var[pointer:pointer+100, ...] = bins_surrogates_var_list[i][0, ...]
+#     pointer += bins_surrogates_var_list[0].shape[1]
 del bins_surrogates_var_list
 print("[%s] Data prepared to test and plot..." % (str(datetime.now())))
 
@@ -173,6 +185,9 @@ if SIGN:
     result_sigma = np.zeros((bins_data.shape[0], bins_data.shape[1]))
     result_percentil = np.zeros_like(result_sigma)
     num_surr = bins_surrogates.shape[0]
+    if FALSE_POS:
+        sur_no = np.random.randint(0, bins_surrogates.shape[0])
+        print sur_no
     for lat in range(lats.shape[0]):
         for lon in range(lons.shape[0]):
             if MEANS:
@@ -181,12 +196,20 @@ if SIGN:
                     result_percentil[lat, lon] = np.nan
                 else:
                     # sigma-based significance
-                    if SAME_BINS:
-                        ma = bins_data[lat, lon, :].argmax()
-                        mi = bins_data[lat, lon, :].argmin()
-                        diff_data = bins_data[lat, lon, ma] - bins_data[lat, lon, mi]
+                    if not FALSE_POS:
+                        if SAME_BINS:
+                            ma = bins_data[lat, lon, :].argmax()
+                            mi = bins_data[lat, lon, :].argmin()
+                            diff_data = bins_data[lat, lon, ma] - bins_data[lat, lon, mi]
+                        else:
+                            diff_data = bins_data[lat, lon, :].max() - bins_data[lat, lon, :].min()
                     else:
-                        diff_data = bins_data[lat, lon, :].max() - bins_data[lat, lon, :].min()
+                        if SAME_BINS:
+                            ma = bins_surrogates[sur_no, lat, lon, :].argmax()
+                            mi = bins_surrogates[sur_no, lat, lon, :].argmin()
+                            diff_data = bins_surrogates[sur_no, lat, lon, ma] - bins_surrogates[sur_no, lat, lon, mi]
+                        else:
+                            diff_data = bins_surrogates[sur_no, lat, lon, :].max() - bins_surrogates[sur_no, lat, lon, :].min()
                     # scaled
                     # diff_data /= np.mean(bins_data[lat, lon, :])
                     diff_surrs = np.zeros((num_surr))
@@ -285,7 +308,7 @@ if SIGN:
     # fname = ('debug/%s_SATamplitude_%s_scaled_%s_bins_%ssurrogates_from_%s_16k_above_%dpercentil%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
     #              'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), PERCENTIL, '_same_bins' if SAME_BINS else '', 
     #              '_condition' if CONDITION else ''))
-    fname = ('debug/ECA-D_SATamplitude_MFsurrogates_above_%dpercentil_TEST.png' % PERCENTIL)
+    fname = ('debug/ECA-D_MFsurrogates_above_%dpercentil_%s.png' % (PERCENTIL, 'false_pos' if FALSE_POS else 'TEST'))
     # NaNs to 0
     mask = np.isnan(result_percentil)
     result_percentil[mask] = 0.
@@ -296,7 +319,7 @@ if SIGN:
     # mask = scipy.ndimage.zoom(mask, 3)
     # result_percentil[mask] = np.nan
     # result_percentil = scipy.ndimage.gaussian_filter(result_percentil, sigma = 2.0, order = 0)
-    # win = np.ones((1, 2))
+    # win = np.ones((1, 2)) 
     # result_percentil = moving_average_2d(result_percentil, win)
     # result_percentil[mask] = np.nan
     to_txt = np.zeros((lats.shape[0] * lons.shape[0], 3))
@@ -305,7 +328,7 @@ if SIGN:
             to_txt[lat*lons.shape[0] + lon, 0] = lats[lat]
             to_txt[lat*lons.shape[0] + lon, 1] = lons[lon]
             to_txt[lat*lons.shape[0] + lon, 2] = result_percentil[lat, lon]
-    np.savetxt('debug/ECA-D_SATamplitude_diffs_%dpercentil.txt' % PERCENTIL, to_txt, fmt = '%.3f')
+    np.savetxt('debug/ECA-D_SATA_DJF_false_positives_%dpercentil.txt' % PERCENTIL, to_txt, fmt = '%.3f')
     render_differences_map(result_percentil, lats, lons, subtit = (' - %d percentil %s' % 
                             (PERCENTIL, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     
