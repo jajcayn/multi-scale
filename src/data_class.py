@@ -476,7 +476,7 @@ class DataField:
             ln = length
         elif 'k' in length:
             order = int(length[:-1])
-            pow2list = np.array([np.power(2,n) for n in range(10,19)])
+            pow2list = np.array([np.power(2,n) for n in range(10,22)])
             ln = pow2list[np.where(order == pow2list/1000)[0][0]]
         else:
             raise Exception('Could not understand the length! Please type length as integer or as string like "16k".')
