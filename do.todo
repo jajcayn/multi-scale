@@ -44,9 +44,21 @@ publication:
      ✔ both also surr testing @done (14-11-13 16:23)
 --- ✄ -----------------------
 
-others:
- ✔ GAUK - navrh @done (14-11-07 14:41)
-     nazov:
-         * Synopticke a mezosynopticke casove skaly v dynamice atmosfery
-         * Kauzalita v synoptickych skalach dynamiky atmosfery
- ✔ napis konecne na zahranicne oddelenie ze ako, kedy, kde, preco a love Montreal! @done (14-11-03 16:32)
+paper outline:
+ ✔ 1. introduction - general intro TODO (inspire with tsonis e.g.) @done (15-01-30 17:36)
+ ✔ 2. data & methods @done (15-01-30 17:36)
+ ☐ 3. relationship of amp 1-year cycle vs. 8-year cycle (fig)
+ ☐ 4. quantification = bins - SAT 1-year amp cond. 8-year phase (fig: bins wo/ surr) - fig done
+ ☐ 5. diffs of max vs min bin = "effect" => evolving (fig: evolving w/ FT surr) - fig done
+ ☐ 6. then ECA&D same (fig: eca w/ FT?)
+ ☐ 7. overall SATA cond. 8-year phase (fig: bins wo/ surr) - fig done
+ ☐ 8. evolving (without fig!! in supp.)
+ ☐ 9. ECA&D overall SATA (fig: eca DJF w/ FT?)
+
+new:
+ ☐ 8-year SATA vs. 1-year SAT amp compare with climatological amplitude (diffs of avg DJF avg JJA, abs max JJA abs min DJF)
+ ☐ save fig, also interactive to zoom
+ ☐ ECA&D 1-year amp and overall SATA DJF w/ FT surrs (check if only replot or need to compute) - 1.
+ ☐ DP/m-s/8yearSATAamp/1000surrs/PRG/PRG_SATA1000FTsurr_vs_surr.png = for each surrs remember diff max min separately for SATA vs. SATA AcosPHI => two distributions, then compare with values in data, p = 0.05 - FT surr
+ --- ✄ -----------------------
+  ☐ EPS problems Linux/Windows?, check if PDF
