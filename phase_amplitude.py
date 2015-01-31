@@ -32,7 +32,7 @@ SURR_TYPE = 'MF'
 SURR_DETAIL = False
 SURR_ANALYSIS = False
 MOMENT = 'mean'
-AMPLITUDE = False
+AMPLITUDE = True
 
 if MOMENT == 'mean':
     func = np.mean

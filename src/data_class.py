@@ -283,7 +283,7 @@ class DataField:
         ndx = np.logical_and(self.time >= d_start, self.time < d_to)
         self.time = self.time[ndx] # slice time stamp
         self.data = self.data[ndx, ...] # slice data
-        if self.missing != None:
+        if self.missing is not None:
             missing_ndx = np.logical_and(self.missing >= d_start, self.missing < d_to)
             self.missing = self.missing[missing_ndx] # slice missing if exists
             
@@ -342,13 +342,13 @@ class DataField:
         Selects region in lat/lon. Input is for both [from, to], both are inclusive. If None, the dimension is not modified.
         """
         
-        if self.lats != None and self.lons != None:
-            if lats != None:
+        if self.lats is not None and self.lons is not None:
+            if lats is not None:
                 lat_ndx = np.nonzero(np.logical_and(self.lats >= lats[0], self.lats <= lats[1]))[0]
             else:
                 lat_ndx = np.arange(len(self.lats))
                 
-            if lons != None:
+            if lons is not None:
                 lon_ndx = np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= lons[1]))[0]
             else:
                 lon_ndx = np.arange(len(self.lons))
@@ -400,7 +400,7 @@ class DataField:
         Extracts the self.missing field (if exists and is non-empty) into three fields containing days, months and years.
         """
         
-        if (self.missing != None) and (self.missing.shape[0] != 0):
+        if (self.missing is not None) and (self.missing.shape[0] != 0):
             n_days = len(self.missing)
             days = np.zeros((n_days,), dtype = np.int)
             months = np.zeros((n_days,), dtype = np.int)
@@ -476,14 +476,14 @@ class DataField:
             ln = length
         elif 'k' in length:
             order = int(length[:-1])
-            pow2list = np.array([np.power(2,n) for n in range(10,19)])
+            pow2list = np.array([np.power(2,n) for n in range(10,22)])
             ln = pow2list[np.where(order == pow2list/1000)[0][0]]
         else:
             raise Exception('Could not understand the length! Please type length as integer or as string like "16k".')
         
-        if start_date is not None and self.find_date_ndx(start_date) == None:
+        if start_date is not None and self.find_date_ndx(start_date) is None:
             start_date = self.get_date_from_ndx(0)
-        if end_date is not None and self.find_date_ndx(end_date) == None:
+        if end_date is not None and self.find_date_ndx(end_date) is None:
             end_date = self.get_date_from_ndx(-1)
         
         if end_date is None and start_date is not None:
@@ -680,7 +680,7 @@ class DataField:
         Return the seasonality to the data.
         """
         
-        if trend != None:
+        if trend is not None:
             self.data += trend
         self.data *= var
         self.data += mean
@@ -729,7 +729,7 @@ def load_NCEP_data_monthly(filename, varname, start_date, end_date, lats, lons, 
     print("** loaded")
     g.select_date(start_date, end_date)
     g.select_lat_lon(lats, lons)
-    if level != None:
+    if level is not None:
         g.select_level(level)
     if anom:
         print("** anomalising")
@@ -905,7 +905,7 @@ def load_NCEP_data_daily(filename, varname, start_date, end_date, lats, lons, le
     print("** loaded")
     g.select_date(start_date, end_date)
     g.select_lat_lon(lats, lons)
-    if level != None:
+    if level is not None:
         g.select_level(level)
     if anom:
         print("** anomalising")

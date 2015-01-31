@@ -6,10 +6,10 @@ import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 
 
-AMPLITUDE = True
+AMPLITUDE = False
 PERIOD = 8
 BINS = 8
-SEASON = None # [[12, 1, 2], [6, 7, 8]]
+SEASON = [[12, 1, 2], [6, 7, 8]]
 STATIONS = None # ['TG_STAID000047.txt', 'TG_STAID000054.txt']
 
 
@@ -147,7 +147,7 @@ else:
     fig = plt.figure(figsize = (10,16), frameon = False)
     gs = gridspec.GridSpec(2, 2)
     rng = 2
-gs.update(left = 0.1, right = 0.9, top = 0.87, bottom = 0.1, wspace = 0.4, hspace = 0.4)
+gs.update(left = 0.12, right = 0.95, top = 0.95, bottom = 0.1, wspace = 0.4, hspace = 0.4)
 for i in range(rng):
     ax = plt.Subplot(fig, gs[i, 0])
     fig.add_subplot(ax)
@@ -159,13 +159,13 @@ for i in range(rng):
     ax.bar(phase_bins[:-1] + diff*0.1, cond_means[:, 0, i], width = diff*0.8, bottom = None, fc = '#BF3919', ec = '#BF3919',  figure = fig)
     if AMPLITUDE:
         ax.axis([-np.pi, np.pi, 17, 23])
-        ax.set_xlabel("phase [rad]", size = 16)
-        ax.set_ylabel("cond. mean SAT amplitude [$^{\circ}$C]", size = 16)
+        ax.set_xlabel("PHASE [RAD]", size = 20)
+        ax.set_ylabel("COND. MEAN SAT AMP [$^{\circ}$C]", size = 20)
     else:
         ax.axis([-np.pi, np.pi, -1.5, 1.5])
-        ax.set_xlabel("phase [rad]", size = 16)
-        ax.set_ylabel("cond. mean SATA [$^{\circ}$C]", size = 16)
-    ax.tick_params(axis = 'both', which = 'major', labelsize = 15)
+        ax.set_xlabel("PHASE [RAD]", size = 20)
+        ax.set_ylabel("COND. MEAN SATA [$^{\circ}$C]", size = 20)
+    ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
 
     ax = plt.Subplot(fig, gs[i, 1])
     fig.add_subplot(ax)
@@ -177,21 +177,21 @@ for i in range(rng):
     ax.bar(phase_bins[:-1] + diff*0.1, cond_means[:, 1, i], width = diff*0.8, bottom = None, fc = '#76C06E', ec = '#76C06E', figure = fig)
     if AMPLITUDE:
         ax.axis([-np.pi, np.pi, 0, 1])
-        ax.set_xlabel("phase [rad]", size = 16)
-        ax.set_ylabel("cond. standard deviation SAT amplitude [$^{\circ}$C]", size = 16)
+        ax.set_xlabel("PHASE [RAD]", size = 20)
+        ax.set_ylabel("COND. STANDARD DEVIATION SAT AMP [$^{\circ}$C]", size = 20)
     else:
         ax.axis([-np.pi, np.pi, 0, 6])
-        ax.set_xlabel("phase [rad]", size = 16)
-        ax.set_ylabel("cond. standard deviation SATA [$^{\circ}$C]", size = 16)
-    ax.tick_params(axis = 'both', which = 'major', labelsize = 15)
+        ax.set_xlabel("PHASE [RAD]", size = 20)
+        ax.set_ylabel("COND. STANDARD DEVIATION SATA [$^{\circ}$C]", size = 20)
+    ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
 # fig.text(0.5, 0.04, 'phase [rad]', va = 'center', ha = 'center', size = 16)
 if SEASON != None:
-    fig.text(0.5, 0.92, 'DJF', va = 'center', ha = 'center', size = 21)
-    fig.text(0.5, 0.46, 'JJA', va = 'center', ha = 'center', size = 21)
+    fig.text(0.5, 0.97, 'DJF', va = 'center', ha = 'center', size = 25)
+    fig.text(0.5, 0.48, 'JJA', va = 'center', ha = 'center', size = 25)
 
 tit = "%s -- %s - %s" % (g.location, g.get_date_from_ndx(0), g.get_date_from_ndx(-1))
 if AMPLITUDE:
     tit += '\n SAT amplitude'
-plt.suptitle(tit, size = 22)
+# plt.suptitle(tit, size = 22)
 
-plt.savefig("grl_fig/PRGhistAMP.eps")
+plt.savefig("grl_fig/PRGhistSeasons.eps")

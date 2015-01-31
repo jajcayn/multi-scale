@@ -133,7 +133,7 @@ def _create_amplitude_adjusted_surrogates(a):
         idx = np.argsort(surr)
         
         # return seasonality back to the data
-        if t != None:
+        if t is not None:
             data += t
         data *= v
         data += m
@@ -169,11 +169,11 @@ class SurrogateField(DataField):
         """
         
         self.data = field.data.copy()
-        if field.lons != None:
+        if field.lons is not None:
             self.lons = field.lons.copy()
         else:
             self.lons = None
-        if field.lats != None:
+        if field.lats is not None:
             self.lats = field.lats.copy()
         else:
             self.lats = None
@@ -187,8 +187,8 @@ class SurrogateField(DataField):
         and optionally detrended data.
         """
         
-        if self.surr_data != None:
-            if trend != None:
+        if self.surr_data is not None:
+            if trend is not None:
                 self.surr_data += trend
             self.surr_data *= var
             self.surr_data += mean
@@ -203,10 +203,10 @@ class SurrogateField(DataField):
         multiple surrogate construction.
         """        
         
-        if self.surr_data != None:
+        if self.surr_data is not None:
             self.surr_data -= mean
             self.surr_data /= var
-            if trend != None:
+            if trend is not None:
                 self.surr_data -= trend
         else:
             raise Exception("Surrogate data has not been created yet.")
@@ -218,7 +218,7 @@ class SurrogateField(DataField):
         Returns the surrogate data
         """
         
-        if self.surr_data != None:
+        if self.surr_data is not None:
             return self.surr_data.copy()
         else:
             raise Exception("Surrogate data has not been created yet.")
@@ -231,9 +231,9 @@ class SurrogateField(DataField):
         linear structure and covariance structure)
         """
         
-        if self.data != None:
+        if self.data is not None:
             
-            if pool == None:
+            if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
@@ -278,9 +278,9 @@ class SurrogateField(DataField):
         (should be also used with station data which has only temporal dimension)
         """
         
-        if self.data != None:
+        if self.data is not None:
             
-            if pool == None:
+            if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
@@ -325,9 +325,9 @@ class SurrogateField(DataField):
         cascades on wavelet dyadic trees. Phys. Rev. Letters, 101.
         """
         
-        if self.data != None:
+        if self.data is not None:
 
-            if pool == None:
+            if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
@@ -363,9 +363,9 @@ class SurrogateField(DataField):
         the residuals. Adapted from script by Vejmelka -- https://github.com/vejmelkam/ndw-climate
         """
         
-        if self.data != None:
+        if self.data is not None:
             
-            if pool == None:
+            if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
@@ -412,9 +412,9 @@ class SurrogateField(DataField):
         Adapted from script by Vejmelka -- https://github.com/vejmelkam/ndw-climate
         """
         
-        if self.model_grid != None:
+        if self.model_grid is not None:
             
-            if pool == None:
+            if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
@@ -447,9 +447,9 @@ class SurrogateField(DataField):
         Performs so-called amplitude adjustment to already created surrogate data. 
         """
 
-        if self.surr_data != None and self.data != None:
+        if self.surr_data is not None and self.data is not None:
 
-            if pool == None:
+            if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
