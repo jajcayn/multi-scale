@@ -56,9 +56,9 @@ paper outline:
  ☐ 9. ECA&D overall SATA (fig: eca DJF w/ FT?)
 
 new:
- ☐ 8-year SATA vs. 1-year SAT amp compare with climatological amplitude (diffs of avg DJF avg JJA, abs max JJA abs min DJF)
+ ✔ 8-year SATA vs. 1-year SAT amp compare with climatological amplitude (diffs of avg DJF avg JJA, abs max JJA abs min DJF) @done (15-01-31 22:11)
  ☐ save fig, also interactive to zoom
- ☐ ECA&D 1-year amp and overall SATA DJF w/ FT surrs (check if only replot or need to compute) - 1.
+ ☐ ECA&D 1-year amp and overall SATA DJF w/ FT surrs (check if only replot or need to compute) - 1. 
  ☐ DP/m-s/8yearSATAamp/1000surrs/PRG/PRG_SATA1000FTsurr_vs_surr.png = for each surrs remember diff max min separately for SATA vs. SATA AcosPHI => two distributions, then compare with values in data, p = 0.05 - FT surr
  --- ✄ -----------------------
   ☐ EPS problems Linux/Windows?, check if PDF

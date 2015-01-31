@@ -272,7 +272,7 @@ class DataField:
                                             
                     
                     
-    def select_date(self, date_from, date_to):
+    def select_date(self, date_from, date_to, apply_to_data = True):
         """
         Selects the date range - date_from is inclusive, date_to is exclusive. Input is date(year, month, day).
         """
@@ -281,8 +281,9 @@ class DataField:
         d_to = date_to.toordinal()
         
         ndx = np.logical_and(self.time >= d_start, self.time < d_to)
-        self.time = self.time[ndx] # slice time stamp
-        self.data = self.data[ndx, ...] # slice data
+        if apply_to_data:
+            self.time = self.time[ndx] # slice time stamp
+            self.data = self.data[ndx, ...] # slice data
         if self.missing is not None:
             missing_ndx = np.logical_and(self.missing >= d_start, self.missing < d_to)
             self.missing = self.missing[missing_ndx] # slice missing if exists
@@ -323,15 +324,16 @@ class DataField:
             
             
             
-    def select_months(self, months):
+    def select_months(self, months, apply_to_data = True):
         """
         Subselects only certain months. Input as a list of months number.
         """
         
         ndx = filter(lambda i: date.fromordinal(int(self.time[i])).month in months, range(len(self.time)))
         
-        self.time = self.time[ndx]
-        self.data = self.data[ndx]
+        if apply_to_data:
+            self.time = self.time[ndx]
+            self.data = self.data[ndx]
         
         return ndx
         
