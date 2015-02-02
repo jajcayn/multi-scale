@@ -78,17 +78,17 @@ def _get_cond_means(a):
 
 ECA = True # if False ERA-40 will be evaluated instead
 ANOMALISE = True # if True, data will be anomalised hence SAT -> SATA
-WORKERS = 0 # number of threads, if 0, all computations will be run single-thread
+WORKERS = 20 # number of threads, if 0, all computations will be run single-thread
 PERIOD = 8 # years; central period of wavelet used
 START_DATE = date(1958,1,1)
 LATS = [35, 65] #[25.375, 75.375] # lats ECA: 25.375 -- 75.375 = 201 grid points
 LONS = [-12.5, 40] #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid points
 SURR_TYPE = 'FT' # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
-NUM_SURR = 100 # number of surrogates to be evaluated
-NUM_FILES = 1
+NUM_SURR = 500 # number of surrogates to be evaluated
+NUM_FILES = 5
 LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
-SEASON = None
-AMPLITUDE = True # season cannot be used with amplitude, it does not make any sense
+SEASON = [12, 1, 2]
+AMPLITUDE = False # season cannot be used with amplitude, it does not make any sense
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
 
 
@@ -228,7 +228,7 @@ if ECA:
     fname = ('result/ECA-D_%s%s_cond_mean_var_data_from_%s_16k' % ('SATamplitude_' if AMPLITUDE else '', 'SATA' if ANOMALISE else 'SAT', str(START_DATE)))
 else:
     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))    
-with open(fname + '.bin', 'wb') as f:
+with open(fname + '_2.bin', 'wb') as f:
 #    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
 #                   'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var, 
 #                   'lats' : g.lats, 'lons' : g.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
