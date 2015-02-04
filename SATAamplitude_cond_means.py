@@ -89,8 +89,10 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
             ndx = ((phase_amp >= phase_bins[i]) & (phase_amp <= phase_bins[i+1]))
             cond_temp[i,0] = np.mean(amplitude2[ndx])
             cond_temp[i,1] = np.mean(sg.surr_data[ndx])
+        amp_diff = cond_temp[:, 0].max() - cond_temp[:, 0].min()
+        data_diff = cond_temp[:, 1].max() - cond_temp[:, 1].min()
 
-        resq.put(cond_temp)
+        resq.put([cond_temp, amp_diff, data_diff])
 
 
 
@@ -99,7 +101,7 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
 # plt.plot(g_amp.data, color = '#004739', linewidth = 1)
 # plt.show()
 
-cond_means = np.zeros((BINS))
+cond_means = np.zeros((BINS, 2))
 
 start_cut = date(1958,1,1)
 g_data.data, g_data.time, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
@@ -111,16 +113,22 @@ phase_bins = get_equidistant_bins(BINS)
 
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-    cond_means[i] = np.mean(amplitude[ndx])
+    cond_means[i, 0] = np.mean(amplitude[ndx])
+    cond_means[i, 1] = np.mean(g_data.data[ndx])
     # cond_means[i] = np.mean(g_data.data[ndx])
     # if SURR:
     #     cond_means[i, 1] = np.mean(amplitude2[ndx])
     # else:
     #     cond_means[i, 1] = np.mean(g_data.data[ndx])
 
+amp_diff = cond_means[:, 0].max() - cond_means[:, 0].min()
+data_diff = cond_means[:, 1].max() - cond_means[:, 1].min()
+
 
 if SURR:
     cond_means_surr = np.zeros((NUM_SURR, BINS, 2))
+    amp_diff_surr = np.zeros((NUM_SURR,))
+    surr_diff_surr = np.zeros((NUM_SURR,))
     surr_completed = 0
     jobQ = Queue()
     resQ = Queue()
@@ -138,8 +146,11 @@ if SURR:
 
     while surr_completed < NUM_SURR:
         surr_means = resQ.get()
-        cond_means_surr[surr_completed, :, 0] = surr_means[:, 0]
-        cond_means_surr[surr_completed, :, 1] = surr_means[:, 1]
+        cond_means_surr[surr_completed, :, 0] = surr_means[0][:, 0]
+        cond_means_surr[surr_completed, :, 1] = surr_means[0][:, 1]
+        amp_diff_surr[surr_completed] = surr_means[1]
+        surr_diff_surr[surr_completed] = surr_means[2]
+
 
         surr_completed += 1
 
@@ -152,21 +163,28 @@ if SURR:
 
 diff = (phase_bins[1]-phase_bins[0])
 fig = plt.figure(figsize=(6,10))
-b1 = plt.bar(phase_bins[:-1] + diff*0.05, cond_means, width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
-# b1 = plt.bar(phase_bins[:-1] + diff*0.05, np.mean(cond_means_surr[:, :, 1], axis = 0), width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
+# b1 = plt.bar(phase_bins[:-1] + diff*0.05, cond_means, width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
+b1 = plt.bar(phase_bins[:-1] + diff*0.05, np.mean(cond_means_surr[:, :, 1], axis = 0), width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
+plt.bar(phase_bins[:-1] + diff*0.2, cond_means[:, 1], width = 0.1*diff, bottom = None, fc = '#4A81B9', ec = '#4A81B9', figure = fig)
 b2 = plt.bar(phase_bins[:-1] + diff*0.55, np.mean(cond_means_surr[:, :, 0], axis = 0), width = diff*0.4, bottom = None, fc = '#004739', ec = '#004739', figure = fig)
+plt.bar(phase_bins[:-1] + diff*0.7, cond_means[:, 0], width = 0.1*diff, bottom = None, fc = '#7A0C15', ec = '#7A0C15', figure = fig)
 plt.xlabel('phase [rad]')
 if SURR:
+    pass
     # plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - MF surr' if SURR else '')])
-    plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '')])
-    # plt.legend([b1[0], b2[0]], ['%s%s' % ('SATA' if ANOMALISE else 'SAT', ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else ''), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '')])
+    # plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '')])
+    plt.legend([b1[0], b2[0]], ['%s%s' % ('SATA' if ANOMALISE else 'SAT', ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else ''), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '')])
 else:
     plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s' % ('SATA' if ANOMALISE else 'SAT')])
 plt.ylabel('cond mean %s' % ('SATA' if ANOMALISE else 'SAT'))
 plt.axis([-np.pi, np.pi, -0.75, 1])
 plt.yticks(np.arange(-0.75,1.25,0.25), np.arange(-0.5,1.75,0.25))
-plt.title('PRG %s %d-year $A \cos{\phi}$ \n %s -- %s' % ('SATA' if ANOMALISE else 'SAT', AMP_PERIOD, str(g_data.get_date_from_ndx(0)), str(g_data.get_date_from_ndx(-1))))
-plt.savefig('debug/PRG_%sreconstruction%s.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else ''))
+p_val_overall = 1. - float(np.sum(np.greater(data_diff, surr_diff_surr))) / NUM_SURR
+print 'overall', np.sum(np.greater(data_diff, surr_diff_surr))
+p_val_amp = 1. - float(np.sum(np.greater(amp_diff, amp_diff_surr))) / NUM_SURR
+print np.sum(np.greater(amp_diff, amp_diff_surr))
+plt.title('PRG %s %d-year $A \cos{\phi}$ \n %s -- %s \n SATA: %.2f  $A \cos{\phi}$: %.2f' % ('SATA' if ANOMALISE else 'SAT', AMP_PERIOD, str(g_data.get_date_from_ndx(0)), str(g_data.get_date_from_ndx(-1)), p_val_overall, p_val_amp))
+plt.savefig('debug/PRG_%sreconstruction%s5.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else ''))
 
 
 # draw A*cos fi 1-year vs. 8-year

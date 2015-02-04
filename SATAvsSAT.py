@@ -3,13 +3,16 @@ from src.data_class import load_station_data
 import numpy as np
 from datetime import date
 import matplotlib.pyplot as plt
+import matplotlib.dates as mdates
 
 
 
 AMP_PERIODS = [1, 8]
 
-g_amp = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), False)
-g_amp_sata = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), True)
+# g_amp = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), False)
+# g_amp_sata = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), True)
+g_amp = load_station_data('TG_STAID000027.txt', date(1775,1,1), date(2014,1,1), False)
+g_amp_sata = load_station_data('TG_STAID000027.txt', date(1775,1,1), date(2014,1,1), True)
 
 k0 = 6. # wavenumber of Morlet wavelet used in analysis
 y = 365.25 # year in days
@@ -17,8 +20,9 @@ fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
 
 result = dict()
 
-start_cut = date(1958,1,1)
-_, _, idx = g_amp.get_data_of_precise_length('16k', start_cut, None, False)
+start_cut = date(1779,1,1)
+# _, _, idx = g_amp.get_data_of_precise_length('16k', start_cut, None, False)
+idx = g_amp.select_date(start_cut, date(2010,1,1), apply_to_data = False)
 fields = [g_amp, g_amp_sata]
 
 for i in range(len(AMP_PERIODS)):
@@ -36,39 +40,61 @@ for i in range(len(AMP_PERIODS)):
     m, c = np.linalg.lstsq(fit_x, fields[i].data)[0]
     amplitude = m * amplitude + c
     amp = m * reconstruction + c
-    result[i] = amp[idx[0] : idx[1]]
-    result[i+2] = amplitude[idx[0] : idx[1]]
+    # result[i] = amp[idx[0] : idx[1]]
+    result[i] = amp[idx]
+    # result[i+2] = amplitude[idx[0] : idx[1]]
+    result[i+2] = amplitude[idx]
     # result[i+2] = phase_amp[idx[0] : idx[1]]
     print("Oscillatory series fitted to SAT data with coeff. %.3f and intercept %.3f" % (m, c))
     # fields[i].anomalise()
 
-g_amp.time = g_amp.time[idx[0] : idx[1]]
+# g_amp.time = g_amp.time[idx[0] : idx[1]]
+g_amp.time = g_amp.time[idx]
+g_amp.data = g_amp.data[idx]
 clim_amp = []
 y = g_amp.get_date_from_ndx(0).year
+percentil = 25
 while y < g_amp.get_date_from_ndx(-1).year:
-    jja = g_amp.select_date(date(y, 6, 1), date(y, 9, 1), apply_to_data = False)
-    djf = g_amp.select_date(date(y, 12, 1), date(y+1, 3, 1), apply_to_data = False)
+    # jja = g_amp.select_date(date(y, 6, 1), date(y, 9, 1), apply_to_data = False)
+    # djf = g_amp.select_date(date(y, 12, 1), date(y+1, 3, 1), apply_to_data = False)
     # clim_amp.append([g_amp.find_date_ndx(date(y, 6, 1)), np.mean(g_amp.data[jja]) - np.mean(g_amp.data[djf])])
-    clim_amp.append([g_amp.find_date_ndx(date(y, 6, 1)), g_amp.data[jja].max() - g_amp.data[djf].min()])
+    # clim_amp.append([g_amp.find_date_ndx(date(y, 6, 1)), g_amp.data[jja].max() - g_amp.data[djf].min()])
+    this_y = g_amp.select_date(date(y, 1, 1), date(y+1, 1, 1), apply_to_data = False)
     y += 1
-    print y, g_amp.data[jja].max() - g_amp.data[djf].min()
+    sort_d = np.sort(g_amp.data[this_y])
+    l = int(this_y[this_y == True].shape[0] * (percentil / 100.))
+    clim_amp.append([g_amp.find_date_ndx(date(y, 6, 1)), np.mean(sort_d[-l:]) - np.mean(sort_d[:l])])
 
 clim_amp = np.array(clim_amp)
-avg = np.mean(clim_amp, axis = 0)[1]
+# avg = np.mean(clim_amp, axis = 0)[1]
 
-plt.figure(figsize = (12,8))
-p1, = plt.plot(result[0], color = "#110D29", linewidth = 1.5)
-p2, = plt.plot(result[1], color = "#B87BA5")
-p3, = plt.plot(clim_amp[:, 0], clim_amp[:, 1] - avg + 20, 'o', markersize = 5, color = "#24751F")
-plt.plot(clim_amp[:, 0], clim_amp[:, 1] - avg + 20, linewidth = 0.5, color = "#24751F")
+specific_idx = g_amp.select_date(date(1983, 1, 31), date(1999, 7, 6), apply_to_data = True)
+specific_idx_clim = specific_idx[[int(i) for i in clim_amp[:, 0]]]
+
+if g_amp.get_date_from_ndx(0).month > 6:
+    first_ndx = g_amp.find_date_ndx(date(g_amp.get_date_from_ndx(0).year + 1, 6, 1))
+else:
+    first_ndx = g_amp.find_date_ndx(date(g_amp.get_date_from_ndx(0).year, 6, 1))
+
+subtract = clim_amp[specific_idx_clim, 0][0] - first_ndx
+
+fig = plt.figure(figsize = (15,10), dpi = 1200)
+p1, = plt.plot(result[2][specific_idx], color = "#110D29", linewidth = 1.5)
+p2, = plt.plot(result[1][specific_idx], color = "#B87BA5", linewidth = 1.5)
+p4, = plt.plot(g_amp.data, color = "#C1682A")
+p3, = plt.plot(clim_amp[specific_idx_clim, 0] - subtract, clim_amp[specific_idx_clim, 1], 'o', markersize = 8, color = "#24751F") #  - avg + 20
+plt.plot(clim_amp[specific_idx_clim, 0] - subtract, clim_amp[specific_idx_clim, 1], linewidth = 0.5, color = "#24751F")
 # p4, = plt.plot(result[3], color = "#050505")
-plt.ylabel("Regressed $A \cos{\phi}$ [$^{\circ}$C]")
-plt.xlabel("time")
-plt.legend([p1,p2,p3], ['1-year SAT recon.', '8-year SATA recon.', 'JJA max - DJF min scaled to 20'])
-tp = result[1].shape[0]
-plt.axis([0 - tp/15, tp + tp/15, -7, 32])
+plt.ylabel("temperature [$^{\circ}$C]")
+plt.legend([p1,p2,p3,p4], ['1-year SAT amp.', '8-year SATA recon.', '%.2f warm vs cold' % (percentil/100.), 'SAT data'])
+tp = result[1][specific_idx].shape[0]
+plt.axis([0, tp, -10, 40])
+plt.yticks(np.linspace(-20, 40, 31), np.linspace(-20, 40, 31))
+locs, _ = plt.xticks()
+locs_new = np.linspace(locs[0], locs[-1], 2*locs.shape[0] - 1)
+plt.xticks(locs_new, ['%d / %d' % (g_amp.get_date_from_ndx(i).month, g_amp.get_date_from_ndx(i).year) for i in locs_new[:-1]], rotation = 30)
 plt.title("%s 1-year SAT vs. 8-year SATA \n %s -- %s" % (g_amp.location, str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1))))
-plt.savefig('debug/cycles1ySAT_8ySATA_w_minDJFvsmaxJJA.png')
+plt.savefig('debug/cycles1ySAT_8ySATA_%s-%s_%dperc.png' % (str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), percentil))
 
 
 

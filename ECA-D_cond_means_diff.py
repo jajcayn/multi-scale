@@ -333,7 +333,7 @@ if SURR_TYPE is not None:
                 if ((t_now - t_last).total_seconds() > 600) and surr_completed > 0:
                     t_last = t_now
                     dt = (t_now - t_start) / surr_completed * (NUM_SURR - surr_completed)
-                    log("PROGRESS: %d/%d surrogate done, predicted completition at %s" % (surr_completed, NUM_SURR, 
+                    log("PROGRESS: %d/%d surrogate done, predicted completition at %s" % (surr_completed + NUM_SURR/NUM_FILES * file_num, NUM_SURR, 
                         str(t_now + dt)))
 
             if ECA:
