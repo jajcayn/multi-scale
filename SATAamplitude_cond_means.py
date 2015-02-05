@@ -5,6 +5,7 @@ from datetime import date
 import matplotlib.pyplot as plt
 from surrogates.surrogates import SurrogateField
 from multiprocessing import Process, Queue
+import matplotlib.gridspec as gridspec
 
 
 PERIOD = 8
@@ -13,16 +14,16 @@ BINS = 8
 ANOMALISE = True # amplitude from SAT / SATA
 SURR = True
 NUM_SURR = 1000
-WORKERS = 4
-SURR_TYPE = 'MF'
+WORKERS = 3
+SURR_TYPE = 'FT'
 
 # 65k
 # g = load_station_data('TG_STAID000027.txt', date(1834,4,27), date(2013,10,1), True)
 # g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,27), date(2013,10,1), ANOMALISE)
 
 # 32k
-g = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), True)
-g_amp = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), ANOMALISE)
+g = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2002, 11, 10), True) # date(1924,1,14), date(2013,10,1)
+g_amp = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2002, 11, 10), ANOMALISE)
 g_data = DataField()
 
 
@@ -103,8 +104,9 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
 
 cond_means = np.zeros((BINS, 2))
 
-start_cut = date(1958,1,1)
-g_data.data, g_data.time, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
+start_cut = date(1962,1,1) # 1958, 1, 1
+l = int(16384 - 8*y)
+g_data.data, g_data.time, idx = g.get_data_of_precise_length(l, start_cut, None, False) # 16k
 phase = phase[0, idx[0] : idx[1]]
 amplitude = amplitude[idx[0] : idx[1]]
 
@@ -161,6 +163,8 @@ if SURR:
         w.join()
 
 
+num = 5
+
 diff = (phase_bins[1]-phase_bins[0])
 fig = plt.figure(figsize=(6,10))
 # b1 = plt.bar(phase_bins[:-1] + diff*0.05, cond_means, width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
@@ -178,13 +182,33 @@ else:
     plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s' % ('SATA' if ANOMALISE else 'SAT')])
 plt.ylabel('cond mean %s' % ('SATA' if ANOMALISE else 'SAT'))
 plt.axis([-np.pi, np.pi, -0.75, 1])
-plt.yticks(np.arange(-0.75,1.25,0.25), np.arange(-0.5,1.75,0.25))
+plt.yticks(np.arange(-0.75,1.25,0.25), np.arange(-1,1.75,0.25))
 p_val_overall = 1. - float(np.sum(np.greater(data_diff, surr_diff_surr))) / NUM_SURR
 print 'overall', np.sum(np.greater(data_diff, surr_diff_surr))
 p_val_amp = 1. - float(np.sum(np.greater(amp_diff, amp_diff_surr))) / NUM_SURR
 print np.sum(np.greater(amp_diff, amp_diff_surr))
 plt.title('PRG %s %d-year $A \cos{\phi}$ \n %s -- %s \n SATA: %.2f  $A \cos{\phi}$: %.2f' % ('SATA' if ANOMALISE else 'SAT', AMP_PERIOD, str(g_data.get_date_from_ndx(0)), str(g_data.get_date_from_ndx(-1)), p_val_overall, p_val_amp))
-plt.savefig('debug/PRG_%sreconstruction%s5.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else ''))
+plt.savefig('debug/PRG_%s16to14reconstruction%s%d.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else '', num))
+
+fig = plt.figure(figsize=(10,12))
+gs = gridspec.GridSpec(2, 1)
+gs.update(left = 0.05, right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.4)
+hist_plot = [surr_diff_surr, amp_diff_surr]
+vl = [data_diff, amp_diff]
+colors = ["#867628", "#004739"]
+colors_data = ["#4A81B9", "#7A0C15"]
+titl = ['%s%s differences - %.2f' % ('SATA' if ANOMALISE else 'SAT', ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '', p_val_overall), '%s $A \cos{\phi}$%s differences - %.2f' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '', p_val_amp)]
+for i in range(2):
+    ax = plt.subplot(gs[i, 0])
+    ax.spines['top'].set_visible(False)
+    ax.spines['right'].set_visible(False)
+    ax.spines['left'].set_visible(False)
+    ax.tick_params(color = '#6A4A3C')
+    n, bins, patch = ax.hist(hist_plot[i], 50, histtype = 'stepfilled')
+    ax.vlines(vl[i], 0, n.max(), color = colors_data[i], linewidth = 5)
+    plt.setp(patch, 'facecolor', colors[i], 'edgecolor', colors[i], 'alpha', 0.9)
+    plt.title(titl[i])
+plt.savefig('debug/PRG_%s16to14reconstruction%s_hist%d.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else '', num))
 
 
 # draw A*cos fi 1-year vs. 8-year

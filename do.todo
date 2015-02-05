@@ -64,6 +64,6 @@ new:
   ☐ EPS problems Linux/Windows?, check if PDF
   ✔ plot: original SAT data + 1-year SAT recon. + 8-year SATA recon. + mean JJA-mean DJF @done (15-02-04 15:48)
   ✔ other methods to clim. amp - e.g. high 10% vs. low 10% either from whole year, from seasons - 25%!!! @done (15-02-04 17:49)
-  ☐ A*cos(phi) 1-year regressed vs. SAT plot to supp
-  ☐ finish SATA 8-year vs SAT 1-year - detail where it correlates
-  ☐ FTsurr var vs cycle - draw histograms, try 16to14 instead of 32to16
+  ✔ A*cos(phi) 1-year regressed vs. SAT plot to supp @done (15-02-05 14:10)
+  ✔ finish SATA 8-year vs SAT 1-year - detail where it correlates @done (15-02-05 14:10)
+  ✔ FTsurr var vs cycle - draw histograms, try 16to14 instead of 32to16 @done (15-02-05 16:12)
