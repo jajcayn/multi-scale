@@ -93,7 +93,7 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
         amp_diff = cond_temp[:, 0].max() - cond_temp[:, 0].min()
         data_diff = cond_temp[:, 1].max() - cond_temp[:, 1].min()
 
-        resq.put([cond_temp, amp_diff, data_diff])
+        resq.put([cond_temp, amp_diff, data_diff, np.mean(amplitude2)])
 
 
 
@@ -131,6 +131,7 @@ if SURR:
     cond_means_surr = np.zeros((NUM_SURR, BINS, 2))
     amp_diff_surr = np.zeros((NUM_SURR,))
     surr_diff_surr = np.zeros((NUM_SURR,))
+    amp_surr = np.zeros((NUM_SURR,))
     surr_completed = 0
     jobQ = Queue()
     resQ = Queue()
@@ -152,6 +153,7 @@ if SURR:
         cond_means_surr[surr_completed, :, 1] = surr_means[0][:, 1]
         amp_diff_surr[surr_completed] = surr_means[1]
         surr_diff_surr[surr_completed] = surr_means[2]
+        amp_surr[surr_completed] = surr_means[3]
 
 
         surr_completed += 1
@@ -209,6 +211,12 @@ for i in range(2):
     plt.setp(patch, 'facecolor', colors[i], 'edgecolor', colors[i], 'alpha', 0.9)
     plt.title(titl[i])
 plt.savefig('debug/PRG_%s16to14reconstruction%s_hist%d.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else '', num))
+
+fig = plt.figure()
+n, bins, patch = plt.hist(amp_surr, 50, histtype = 'stepfilled')
+plt.setp(patch, 'facecolor', '#867628', 'edgecolor', '#867628', 'alpha', 0.9)
+plt.vlines(np.mean(amplitude), 0, n.max(), color = "#4A81B9", linewidth = 5)
+plt.savefig("debug/PRG_amp_means_FT5.png")
 
 
 # draw A*cos fi 1-year vs. 8-year
