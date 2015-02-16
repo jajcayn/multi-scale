@@ -47,8 +47,8 @@ publication:
 paper outline:
  ✔ 1. introduction - general intro TODO (inspire with tsonis e.g.) @done (15-01-30 17:36)
  ✔ 2. data & methods @done (15-01-30 17:36)
- ☐ 3. relationship of amp 1-year cycle vs. 8-year cycle (fig)
-     ☐ 1-year SAT amp. + 1-year SAT AcosPHI + 8-year SATA AcosPHI + SAT data (veeery thin line) + 0.25 warm vs. cold, longer segment > 11years
+ ☐ 3. relationship of amp 1-year cycle vs. 8-year cycle - fig done
+     ✔ 1-year SAT amp. + 1-year SAT AcosPHI + 8-year SATA AcosPHI + SAT data (veeery thin line) + 0.25 warm vs. cold, longer segment > 11years @done (15-02-16 15:43)
  ☐ 4. quantification = bins - SAT 1-year amp cond. 8-year phase (fig: bins wo/ surr) - fig done
  ☐ 5. diffs of max vs min bin = "effect" => evolving (fig: evolving w/ FT surr) - fig done
  ☐ 6. then ECA&D same (fig: eca w/ FT) - fig done

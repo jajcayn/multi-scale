@@ -14,7 +14,7 @@ BINS = 8
 ANOMALISE = True # amplitude from SAT / SATA
 SURR = True
 NUM_SURR = 1000
-WORKERS = 2
+WORKERS = 3
 SURR_TYPE = 'FT'
 
 # 65k
@@ -50,7 +50,7 @@ reconstruction = amplitude * np.cos(phase_amp)
 fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
 m, c = np.linalg.lstsq(fit_x, g_amp.data)[0]
 amplitude = m * amplitude + c
-amp_to_plot = amplitude.copy()
+# amp_to_plot = amplitude.copy()
 # amplitude = m * reconstruction + c
 print("Oscillatory series fitted to SAT data with coeff. %.3f and intercept %.3f" % (m, c))
 
@@ -82,13 +82,14 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
         fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
         m, c = np.linalg.lstsq(fit_x, sg.surr_data)[0]
         amplitude2 = m * amplitude2 + c
-        amp_to_plot_surr = amplitude2.copy()
+        # amp_to_plot_surr = amplitude2.copy()
         # amplitude2 = m * reconstruction + c
 
         amplitude2 = amplitude2[idx[0] : idx[1]]
-        amp_to_plot_surr = amp_to_plot_surr[idx[0] : idx[1]]
+        # amp_to_plot_surr = amp_to_plot_surr[idx[0] : idx[1]]
         phase_amp = phase_amp[idx[0] : idx[1]]
         sg.surr_data =  sg.surr_data[idx[0] : idx[1]]
+        amp_to_plot_surr = sg.surr_data.copy()
 
         cond_temp = np.zeros((BINS,2))
         for i in range(cond_means.shape[0]):
@@ -98,7 +99,7 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
         amp_diff = cond_temp[:, 0].max() - cond_temp[:, 0].min()
         data_diff = cond_temp[:, 1].max() - cond_temp[:, 1].min()
 
-        resq.put([cond_temp, amp_diff, data_diff, np.mean(amp_to_plot_surr)])
+        resq.put([cond_temp, amp_diff, data_diff, data_diff])
 
 
 
@@ -115,7 +116,8 @@ l = 17532
 g_data.data, g_data.time, idx = g.get_data_of_precise_length(l, start_cut, None, False) # 16k
 phase = phase[0, idx[0] : idx[1]]
 amplitude = amplitude[idx[0] : idx[1]]
-amp_to_plot = amp_to_plot[idx[0] : idx[1]]
+# amp_to_plot = amp_to_plot[idx[0] : idx[1]]
+# amp_to_plot = g_data.copy_data()
 
 
 phase_bins = get_equidistant_bins(BINS)
@@ -174,60 +176,59 @@ if SURR:
 
 num = 5
 
-diff = (phase_bins[1]-phase_bins[0])
-fig = plt.figure(figsize=(6,10))
-# b1 = plt.bar(phase_bins[:-1] + diff*0.05, cond_means, width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
-b1 = plt.bar(phase_bins[:-1] + diff*0.05, np.mean(cond_means_surr[:, :, 1], axis = 0), width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
-plt.bar(phase_bins[:-1] + diff*0.2, cond_means[:, 1], width = 0.1*diff, bottom = None, fc = '#4A81B9', ec = '#4A81B9', figure = fig)
-b2 = plt.bar(phase_bins[:-1] + diff*0.55, np.mean(cond_means_surr[:, :, 0], axis = 0), width = diff*0.4, bottom = None, fc = '#004739', ec = '#004739', figure = fig)
-plt.bar(phase_bins[:-1] + diff*0.7, cond_means[:, 0], width = 0.1*diff, bottom = None, fc = '#7A0C15', ec = '#7A0C15', figure = fig)
-plt.xlabel('phase [rad]')
-if SURR:
-    pass
-    # plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - MF surr' if SURR else '')])
-    # plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '')])
-    plt.legend([b1[0], b2[0]], ['%s%s' % ('SATA' if ANOMALISE else 'SAT', ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else ''), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '')])
-else:
-    plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s' % ('SATA' if ANOMALISE else 'SAT')])
-plt.ylabel('cond mean %s' % ('SATA' if ANOMALISE else 'SAT'))
-plt.axis([-np.pi, np.pi, -0.75, 1])
-plt.yticks(np.arange(-0.75,1.25,0.25), np.arange(-1,1.75,0.25))
-p_val_overall = 1. - float(np.sum(np.greater(data_diff, surr_diff_surr))) / NUM_SURR
-print 'overall', np.sum(np.greater(data_diff, surr_diff_surr))
-p_val_amp = 1. - float(np.sum(np.greater(amp_diff, amp_diff_surr))) / NUM_SURR
-print np.sum(np.greater(amp_diff, amp_diff_surr))
-plt.title('PRG %s %d-year $A \cos{\phi}$ \n %s -- %s \n SATA: %.2f  $A \cos{\phi}$: %.2f' % ('SATA' if ANOMALISE else 'SAT', AMP_PERIOD, str(g_data.get_date_from_ndx(0)), str(g_data.get_date_from_ndx(-1)), p_val_overall, p_val_amp))
-plt.savefig('debug/PRG_%s16to14reconstruction%s%d.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else '', num))
+# diff = (phase_bins[1]-phase_bins[0])
+# fig = plt.figure(figsize=(6,10))
+# # b1 = plt.bar(phase_bins[:-1] + diff*0.05, cond_means, width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
+# b1 = plt.bar(phase_bins[:-1] + diff*0.05, np.mean(cond_means_surr[:, :, 1], axis = 0), width = diff*0.4, bottom = None, fc = '#867628', ec = '#867628', figure = fig)
+# plt.bar(phase_bins[:-1] + diff*0.2, cond_means[:, 1], width = 0.1*diff, bottom = None, fc = '#4A81B9', ec = '#4A81B9', figure = fig)
+# b2 = plt.bar(phase_bins[:-1] + diff*0.55, np.mean(cond_means_surr[:, :, 0], axis = 0), width = diff*0.4, bottom = None, fc = '#004739', ec = '#004739', figure = fig)
+# plt.bar(phase_bins[:-1] + diff*0.7, cond_means[:, 0], width = 0.1*diff, bottom = None, fc = '#7A0C15', ec = '#7A0C15', figure = fig)
+# plt.xlabel('phase [rad]')
+# if SURR:
+#     pass
+#     # plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - MF surr' if SURR else '')])
+#     # plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '')])
+#     plt.legend([b1[0], b2[0]], ['%s%s' % ('SATA' if ANOMALISE else 'SAT', ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else ''), '%s $A \cos{\phi}$%s' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '')])
+# else:
+#     plt.legend([b1[0], b2[0]], ['%s $A \cos{\phi}$' % ('SATA' if ANOMALISE else 'SAT'), '%s' % ('SATA' if ANOMALISE else 'SAT')])
+# plt.ylabel('cond mean %s' % ('SATA' if ANOMALISE else 'SAT'))
+# plt.axis([-np.pi, np.pi, -0.75, 1])
+# plt.yticks(np.arange(-0.75,1.25,0.25), np.arange(-1,1.75,0.25))
+# p_val_overall = 1. - float(np.sum(np.greater(data_diff, surr_diff_surr))) / NUM_SURR
+# print 'overall', np.sum(np.greater(data_diff, surr_diff_surr))
+# p_val_amp = 1. - float(np.sum(np.greater(amp_diff, amp_diff_surr))) / NUM_SURR
+# print np.sum(np.greater(amp_diff, amp_diff_surr))
+# plt.title('PRG %s %d-year $A \cos{\phi}$ \n %s -- %s \n SATA: %.2f  $A \cos{\phi}$: %.2f' % ('SATA' if ANOMALISE else 'SAT', AMP_PERIOD, str(g_data.get_date_from_ndx(0)), str(g_data.get_date_from_ndx(-1)), p_val_overall, p_val_amp))
+# plt.savefig('debug/PRG_%s16to14reconstruction%s%d.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else '', num))
 
-fig = plt.figure(figsize=(10,12))
-gs = gridspec.GridSpec(2, 1)
-gs.update(left = 0.05, right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.4)
-hist_plot = [surr_diff_surr, amp_diff_surr]
-vl = [data_diff, amp_diff]
-colors = ["#867628", "#004739"]
-colors_data = ["#4A81B9", "#7A0C15"]
-titl = ['%s%s differences - %.2f' % ('SATA' if ANOMALISE else 'SAT', ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '', p_val_overall), '%s $A \cos{\phi}$%s differences - %.2f' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '', p_val_amp)]
-for i in range(2):
-    ax = plt.subplot(gs[i, 0])
-    ax.spines['top'].set_visible(False)
-    ax.spines['right'].set_visible(False)
-    ax.spines['left'].set_visible(False)
-    ax.tick_params(color = '#6A4A3C')
-    n, bins, patch = ax.hist(hist_plot[i], 50, histtype = 'stepfilled')
-    ax.vlines(vl[i], 0, n.max(), color = colors_data[i], linewidth = 5)
-    plt.setp(patch, 'facecolor', colors[i], 'edgecolor', colors[i], 'alpha', 0.9)
-    plt.title(titl[i])
-plt.savefig('debug/PRG_%s16to14reconstruction%s_hist%d.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else '', num))
+# fig = plt.figure(figsize=(10,12))
+# gs = gridspec.GridSpec(2, 1)
+# gs.update(left = 0.05, right = 0.95, top = 0.95, bottom = 0.05, hspace = 0.4)
+# hist_plot = [surr_diff_surr, amp_diff_surr]
+# vl = [data_diff, amp_diff]
+# colors = ["#867628", "#004739"]
+# colors_data = ["#4A81B9", "#7A0C15"]
+# titl = ['%s%s differences - %.2f' % ('SATA' if ANOMALISE else 'SAT', ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '', p_val_overall), '%s $A \cos{\phi}$%s differences - %.2f' % ('SATA' if ANOMALISE else 'SAT',  ' - %d%s surr' % (NUM_SURR, SURR_TYPE) if SURR else '', p_val_amp)]
+# for i in range(2):
+#     ax = plt.subplot(gs[i, 0])
+#     ax.spines['top'].set_visible(False)
+#     ax.spines['right'].set_visible(False)
+#     ax.spines['left'].set_visible(False)
+#     ax.tick_params(color = '#6A4A3C')
+#     n, bins, patch = ax.hist(hist_plot[i], 50, histtype = 'stepfilled')
+#     ax.vlines(vl[i], 0, n.max(), color = colors_data[i], linewidth = 5)
+#     plt.setp(patch, 'facecolor', colors[i], 'edgecolor', colors[i], 'alpha', 0.9)
+#     plt.title(titl[i])
+# plt.savefig('debug/PRG_%s16to14reconstruction%s_hist%d.png' % ('SATA' if ANOMALISE else 'SAT', '%d%ssurr' % (NUM_SURR, SURR_TYPE) if SURR else '', num))
 
 fig = plt.figure()
 n, bins, patch = plt.hist(amp_surr, 50, histtype = 'stepfilled')
 plt.setp(patch, 'facecolor', '#867628', 'edgecolor', '#867628', 'alpha', 0.9)
-plt.vlines(np.mean(amp_to_plot), 0, n.max(), color = "#4A81B9", linewidth = 5)
-p_val = 1. - float(np.sum(np.greater(np.mean(amp_to_plot), amp_surr))) / NUM_SURR
-plt.title("SATA 8-year amplitude - 1000 FTsurr vs. data \n p-value: %.2f" % p_val)
-plt.savefig("debug/PRG_amp_means_17532regressedFT5.png")
+plt.vlines(data_diff, 0, n.max(), color = "#4A81B9", linewidth = 5)
+p_val = 1. - float(np.sum(np.greater(data_diff, amp_surr))) / NUM_SURR
+plt.title("SATA 8-year total var - 1000 FTsurr vs. data \n p-value: %.2f" % p_val)
+plt.savefig("debug/PRG_SATA_means_17532_FT5.png")
 
-print amp_to_plot.shape
 
 
 # draw A*cos fi 1-year vs. 8-year

@@ -78,26 +78,32 @@ else:
 
 subtract = clim_amp[specific_idx_clim, 0][0] - first_ndx
 
-fig = plt.figure(figsize = (15,10), dpi = 1200)
-p1, = plt.plot(result[2][specific_idx], color = "#110D29", linewidth = 1.5)
+# fig = plt.figure(figsize = (15,10), dpi = 1200)
+fig, ax = plt.subplots(figsize = (15,10), dpi = 1200)
+ax.spines['top'].set_visible(False)
+ax.spines['right'].set_visible(False)
+ax.spines['left'].set_visible(False)
+ax.tick_params(color = '#6A4A3C')
+p1, = plt.plot(result[2][specific_idx], color = "#4F4975", linewidth = 1.5)
 p2, = plt.plot(result[1][specific_idx], color = "#B87BA5", linewidth = 1.5)
-p4, = plt.plot(g_amp.data, color = "#C1682A", linewidth = 0.75)
+p4, = plt.plot(g_amp.data, color = "#C1682A", linewidth = 0.25)
 p3, = plt.plot(clim_amp[specific_idx_clim, 0] - subtract, clim_amp[specific_idx_clim, 1], 'o', markersize = 8, color = "#24751F") #  - avg + 20
 plt.plot(clim_amp[specific_idx_clim, 0] - subtract, clim_amp[specific_idx_clim, 1], linewidth = 0.5, color = "#24751F")
-plt.plot(result[0][specific_idx], color = "#110D29", linewidth = 0.9, alpha = 0.8)
+plt.plot(result[0][specific_idx], color = "#110D29", linewidth = 1.2, alpha = 0.8)
 # p4, = plt.plot(result[3], color = "#050505")
-plt.ylabel("temperature [$^{\circ}$C]")
-plt.legend([p1,p2,p3,p4], ['1-year SAT amp.', '8-year SATA recon.', '%.2f warm vs cold' % (percentil/100.), 'SAT data'])
+plt.ylabel("TEMPERATURE [$^{\circ}$C]", size = 20)
+# plt.legend([p1,p2,p3,p4], ['1-year SAT amp.', '8-year SATA recon.', '%.2f warm vs cold' % (percentil/100.), 'SAT data'])
 tp = result[1][specific_idx].shape[0]
-plt.axis([0, tp, -10, 40])
-plt.yticks(np.linspace(-20, 40, 31), np.linspace(-20, 40, 31))
+plt.axis([0, tp, -10, 30])
+plt.yticks(np.linspace(-20, 30, 11), np.linspace(-20, 30, 11))
 locs, _ = plt.xticks()
 locs_new = np.linspace(locs[0], locs[-1], 2*locs.shape[0] - 1)
+ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
 plt.xticks(locs_new, ['%d / %d' % (g_amp.get_date_from_ndx(i).month, g_amp.get_date_from_ndx(i).year) for i in locs_new[:-1]], rotation = 30)
-plt.title("%s 1-year SAT vs. 8-year SATA \n %s -- %s \n Perason 1-year SAT amp vs. 8-year SATA recon.: %.2f" % (g_amp.location, 
-    str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
+# plt.title("%s 1-year SAT vs. 8-year SATA \n %s -- %s \n Perason 1-year SAT amp vs. 8-year SATA recon.: %.2f" % (g_amp.location, 
+#     str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
 # plt.show()
-plt.savefig('debug/cycles1ySAT_8ySATA_%s-%s_%dperc.png' % (str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), percentil))
+plt.savefig('debug/cycles1ySAT_8ySATA_%s-%s_%.2fcorr.eps' % (str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
 
 
 
