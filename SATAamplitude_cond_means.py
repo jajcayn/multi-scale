@@ -22,8 +22,8 @@ SURR_TYPE = 'FT'
 # g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,27), date(2013,10,1), ANOMALISE)
 
 # 32k
-g = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2002, 11, 10), True) # date(1924,1,14), date(2013,10,1)
-g_amp = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2002, 11, 10), ANOMALISE)
+g = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), True) # date(1924,1,14), date(2013,10,1)
+g_amp = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), ANOMALISE)
 g_data = DataField()
 
 
@@ -68,7 +68,7 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
             sg.construct_fourier_surrogates_spatial()
         sg.add_seasonality(mean, var, trend)
 
-        sg.amplitude_adjust_surrogates(mean, var, trend)
+        # sg.amplitude_adjust_surrogates(mean, var, trend)
 
         period = AMP_PERIOD * 365.25 # frequency of interest
         s0_amp = period / fourier_factor # get scale
@@ -110,7 +110,8 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
 cond_means = np.zeros((BINS, 2))
 
 start_cut = date(1962,1,1) # 1958, 1, 1
-l = int(16384 - 8*y)
+# l = int(16384 - 8*y)
+l = 17532
 g_data.data, g_data.time, idx = g.get_data_of_precise_length(l, start_cut, None, False) # 16k
 phase = phase[0, idx[0] : idx[1]]
 amplitude = amplitude[idx[0] : idx[1]]
@@ -224,7 +225,9 @@ plt.setp(patch, 'facecolor', '#867628', 'edgecolor', '#867628', 'alpha', 0.9)
 plt.vlines(np.mean(amp_to_plot), 0, n.max(), color = "#4A81B9", linewidth = 5)
 p_val = 1. - float(np.sum(np.greater(np.mean(amp_to_plot), amp_surr))) / NUM_SURR
 plt.title("SATA 8-year amplitude - 1000 FTsurr vs. data \n p-value: %.2f" % p_val)
-plt.savefig("debug/PRG_amp_means_regressedAAFT5.png")
+plt.savefig("debug/PRG_amp_means_17532regressedFT5.png")
+
+print amp_to_plot.shape
 
 
 # draw A*cos fi 1-year vs. 8-year
