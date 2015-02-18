@@ -138,10 +138,10 @@ WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MOMENT = 'mean' # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 20
 NUM_SURR = 1000 # how many surrs will be used to evaluate
-SURR_TYPE = 'MF'
+SURR_TYPE = 'FT'
 diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
 mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
-PLOT = True
+PLOT = False
 PLOT_PHASE = False
 BEGIN = True # if True, phase will be rewritten as in the beggining, otherwise as in the end
 PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
@@ -149,7 +149,7 @@ AA = False
 SAME_BINS = False
 CONDITION = False
 SEASON = None
-AMPLITUDE = False
+AMPLITUDE = True
 
 
 ## loading data
