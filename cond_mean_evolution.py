@@ -141,7 +141,7 @@ NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'FT'
 diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
 mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
-PLOT = False
+PLOT = True
 PLOT_PHASE = False
 BEGIN = True # if True, phase will be rewritten as in the beggining, otherwise as in the end
 PHASE_ANALYSIS_YEAR = None # year of detailed analysis - phase and bins, or None
@@ -149,7 +149,7 @@ AA = False
 SAME_BINS = False
 CONDITION = False
 SEASON = None
-AMPLITUDE = True
+AMPLITUDE = False
 
 
 ## loading data
@@ -509,7 +509,7 @@ if PLOT:
                 subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
                 percentil = where_percentil, phase = phase_tot, fname = fn)
     else:
-        with open('debug/PRGevolution.bin', 'wb') as f:
+        with open('debug/PRGevolution_FT.bin', 'wb') as f:
             cPickle.dump({'difference_data' : difference_data, 'difference_surr' : np.array(difference_surr), 'meanvar_data' : meanvar_data, 
                             'meanvar_surr' : np.array(meanvar_surr), 'difference_surr_std' : np.array(difference_surr_std), 
                             'meanvar_surr_std' : np.array(meanvar_surr_std), 'cnt' : cnt, 'difference_95perc' : difference_95perc,
