@@ -9,7 +9,7 @@ import matplotlib.gridspec as gridspec
 AMPLITUDE = False
 PERIOD = 8
 BINS = 8
-SEASON = [[12, 1, 2], [6, 7, 8]]
+SEASON = None#[[12, 1, 2], [6, 7, 8]]
 STATIONS = None # ['TG_STAID000047.txt', 'TG_STAID000054.txt']
 
 
@@ -194,4 +194,4 @@ if AMPLITUDE:
     tit += '\n SAT amplitude'
 # plt.suptitle(tit, size = 22)
 
-plt.savefig("grl_fig/PRGhistSeasons.eps")
+plt.savefig("debug/PRGhistSeasons.png")

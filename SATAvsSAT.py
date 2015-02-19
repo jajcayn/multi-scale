@@ -100,8 +100,8 @@ locs, _ = plt.xticks()
 locs_new = np.linspace(locs[0], locs[-1], 2*locs.shape[0] - 1)
 ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
 plt.xticks(locs_new, ['%d / %d' % (g_amp.get_date_from_ndx(i).month, g_amp.get_date_from_ndx(i).year) for i in locs_new[:-1]], rotation = 30)
-# plt.title("%s 1-year SAT vs. 8-year SATA \n %s -- %s \n Perason 1-year SAT amp vs. 8-year SATA recon.: %.2f" % (g_amp.location, 
-#     str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
+plt.title("%s 1-year SAT vs. 8-year SATA \n %s -- %s \n Perason 1-year SAT amp vs. 8-year SATA recon.: %.2f" % (g_amp.location, 
+    str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
 # plt.show()
 plt.savefig('debug/cycles1ySAT_8ySATA_%s-%s_%.2fcorr.eps' % (str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
 

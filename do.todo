@@ -51,7 +51,7 @@ paper outline:
      ✔ 1-year SAT amp. + 1-year SAT AcosPHI + 8-year SATA AcosPHI + SAT data (veeery thin line) + 0.25 warm vs. cold, longer segment > 11years @done (15-02-16 15:43)
  ✔ 4. quantification = bins - SAT 1-year amp cond. 8-year phase (fig: bins wo/ surr) - fig done @done (15-02-18 16:06)
  ✔ 5. diffs of max vs min bin = "effect" => evolving (fig: evolving w/ FT surr) - fig done @done (15-02-18 16:06)
- ☐ 6. then ECA&D same (fig: eca w/ FT) - fig done
+ ✔ 6. then ECA&D same (fig: eca w/ FT) - fig done @done (15-02-19 15:19)
  ☐ 7. overall SATA cond. 8-year phase (fig: bins wo/ surr) - fig done
  ☐ 8. evolving (without fig!! in supp.)
  ☐ 9. ECA&D overall SATA (fig: eca DJF w/ FT) - fig done
@@ -62,7 +62,7 @@ new:
  ✔ ECA&D 1-year amp and overall SATA DJF w/ FT surrs (check if only replot or need to compute) - 1.  @done (15-02-02 10:41)
  ✔ DP/m-s/8yearSATAamp/1000surrs/PRG_SATA1000FTsurr_vs_surr.png = for each surrs remember diff max min separately for SATA vs. SATA AcosPHI => two distributions, then compare with values in data, p = 0.05 - FT surr @done (15-02-04 15:47)
  --- ✄ -----------------------
-  ☐ EPS problems Linux/Windows?, check if PDF
+  ✘ EPS problems Linux/Windows?, check if PDF @cancelled (15-02-18 17:45)
   ✔ plot: original SAT data + 1-year SAT recon. + 8-year SATA recon. + mean JJA-mean DJF @done (15-02-04 15:48)
   ✔ other methods to clim. amp - e.g. high 10% vs. low 10% either from whole year, from seasons - 25%!!! @done (15-02-04 17:49)
   ✔ A*cos(phi) 1-year regressed vs. SAT plot to supp @done (15-02-05 14:10)
@@ -70,4 +70,4 @@ new:
   ✔ FTsurr var vs cycle - draw histograms, try 16to14 instead of 32to16 @done (15-02-05 16:12)
   ✔ avg amplitude of time segment from data vs. from 1000 FT surrs @done (15-02-18 17:16)
 
-  ☐  figs eps on Win 
+  ✔  figs eps - try on Win and then try to compile the .tex file @done (15-02-19 15:07)
