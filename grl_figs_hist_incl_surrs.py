@@ -4,11 +4,17 @@ import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
+from surrogates.surrogates import SurrogateField
+from multiprocessing import Process, Queue
 
 
-AMPLITUDE = False
+AMPLITUDE = True
 PERIOD = 8
 BINS = 8
+SURR = True
+NUM_SURR = 1000
+WORKERS = 2
+SURR_TYPE = 'FT'
 
 
 def _reconstruction_surrs(sg, a, jobq, resq, idx):
@@ -23,7 +29,7 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
 
         # sg.amplitude_adjust_surrogates(mean, var, trend)
 
-        period = AMP_PERIOD * 365.25 # frequency of interest
+        period = PERIOD * 365.25 # frequency of interest
         s0_amp = period / fourier_factor # get scale
         wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
         amplitude2 = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
@@ -49,12 +55,11 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
             cond_temp[i,1] = np.mean(sg.surr_data[ndx])
         data_diff = cond_temp[:, 1].max() - cond_temp[:, 1].min()
 
-        resq.put([data_diff])
+        resq.put([data_diff, np.mean(amplitude2)])
 
 
 g = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), True)
-if AMPLITUDE:
-    g_amp = load_station_data('TG_STAID000027.txt', date(1924,1,15), date(2013, 10, 1), False)
+g_amp = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), True)
 g_data = DataField()
 
 
@@ -70,7 +75,7 @@ wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, False, wavelet_ana
 phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
 
 if AMPLITUDE:
-    period = 1 * 365.25 # frequency of interest
+    period = 8 * 365.25 # frequency of interest
     s0_amp = period / fourier_factor # get scale
     wave, _, _, _ = wavelet_analysis.continous_wavelet(g_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
     amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
@@ -96,6 +101,7 @@ start_cut = date(1962,1,1)
 l = 17532
 
 g_data.data, g_data.time, idx = g.get_data_of_precise_length(l, start_cut, None, False) # 16k
+print g_data.get_date_from_ndx(0), g_data.get_date_from_ndx(-1)
 phase = phase[0, idx[0] : idx[1]]
 if AMPLITUDE:
     amplitude = amplitude[idx[0] : idx[1]]
@@ -104,17 +110,14 @@ phase_bins = get_equidistant_bins(BINS)
 
 for i in range(cond_means.shape[0]):
     ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
-    if AMPLITUDE:
-        cond_means[i, 0, 0] = np.mean(amplitude[ndx])
-        cond_means[i, 1, 0] = np.std(amplitude[ndx], ddof = 1)
-    else:
-        cond_means[i, 0, 0] = np.mean(g_data.data[ndx])
-        cond_means[i, 1, 0] = np.std(g_data.data[ndx], ddof = 1)
+    cond_means[i, 0, 0] = np.mean(g_data.data[ndx])
+    cond_means[i, 1, 0] = np.std(g_data.data[ndx], ddof = 1)
 
 data_diff = cond_means[:, 0, 0].max() - cond_means[:, 0, 0].min()
-print data_diff
+
 
 if SURR:
+    surr_diff = np.zeros((NUM_SURR,))
     amp_surr = np.zeros((NUM_SURR,))
     surr_completed = 0
     jobQ = Queue()
@@ -133,7 +136,8 @@ if SURR:
 
     while surr_completed < NUM_SURR:
         surr_means = resQ.get()
-        amp_surr[surr_completed] = surr_means[0]
+        surr_diff[surr_completed] = surr_means[0]
+        amp_surr[surr_completed] = surr_means[1]
 
         surr_completed += 1
 
@@ -156,14 +160,9 @@ ax1.spines['left'].set_visible(False)
 ax1.tick_params(color = '#6A4A3C')
 diff = (phase_bins[1]-phase_bins[0])
 ax1.bar(phase_bins[:-1] + diff*0.1, cond_means[:, 0, 0], width = diff*0.8, bottom = None, fc = '#BF3919', ec = '#BF3919',  figure = fig)
-if AMPLITUDE:
-    ax1.axis([-np.pi, np.pi, 17, 23])
-    ax1.set_xlabel("PHASE [RAD]", size = 20)
-    ax1.set_ylabel("COND. MEAN SAT AMP [$^{\circ}$C]", size = 20)
-else:
-    ax1.axis([-np.pi, np.pi, -1.5, 1.5])
-    ax1.set_xlabel("PHASE [RAD]", size = 20)
-    ax1.set_ylabel("COND. MEAN SATA [$^{\circ}$C]", size = 20)
+ax1.axis([-np.pi, np.pi, -1.5, 1.5])
+ax1.set_xlabel("PHASE [RAD]", size = 20)
+ax1.set_ylabel("COND. MEAN SATA [$^{\circ}$C]", size = 20)
 ax1.tick_params(axis = 'both', which = 'major', labelsize = 18)
 
 ax2 = plt.Subplot(fig, gs[1, 0])
@@ -174,16 +173,41 @@ ax2.spines['left'].set_visible(False)
 ax2.tick_params(color = '#6A4A3C')
 diff = (phase_bins[1]-phase_bins[0])
 ax2.bar(phase_bins[:-1] + diff*0.1, cond_means[:, 1, 0], width = diff*0.8, bottom = None, fc = '#76C06E', ec = '#76C06E', figure = fig)
-if AMPLITUDE:
-    ax2.axis([-np.pi, np.pi, 0, 1])
-    ax2.set_xlabel("PHASE [RAD]", size = 20)
-    ax2.set_ylabel("COND. STANDARD DEVIATION SAT AMP [$^{\circ}$C]", size = 20)
-else:
-    ax2.axis([-np.pi, np.pi, 0, 6])
-    ax2.set_xlabel("PHASE [RAD]", size = 20)
-    ax2.set_ylabel("COND. STANDARD DEVIATION SATA [$^{\circ}$C]", size = 20)
+ax2.axis([-np.pi, np.pi, 0, 6])
+ax2.set_xlabel("PHASE [RAD]", size = 20)
+ax2.set_ylabel("COND. STANDARD DEVIATION SATA [$^{\circ}$C]", size = 20)
 ax2.tick_params(axis = 'both', which = 'major', labelsize = 18)
 # fig.text(0.5, 0.04, 'phase [rad]', va = 'center', ha = 'center', size = 16)
 
+ax3 = plt.Subplot(fig, gs[0, 1])
+fig.add_subplot(ax3)
+ax3.spines['top'].set_visible(False)
+ax3.spines['right'].set_visible(False)
+ax3.spines['left'].set_visible(False)
+ax3.tick_params(color = '#6A4A3C') 
+n, bins, patch = ax3.hist(surr_diff, 50, histtype = 'stepfilled')
+plt.setp(patch, 'facecolor', '#BF3919', 'edgecolor', '#BF3919', 'alpha', 0.9)
+ax3.vlines(data_diff, 0, n.max(), color = "#76C06E", linewidth = 5)
+ax3.axis([0, 2, 0, 80])
+ax3.set_xlabel("DIFFERENCE [$^{\circ}$C]", size = 20)
+ax3.tick_params(axis = 'both', which = 'major', labelsize = 18)
+p_val_diff = 1. - float(np.sum(np.greater(data_diff, surr_diff))) / NUM_SURR
 
-plt.savefig("debug/PRGhistSeasons.png")
+
+ax4 = plt.Subplot(fig, gs[1, 1])
+fig.add_subplot(ax4)
+ax4.spines['top'].set_visible(False)
+ax4.spines['right'].set_visible(False)
+ax4.spines['left'].set_visible(False)
+ax4.tick_params(color = '#6A4A3C') 
+n, bins, patch = ax4.hist(amp_surr, 50, histtype = 'stepfilled')
+print amp_surr.min(), amp_surr.max(), np.mean(amplitude)
+plt.setp(patch, 'facecolor', '#BF3919', 'edgecolor', '#BF3919', 'alpha', 0.9)
+ax4.vlines(np.mean(amplitude), 0, n.max(), color = "#76C06E", linewidth = 5)
+ax4.axis([0, 0.8, 0, 60])
+ax4.set_xlabel("MEAN AMPLITUDE [$^{\circ}$C]", size = 20)
+ax4.set_xticks(np.arange(0, 1, 0.2))
+ax4.tick_params(axis = 'both', which = 'major', labelsize = 18)
+p_val_amp = 1. - float(np.sum(np.greater(np.mean(amplitude), amp_surr))) / NUM_SURR
+
+plt.savefig("debug/PRGhist_diff_%.2f_amp_%.2f.eps" % (p_val_diff, p_val_amp))
