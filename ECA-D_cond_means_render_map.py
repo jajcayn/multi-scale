@@ -89,7 +89,7 @@ ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
 SIGN = True # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
-PERCENTIL = 99
+PERCENTIL = 95
 SAME_BINS = False
 CONDITION = False
 NUM_FILES = 5
@@ -308,7 +308,7 @@ if SIGN:
     # fname = ('debug/%s_SATamplitude_%s_scaled_%s_bins_%ssurrogates_from_%s_16k_above_%dpercentil%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
     #              'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), PERCENTIL, '_same_bins' if SAME_BINS else '', 
     #              '_condition' if CONDITION else ''))
-    fname = ('debug/ECA-D_SATA_DJF_500FTsurrogates_above_%dpercentil_%s.png' % (PERCENTIL, 'false_pos' if FALSE_POS else 'TEST'))
+    fname = ('debug/ECA-D_SATA_DJF_500FTsurrogates_above_%dpercentil_%s.eps' % (PERCENTIL, 'false_pos' if FALSE_POS else 'TEST'))
     # NaNs to 0
     mask = np.isnan(result_percentil)
     result_percentil[mask] = 0.
@@ -336,7 +336,7 @@ else:
     if ECA:
         # fname = ('debug/ECA-D_SATamplitude_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
         #                                                                str(START_DATE)))
-        fname = ('debug/ECA-D_SATamplitude_%s_scaled_%s_bins_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+        fname = ('debug/ECA-D_%s_scaled_%s_bins_data_from_%s.eps' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
                                                                        str(START_DATE)))
     else:
         fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
