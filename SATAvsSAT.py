@@ -106,4 +106,31 @@ plt.title("%s 1-year SAT vs. 8-year SATA \n %s -- %s \n Perason 1-year SAT amp v
 plt.savefig('debug/cycles1ySAT_8ySATA_%s-%s_%.2fcorr.eps' % (str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
 
 
+to_txt = np.zeros((result[2][specific_idx].shape[0], 6))
+# continuous year
+first_day = (g_amp.get_date_from_ndx(0) - date(g_amp.get_date_from_ndx(0).year, 1, 1)).days
+first_ndx = g_amp.get_date_from_ndx(0).year + (first_day / 365.)
+
+last_day = (g_amp.get_date_from_ndx(-1) - date(g_amp.get_date_from_ndx(-1).year, 1, 1)).days
+last_ndx = g_amp.get_date_from_ndx(-1).year + (last_day / 365.)
+
+# first row is date
+to_txt[:, 0] = np.linspace(first_ndx, last_ndx, to_txt.shape[0])
+# second is SAT data
+to_txt[:, 1] = g_amp.data
+# third is reconstruction of annual cycle
+to_txt[:, 2] = result[0][specific_idx]
+# fourth is annual amp
+to_txt[:, 3] = result[2][specific_idx]
+# fifth is 8-year reconstruction
+to_txt[:, 4] = result[1][specific_idx]
+# sixth is climatological amp.
+to_txt[:, 5] = -50. # set all outside visible area
+idx = [int(i) for i in clim_amp[specific_idx_clim, 0] - subtract]
+to_txt[idx, 5] = clim_amp[specific_idx_clim, 1] # set the rights ones to values
+
+np.savetxt('debug/SATAvsSAT_test.txt', to_txt, fmt = '%.3f')
+
+
+
 
