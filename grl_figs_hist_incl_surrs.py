@@ -212,3 +212,18 @@ ax4.tick_params(axis = 'both', which = 'major', labelsize = 18)
 p_val_amp = 1. - float(np.sum(np.greater(np.mean(amplitude), amp_surr))) / NUM_SURR
 
 plt.savefig("debug/PRGhist_diff_%.2f_amp_%.2f.eps" % (p_val_diff, p_val_amp))
+
+to_txt = np.zeros((cond_means.shape[0], 3))
+to_txt[:, 0] = np.arange(1, 9, 1)
+to_txt[:, 1] = cond_means[:, 0, 0]
+to_txt[:, 2] = cond_means[:, 1, 0]
+
+np.savetxt('debug/hist_SATA.txt', to_txt, fmt = '%.3f')
+
+to_txt2 = np.zeros((NUM_SURR + 1, 2))
+to_txt2[:-1, 0] = surr_diff
+to_txt2[-1, 0] = data_diff
+to_txt2[:-1, 1] = amp_surr
+to_txt2[-1, 1] = np.mean(amplitude)
+
+np.savetxt('debug/hist_surrSATAdiff_%.2f_amp_%.2f.txt' % (p_val_diff, p_val_amp), to_txt2, fmt = '%.3f')

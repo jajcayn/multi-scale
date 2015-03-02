@@ -54,7 +54,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
 
 
 
-diff_ax = (0, 4)
+diff_ax = (0, 1.6)
 mean_ax = (-1, 1.5)
 WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
@@ -64,17 +64,35 @@ first_mid_year = 1856
 last_mid_year = 1991
 
 
-with open('data_temp/PRGlong_1000FTevolution.bin', 'rb') as f:
+with open('data_temp/PRGevolutionAMP_FT.bin', 'rb') as f:
     data = cPickle.load(f)
 
 for k, v in data.iteritems():
     locals()[k] = v
 
 fn = ("debug/PRGlong1000FTevolvingSeasons.eps")  
-# SEASON = None  
-# render([difference_data, difference_surr], [meanvar_data, meanvar_surr], [difference_surr_std, meanvar_surr_std],
-#             subtit = ("95 percentil: difference - %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt)),
-#             percentil = where_percentil, fname = fn)
+SEASON = None  
+render([difference_data, difference_surr], [meanvar_data, meanvar_surr], [difference_surr_std, meanvar_surr_std],
+            subtit = ("95 percentil: difference - %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt)),
+            percentil = where_percentil, fname = fn)
+
+to_txt = np.zeros((cnt, 5))
+# first col - continuous year
+to_txt[:, 0] = np.arange(first_mid_year, last_mid_year, 1)
+# second col - data
+to_txt[:, 1] = difference_data
+# third col - mean surr
+to_txt[:, 2] = difference_surr
+# fourth col - std surr
+to_txt[:, 3] = difference_surr_std
+# fifth col - percentil
+to_txt[:, 4] = -50.
+for pos in np.where(where_percentil[:, 0] == True)[0]:
+    to_txt[pos, 4] = difference_data[pos]
+
+np.savetxt('debug/SATamp_evolving.txt', to_txt, fmt = '%.3f')
+
+
 
 # for se in seas:
 #     SEASON = ''.join([mons[m-1] for m in se])
