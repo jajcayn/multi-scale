@@ -71,3 +71,17 @@ new:
   ✔ avg amplitude of time segment from data vs. from 1000 FT surrs @done (15-02-18 17:16)
 
   ✔  figs eps - try on Win and then try to compile the .tex file @done (15-02-19 15:07)
+
+
+discussion:
+ ☐ spomen v texte ze overall var je robene aj v sezonach
+ ☐ skontroluj vsetky labels a titles v obr, mas tam chyby
+ ☐ pozri GRL ako funguju supplementy
+ ☐ SUPP:
+   ☐ vysvelit surrogaty, presunut z hlavneho textu, tam nechat len FT plus citaciu
+   ☐ overall var. evolving AR, FT, MF k textu o surr
+   ☐ sezony overall var. - staci evolving, ale napis aj biny, ze cold vs. warm sa nemenia, iba magnituda sa meni napriec sezonami
+   ☐ Hamburg + Potsdam = evolving + evolving sezony s FT surr do SUPP, napis ze SATamp je podobna, z ECA vidime ze aj tam by to malo byt vyznamne, tak sme sa na to pozreli
+
+
+ ☐ kod na MF surr: python dopis AA, matlab napis komplet
