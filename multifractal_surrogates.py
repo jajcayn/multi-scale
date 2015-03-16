@@ -22,7 +22,7 @@ import numpy as np
 import pywt
 
 
-def multifractal_surrogate(ts, randomise_from_scale = 2):
+def multifractal_surrogate(ts, randomise_from_scale = 2, amplitude_adjust_surrogates = False):
     """
     Returns the multifractal surrogate realisation from given time series.
     
@@ -34,6 +34,9 @@ def multifractal_surrogate(ts, randomise_from_scale = 2):
     randomise_from_scale : int, optional
         Scale from which to randomise coefficients. Default is to not randomise
         first two scales (the two slowest frequencies).
+    amplitude_adjust_surrogates : boolean, optional
+        If True, returns amplitude adjusted surrogates, which are in fact original
+        data sorted according to the generated surrogate data.
         
     Returns
     -------
@@ -89,8 +92,21 @@ def multifractal_surrogate(ts, randomise_from_scale = 2):
         
         # finally, rearange original coefficient according to coefficient with tilde
         shuffled_coeffs.append(coeffs[j][idx])
+
+    surr = pywt.waverec(shuffled_coeffs, 'db1')
+
+    # if return amplitude adjusted surrogates
+    if amplitude_adjust_surrogates:
+
+        # sort generated surrogates
+        idx = np.argsort(surr)
+
+        ts = np.sort(ts)
+        surr = np.zeros_like(ts)
+        surr[idx] = ts
+
         
-    return pywt.waverec(shuffled_coeffs, 'db1')
+    return surr
         
     
     
