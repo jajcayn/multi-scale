@@ -8,7 +8,7 @@ shuffling of the scale-specific coefficients, preserving so-called multifractal
 structure of the data. Multifractal processes exhibit hierarchical information
 flow from large to small time scales.
 
-Writting according to Palus, M. (2008): Bootstraping multifractals: Surrogate 
+Written according to Palus, M. (2008): Bootstraping multifractals: Surrogate 
     data from random cascades on wavelet dyadic trees. Phys. Rev. Letters, 101.
     
     
@@ -53,7 +53,7 @@ def multifractal_surrogate(ts, randomise_from_scale = 2, amplitude_adjust_surrog
         raise Exception("Time series length must be a power of 2 (2^n)!")
         
     # get coefficient from discrete wavelet transform, 
-    # it is a list of length n with numpy arrays as every object
+    # it is a list of length n with numpy arrays as objects
     coeffs = pywt.wavedec(ts, 'db1', level = n-1)
     
     # prepare output lists and append coefficients which will not be shuffled
@@ -101,6 +101,7 @@ def multifractal_surrogate(ts, randomise_from_scale = 2, amplitude_adjust_surrog
         # sort generated surrogates
         idx = np.argsort(surr)
 
+        # amplitude adjusted surrogates are original data sorted according to the surrogates
         ts = np.sort(ts)
         surr = np.zeros_like(ts)
         surr[idx] = ts
