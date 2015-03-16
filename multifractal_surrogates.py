@@ -1,5 +1,5 @@
 """
-Created on Wed Apr 16 13:04:18 2014
+Created on 16 Mar 2015
 @author: Nikola Jajcay -- jajcay@cs.cas.cz
 
 ##-----------------------------------------------------------------------------##
