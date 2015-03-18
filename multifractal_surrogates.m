@@ -10,6 +10,11 @@
 
 % Written according to Palus, M. (2008): Bootstraping multifractals: Surrogate 
 %     data from random cascades on wavelet dyadic trees. Phys. Rev. Letters, 101.  
+%
+% uses WAVELET SOFTWARE AT POLYTECHNIC UNIVERSITY, BROOKLYN, NY with custom filter bank
+% http://taco.poly.edu/WaveletSoftware/
+% the filter bank in file matlab_dwt/db1.m is written to match the Python script for generating
+% multifractal surrogates
 
 %%
 function [surr] = multifractal_surrogate(ts, randomise_from_scale, amplitude_adjust_surrogates)
