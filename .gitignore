@@ -1,4 +1,5 @@
 *.dat
+*.mat
 .spyderproject
 .spyderworkspace
 debug/
@@ -15,3 +16,5 @@ test.py
 *.bin
 *.out
 *_old.py
+mfdfa.py
+*_test.py
