@@ -43,7 +43,7 @@ addpath('matlab_dwt');
 
 % fill in defaults - amplitude adjust = False and randomise_from_scale = 2
 if nargin() < 3
-    amplitude_adjust_surrogates = 0;
+    amplitude_adjust_surrogates = false;
 end
 
 if nargin() < 2
@@ -100,16 +100,18 @@ for j=size(coeffs,2) - randomise_from_scale - 1:-1:1
         coef(1, 2*k - 1) = multiplicators(1, 2*k - 1) * coeffs_tilde{j+1}(1, k);
         coef(1, 2*k) = multiplicators(1, 2*k) * coeffs_tilde{j+1}(1, k);
        coeffs_tilde{j} = coef;
-    end
+    end    
+    
+    % sort shuffled coefficients
+    [t, idx] = sort(coeffs_tilde{j});
     
     % sort original coefficients
     coeffs{j} = sort(coeffs{j});
     
-    % sort args for shuffled coefficients
-    [t, idx] = sort(coeffs_tilde{j});
-    
     % finally, rearange original coefficient according to coefficient with tilde
-    shuffled_coeffs{j} = coeffs{j}(1, idx);
+    coeffs_temp = zeros(size(coeffs{j}));
+    coeffs_temp(1, idx) = coeffs{j};
+    shuffled_coeffs{j} = coeffs_temp;
     
 end
 

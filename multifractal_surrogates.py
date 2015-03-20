@@ -84,14 +84,16 @@ def multifractal_surrogate(ts, randomise_from_scale = 2, amplitude_adjust_surrog
             coef[2*k+1] = multiplicators[2*k+1] * coeffs_tilde[j-1][k]
         coeffs_tilde.append(coef)
         
+        # sort shuffled coefficients
+        idx = np.argsort(coeffs_tilde[j])
+
         # sort original coefficients
         coeffs[j] = np.sort(coeffs[j])
         
-        # sort shuffled coefficients
-        idx = np.argsort(coeffs_tilde[j])
-        
         # finally, rearange original coefficient according to coefficient with tilde
-        shuffled_coeffs.append(coeffs[j][idx])
+        coeffs_tmp = np.zeros_like(coeffs[j])
+        coeffs_tmp[idx] = coeffs[j]
+        shuffled_coeffs.append(coeffs_tmp)
 
     surr = pywt.waverec(shuffled_coeffs, 'db1')
 

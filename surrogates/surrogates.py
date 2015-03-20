@@ -109,7 +109,6 @@ def _compute_MF_surrogates(a):
             idx = np.argsort(coeffs_tilde[j])
             
             # finally, rearange original coefficient according to coefficient with tilde
-            coeffs[j] = np.sort(coeffs[j])
             temporary = np.zeros_like(coeffs[j])
             temporary[idx] = coeffs[j]
             shuffled_coeffs.append(temporary)
