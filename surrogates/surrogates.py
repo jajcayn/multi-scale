@@ -1,13 +1,11 @@
 """
 created on Mar 4, 2014
 
-@author: Nikola Jajcay
-         jajcay@cs.cas.cz
+@author: Nikola Jajcay, jajcay(at)cs.cas.cz
 """
 
 import numpy as np
 from src.data_class import DataField
-import pywt
 from var_model import VARModel
 
 
@@ -57,6 +55,8 @@ def _compute_FT_surrogates(a):
 
 
 def _compute_MF_surrogates(a):
+    import pywt
+    
     i, l, ts, randomise_from_scale = a
     
     if not np.all(np.isnan(ts)):
@@ -323,6 +323,8 @@ class SurrogateField(DataField):
         written according to: Palus, M. (2008): Bootstraping multifractals: Surrogate data from random 
         cascades on wavelet dyadic trees. Phys. Rev. Letters, 101.
         """
+
+        import pywt
         
         if self.data is not None:
 

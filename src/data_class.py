@@ -1,8 +1,9 @@
 """
 created on Jan 29, 2014
 
-@author: Nikola Jajcay, based on script by Martin Vejmelka> -- https://github.com/vejmelkam/ndw-climate --
-         jajcay@cs.cas.cz
+@author: Nikola Jajcay, jajcay(at)cs.cas.cz
+based on script by Martin Vejmelka
+-- https://github.com/vejmelkam/ndw-climate --
 """
 
 import numpy as np
@@ -12,7 +13,6 @@ import csv
 from os.path import split
 import os
 from distutils.version import LooseVersion
-import cPickle
 
 
 
@@ -969,6 +969,8 @@ def load_bin_data(filename, start_date, end_date, anom):
     """
     Data loader for daily binned data.
     """
+
+    import cPickle
     
     _, name = split(filename)
     print("[%s] Loading daily binned data from %s reanalysis..." % (str(datetime.now()), name.split('_')[0]))

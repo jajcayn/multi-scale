@@ -1,7 +1,7 @@
 """
 created on Feb 7, 2014
 
-@author: Nikola Jajcay
+@author: Nikola Jajcay, jajcay(at)cs.cas.cz
 """
 
 """
