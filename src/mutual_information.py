@@ -43,8 +43,8 @@ def mutual_information(x, y, algorithm = 'EQQ', bins = 8, log2 = True):
         xy_bins = [x_bins, y_bins]
 
     # histo
-    count_x = np.histogram(x, bins = x_bins)[0]
-    count_y = np.histogram(y, bins = y_bins)[0]
+    count_x = np.histogramdd([x], bins = [x_bins])[0]
+    count_y = np.histogramdd([y], bins = [y_bins])[0]
     count_xy = np.histogramdd([x, y], bins = xy_bins)[0]
 
     # normalise

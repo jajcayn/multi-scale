@@ -5,7 +5,7 @@ created on Mar 4, 2014
 """
 
 import numpy as np
-from src.data_class import DataField
+from data_class import DataField
 from var_model import VARModel
 
 
@@ -155,10 +155,11 @@ class SurrogateField(DataField):
     Class holds geofield of surrogate data and can construct surrogates.
     """
     
-    def __init__(self):
+    def __init__(self, data = None):
         DataField.__init__(self)
         self.surr_data = None
         self.model_grid = None
+        self.data = data
         
 
         
