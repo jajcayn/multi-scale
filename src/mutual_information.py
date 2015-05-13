@@ -42,6 +42,47 @@ def mutual_information(x, y, algorithm = 'EQQ', bins = 8, log2 = True):
         
         xy_bins = [x_bins, y_bins]
 
+    elif algorithm == 'EQQ2':
+        x_sorted = np.sort(x)
+        x_bins = [x.min()]
+        one_bin_count = x.shape[0] / bins
+        for i in range(1, bins):
+            idx = i * one_bin_count
+            if np.all(np.diff(x_sorted[idx-1:idx+2]) != 0):
+                x_bins.append(x_sorted[idx])
+            elif np.any(np.diff(x_sorted[idx-1:idx+2]) == 0):
+                where = np.where(np.diff(x_sorted[idx-1:idx+2]) != 0)[0]
+                expand_idx = 1
+                while where.size == 0:
+                    where = np.where(np.diff(x_sorted[idx-expand_idx:idx+1+expand_idx]) != 0)[0]
+                    expand_idx += 1
+                if where[0] == 0:
+                    x_bins.append(x_sorted[idx-expand_idx])
+                else:
+                    x_bins.append(x_sorted[idx+expand_idx])
+        x_bins.append(x.max())
+
+        y_sorted = np.sort(y)
+        y_bins = [y.min()]
+        one_bin_count = y.shape[0] / bins
+        for i in range(1, bins):
+            idx = i * one_bin_count
+            if np.all(np.diff(y_sorted[idx-1:idx+2]) != 0):
+                y_bins.append(y_sorted[idx])
+            elif np.any(np.diff(y_sorted[idx-1:idx+2]) == 0):
+                where = np.where(np.diff(y_sorted[idx-1:idx+2]) != 0)[0]
+                expand_idx = 1
+                while where.size == 0:
+                    where = np.where(np.diff(y_sorted[idx-expand_idx:idx+1+expand_idx]) != 0)[0]
+                    expand_idx += 1
+                if where[0] == 0:
+                    y_bins.append(y_sorted[idx-expand_idx])
+                else:
+                    y_bins.append(y_sorted[idx+expand_idx])
+        y_bins.append(y.max())
+
+        xy_bins = [x_bins, y_bins]
+
     # histo
     count_x = np.histogramdd([x], bins = [x_bins])[0]
     count_y = np.histogramdd([y], bins = [y_bins])[0]
