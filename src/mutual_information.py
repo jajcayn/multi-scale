@@ -13,7 +13,13 @@ def mutual_information(x, y, algorithm = 'EQQ', bins = 8, log2 = True):
         I(x; y) = sum( p(x,y) * log( p(x,y) / p(x)p(y) ),
         where p(x), p(y) and p(x, y) are probability distributions.
     The probability distributions could be estimated using these algorithms:
-        equiquantal binning - algorithm keyword 'EQQ'
+        equiquantal binning - algorithm keyword 'EQQ' or 'EQQ2'
+            EQQ - equiquantality is forced (even if many samples have the same value 
+                at and near the bin edge), can happen that samples with same value fall
+                into different bin
+            EQQ2 - if more than one sample has the same value at the bin edge, the edge is shifted,
+                so that all samples with the same value fall into the same bin, can happen that bins
+                do not necessarily contain the same amount of samples
         equidistant binning - algorithm keyword 'EQD'
         (preparing more...)
     If log2 is True (default), the units of mutual information are bits, if False
