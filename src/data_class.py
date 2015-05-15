@@ -690,7 +690,7 @@ class DataField:
         
         
         
-def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-station'):
+def load_station_data(filename, start_date, end_date, anom, to_monthly = False, dataset = 'ECA-station'):
     """
     Data loader for station data.
     """
@@ -708,6 +708,8 @@ def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-stati
     if anom:
         print("** anomalising")
         g.anomalise()
+    if to_monthly:
+        g.get_monthly_data()
     day, month, year = g.extract_day_month_year()
     print("[%s] Data from %s loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
         % (str(datetime.now()), g.location, str(g.data.shape), day[0], month[0], 
@@ -959,6 +961,53 @@ def load_sunspot_data(filename, start_date, end_date, smoothed = False):
     
     print("[%s] %s data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
         % (str(datetime.now()), 'Sunspot' if not smoothed else 'Smoothed sunspot', str(g.data.shape), month[0], 
+           year[0], month[-1], year[-1]))
+           
+    return g
+
+
+
+def load_AAgeomag_data(filename, start_date, end_date, anom, daily = False):
+    """
+    Data loader for ASCII file of AA index -- geomagnetic field.
+    """
+
+    from dateutil.relativedelta import relativedelta
+    
+    path, name = split(filename)
+    if path != '':
+        path += "/"
+        g = DataField(data_folder = path)
+    else:
+        g = DataField()
+    raw_data = np.loadtxt(g.data_folder + filename) # first column is continous year and second is actual data
+    g.data = np.array(raw_data[:, 1])
+    time = []
+    
+    # use time iterator to go through the dates
+    y = int(np.modf(raw_data[0, 0])[1]) 
+    if np.modf(raw_data[0, 0])[0] == 0:
+        starting_date = date(y, 1, 1)
+    if daily:
+        delta = timedelta(days = 1)
+    else:
+        delta = relativedelta(months = +1)
+    d = starting_date
+    while len(time) < raw_data.shape[0]:
+        time.append(d.toordinal())
+        d += delta
+    g.time = np.array(time)
+    g.location = 'The Earth'
+
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    _, month, year = g.extract_day_month_year()
+    
+    print("[%s] AA index data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
+        % (str(datetime.now()), str(g.data.shape), month[0], 
            year[0], month[-1], year[-1]))
            
     return g
