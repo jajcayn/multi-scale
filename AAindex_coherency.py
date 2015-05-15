@@ -9,9 +9,13 @@ import matplotlib.pyplot as plt
 DAILY = False
 SAMPLES = 1024
 SCALES_SPAN = [6, 240] # in months
+STATION = True
 
 
-temp = load_station_data('TG_STAID000027.txt', date(1950, 1, 1), date(2001, 1, 1), True, to_monthly = not DAILY)
+if STATION:
+    temp = load_station_data('TG_STAID000027.txt', date(1950, 1, 1), date(2001, 1, 1), True, to_monthly = not DAILY)
+else:
+    
 fname = 'aa_day.raw' if DAILY else 'aa_month1209.raw'
 aa = load_AAgeomag_data(fname, date(1950, 1, 1), date(2001, 1, 1), True, daily = DAILY)
 

@@ -188,8 +188,8 @@ class DataField:
             self.data = v[:]
             self.lons = d.variables['lon'][:]
             self.lats = d.variables['lat'][:]
-            self.time = d.variables['time'][:] # hours since 1-01-01 00:00
-            self.time = self.time / 24.0 - 1.0
+            self.time = d.variables['time'][:] # hours since 1800-01-01 00:00
+            self.time = self.time / 24.0 + date.toordinal(date(1800, 1, 1))
             if print_prog:
                 print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
                 print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
@@ -726,9 +726,11 @@ def load_NCEP_data_monthly(filename, varname, start_date, end_date, lats, lons, 
 
     print("[%s] Loading monthly NCEP/NCAR data..." % str(datetime.now()))
     path, name = split(filename)
-    path += "/"
-
-    g = DataField(data_folder = path)
+    if path != '':
+        path += "/"
+        g = DataField(data_folder = path)
+    else:
+        g = DataField()
     g.load(name, varname, dataset = 'NCEP', print_prog = False)
     print("** loaded")
     g.select_date(start_date, end_date)
