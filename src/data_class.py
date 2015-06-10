@@ -297,7 +297,7 @@ class DataField:
         Returns the date of the variable from given index.
         """
         
-        return date.fromordinal(self.time[ndx])
+        return date.fromordinal(np.int(self.time[ndx]))
         
         
         
@@ -1023,8 +1023,9 @@ def load_bin_data(filename, start_date, end_date, anom):
 
     import cPickle
     
-    _, name = split(filename)
-    print("[%s] Loading daily binned data from %s reanalysis..." % (str(datetime.now()), name.split('_')[0]))
+    path, name = split(filename)
+    if path == '':
+        filename = "../data/" + filename
     with open(filename, 'rb') as f:
         g = cPickle.load(f)['g']
         
