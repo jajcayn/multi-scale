@@ -497,8 +497,8 @@ class DataField:
             
         elif start_date is None and end_date is not None:
             idx = self.find_date_ndx(end_date)
-            data_temp = self.data[idx - ln : idx, ...].copy()
-            time_temp = self.time[idx - ln : idx, ...].copy()
+            data_temp = self.data[idx - ln + 1 : idx + 1, ...].copy()
+            time_temp = self.time[idx - ln + 1 : idx + 1, ...].copy()
             idx_tuple = (idx - ln, idx)
             
         else:
