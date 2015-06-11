@@ -1,13 +1,11 @@
 """
 created on Mar 4, 2014
 
-@author: Nikola Jajcay
-         jajcay@cs.cas.cz
+@author: Nikola Jajcay, jajcay(at)cs.cas.cz
 """
 
 import numpy as np
-from src.data_class import DataField
-import pywt
+from data_class import DataField
 from var_model import VARModel
 
 
@@ -57,6 +55,8 @@ def _compute_FT_surrogates(a):
 
 
 def _compute_MF_surrogates(a):
+    import pywt
+    
     i, l, ts, randomise_from_scale = a
     
     if not np.all(np.isnan(ts)):
@@ -109,7 +109,6 @@ def _compute_MF_surrogates(a):
             idx = np.argsort(coeffs_tilde[j])
             
             # finally, rearange original coefficient according to coefficient with tilde
-            coeffs[j] = np.sort(coeffs[j])
             temporary = np.zeros_like(coeffs[j])
             temporary[idx] = coeffs[j]
             shuffled_coeffs.append(temporary)
@@ -156,10 +155,11 @@ class SurrogateField(DataField):
     Class holds geofield of surrogate data and can construct surrogates.
     """
     
-    def __init__(self):
+    def __init__(self, data = None):
         DataField.__init__(self)
         self.surr_data = None
         self.model_grid = None
+        self.data = data
         
 
         
@@ -324,6 +324,8 @@ class SurrogateField(DataField):
         written according to: Palus, M. (2008): Bootstraping multifractals: Surrogate data from random 
         cascades on wavelet dyadic trees. Phys. Rev. Letters, 101.
         """
+
+        import pywt
         
         if self.data is not None:
 

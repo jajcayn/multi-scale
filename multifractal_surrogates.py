@@ -1,5 +1,5 @@
 """
-Created on Wed Apr 16 13:04:18 2014
+Created on 16 Mar 2015
 @author: Nikola Jajcay -- jajcay@cs.cas.cz
 
 ##-----------------------------------------------------------------------------##
@@ -8,7 +8,7 @@ shuffling of the scale-specific coefficients, preserving so-called multifractal
 structure of the data. Multifractal processes exhibit hierarchical information
 flow from large to small time scales.
 
-Writting according to Palus, M. (2008): Bootstraping multifractals: Surrogate 
+Written according to Palus, M. (2008): Bootstraping multifractals: Surrogate 
     data from random cascades on wavelet dyadic trees. Phys. Rev. Letters, 101.
     
     
@@ -22,7 +22,7 @@ import numpy as np
 import pywt
 
 
-def multifractal_surrogate(ts, randomise_from_scale = 2):
+def multifractal_surrogate(ts, randomise_from_scale = 2, amplitude_adjust_surrogates = False):
     """
     Returns the multifractal surrogate realisation from given time series.
     
@@ -34,6 +34,9 @@ def multifractal_surrogate(ts, randomise_from_scale = 2):
     randomise_from_scale : int, optional
         Scale from which to randomise coefficients. Default is to not randomise
         first two scales (the two slowest frequencies).
+    amplitude_adjust_surrogates : boolean, optional
+        If True, returns amplitude adjusted surrogates, which are in fact original
+        data sorted according to the generated surrogate data.
         
     Returns
     -------
@@ -50,7 +53,7 @@ def multifractal_surrogate(ts, randomise_from_scale = 2):
         raise Exception("Time series length must be a power of 2 (2^n)!")
         
     # get coefficient from discrete wavelet transform, 
-    # it is a list of length n with numpy arrays as every object
+    # it is a list of length n with numpy arrays as objects
     coeffs = pywt.wavedec(ts, 'db1', level = n-1)
     
     # prepare output lists and append coefficients which will not be shuffled
@@ -81,16 +84,32 @@ def multifractal_surrogate(ts, randomise_from_scale = 2):
             coef[2*k+1] = multiplicators[2*k+1] * coeffs_tilde[j-1][k]
         coeffs_tilde.append(coef)
         
+        # sort shuffled coefficients
+        idx = np.argsort(coeffs_tilde[j])
+
         # sort original coefficients
         coeffs[j] = np.sort(coeffs[j])
         
-        # sort shuffled coefficients
-        idx = np.argsort(coeffs_tilde[j])
-        
         # finally, rearange original coefficient according to coefficient with tilde
-        shuffled_coeffs.append(coeffs[j][idx])
+        coeffs_tmp = np.zeros_like(coeffs[j])
+        coeffs_tmp[idx] = coeffs[j]
+        shuffled_coeffs.append(coeffs_tmp)
+
+    surr = pywt.waverec(shuffled_coeffs, 'db1')
+
+    # if return amplitude adjusted surrogates
+    if amplitude_adjust_surrogates:
+
+        # sort generated surrogates
+        idx = np.argsort(surr)
+
+        # amplitude adjusted surrogates are original data sorted according to the surrogates
+        ts = np.sort(ts)
+        surr = np.zeros_like(ts)
+        surr[idx] = ts
+
         
-    return pywt.waverec(shuffled_coeffs, 'db1')
+    return surr
         
     
     

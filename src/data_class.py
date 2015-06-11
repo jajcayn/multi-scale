@@ -1,8 +1,9 @@
 """
 created on Jan 29, 2014
 
-@author: Nikola Jajcay, based on script by Martin Vejmelka> -- https://github.com/vejmelkam/ndw-climate --
-         jajcay@cs.cas.cz
+@author: Nikola Jajcay, jajcay(at)cs.cas.cz
+based on script by Martin Vejmelka
+-- https://github.com/vejmelkam/ndw-climate --
 """
 
 import numpy as np
@@ -12,7 +13,6 @@ import csv
 from os.path import split
 import os
 from distutils.version import LooseVersion
-import cPickle
 
 
 
@@ -188,8 +188,8 @@ class DataField:
             self.data = v[:]
             self.lons = d.variables['lon'][:]
             self.lats = d.variables['lat'][:]
-            self.time = d.variables['time'][:] # hours since 1-01-01 00:00
-            self.time = self.time / 24.0 - 1.0
+            self.time = d.variables['time'][:] # hours since 1800-01-01 00:00
+            self.time = self.time / 24.0 + date.toordinal(date(1800, 1, 1))
             if print_prog:
                 print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
                 print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
@@ -297,7 +297,7 @@ class DataField:
         Returns the date of the variable from given index.
         """
         
-        return date.fromordinal(self.time[ndx])
+        return date.fromordinal(np.int(self.time[ndx]))
         
         
         
@@ -497,8 +497,8 @@ class DataField:
             
         elif start_date is None and end_date is not None:
             idx = self.find_date_ndx(end_date)
-            data_temp = self.data[idx - ln : idx, ...].copy()
-            time_temp = self.time[idx - ln : idx, ...].copy()
+            data_temp = self.data[idx - ln + 1 : idx + 1, ...].copy()
+            time_temp = self.time[idx - ln + 1 : idx + 1, ...].copy()
             idx_tuple = (idx - ln, idx)
             
         else:
@@ -690,7 +690,7 @@ class DataField:
         
         
         
-def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-station'):
+def load_station_data(filename, start_date, end_date, anom, to_monthly = False, dataset = 'ECA-station'):
     """
     Data loader for station data.
     """
@@ -708,6 +708,8 @@ def load_station_data(filename, start_date, end_date, anom, dataset = 'ECA-stati
     if anom:
         print("** anomalising")
         g.anomalise()
+    if to_monthly:
+        g.get_monthly_data()
     day, month, year = g.extract_day_month_year()
     print("[%s] Data from %s loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
         % (str(datetime.now()), g.location, str(g.data.shape), day[0], month[0], 
@@ -724,9 +726,11 @@ def load_NCEP_data_monthly(filename, varname, start_date, end_date, lats, lons, 
 
     print("[%s] Loading monthly NCEP/NCAR data..." % str(datetime.now()))
     path, name = split(filename)
-    path += "/"
-
-    g = DataField(data_folder = path)
+    if path != '':
+        path += "/"
+        g = DataField(data_folder = path)
+    else:
+        g = DataField()
     g.load(name, varname, dataset = 'NCEP', print_prog = False)
     print("** loaded")
     g.select_date(start_date, end_date)
@@ -962,6 +966,53 @@ def load_sunspot_data(filename, start_date, end_date, smoothed = False):
            year[0], month[-1], year[-1]))
            
     return g
+
+
+
+def load_AAgeomag_data(filename, start_date, end_date, anom, daily = False):
+    """
+    Data loader for ASCII file of AA index -- geomagnetic field.
+    """
+
+    from dateutil.relativedelta import relativedelta
+    
+    path, name = split(filename)
+    if path != '':
+        path += "/"
+        g = DataField(data_folder = path)
+    else:
+        g = DataField()
+    raw_data = np.loadtxt(g.data_folder + filename) # first column is continous year and second is actual data
+    g.data = np.array(raw_data[:, 1])
+    time = []
+    
+    # use time iterator to go through the dates
+    y = int(np.modf(raw_data[0, 0])[1]) 
+    if np.modf(raw_data[0, 0])[0] == 0:
+        starting_date = date(y, 1, 1)
+    if daily:
+        delta = timedelta(days = 1)
+    else:
+        delta = relativedelta(months = +1)
+    d = starting_date
+    while len(time) < raw_data.shape[0]:
+        time.append(d.toordinal())
+        d += delta
+    g.time = np.array(time)
+    g.location = 'The Earth'
+
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    _, month, year = g.extract_day_month_year()
+    
+    print("[%s] AA index data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
+        % (str(datetime.now()), str(g.data.shape), month[0], 
+           year[0], month[-1], year[-1]))
+           
+    return g
     
     
     
@@ -969,9 +1020,12 @@ def load_bin_data(filename, start_date, end_date, anom):
     """
     Data loader for daily binned data.
     """
+
+    import cPickle
     
-    _, name = split(filename)
-    print("[%s] Loading daily binned data from %s reanalysis..." % (str(datetime.now()), name.split('_')[0]))
+    path, name = split(filename)
+    if path == '':
+        filename = "../data/" + filename
     with open(filename, 'rb') as f:
         g = cPickle.load(f)['g']
         

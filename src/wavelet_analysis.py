@@ -1,7 +1,7 @@
 """
 created on Feb 3, 2014
 
-@author: Nikola Jajcay, 
+@author: Nikola Jajcay, jajcay(at)cs.cas.cz
 inspired by A Practical Guide to Wavelet Analysis by Ch. Torrence and G. Compo
 -- http://paos.colorado.edu/research/wavelets/ --
 """
