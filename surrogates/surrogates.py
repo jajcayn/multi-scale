@@ -5,7 +5,7 @@ created on Mar 4, 2014
 """
 
 import numpy as np
-from data_class import DataField
+from data_class import DataField, nanmean, nanstd
 from var_model import VARModel
 
 
@@ -208,6 +208,19 @@ class SurrogateField(DataField):
             self.surr_data /= var
             if trend is not None:
                 self.surr_data -= trend
+        else:
+            raise Exception("Surrogate data has not been created yet.")
+
+
+
+    def center_surr(self):
+        """
+        Centers the surrogate date to zero mean and unit variance.
+        """
+
+        if self.surr_data is not None:
+            self.surr_data -= nanmean(self.surr_data, axis = 0)
+            self.surr_data /= nanstd(self.surr_data, axis = 0, ddof = 1)
         else:
             raise Exception("Surrogate data has not been created yet.")
         
