@@ -215,7 +215,7 @@ class SurrogateField(DataField):
 
     def center_surr(self):
         """
-        Centers the surrogate date to zero mean and unit variance.
+        Centers the surrogate data to zero mean and unit variance.
         """
 
         if self.surr_data is not None:
