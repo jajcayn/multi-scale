@@ -691,7 +691,7 @@ class DataField:
 
     def center_data(self):
         """
-        Reduces data time series to zero mean and unit variance (without respect for the seasons or temporal sampling). 
+        Centers data time series to zero mean and unit variance (without respect for the seasons or temporal sampling). 
         """
 
         self.data -= nanmean(self.data, axis = 0)
