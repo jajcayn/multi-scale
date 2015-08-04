@@ -245,6 +245,8 @@ class SurrogateField(DataField):
         """
         
         if self.data is not None:
+
+	    np.random.seed()
             
             if pool is None:
                 map_func = map
@@ -292,6 +294,8 @@ class SurrogateField(DataField):
         """
         
         if self.data is not None:
+
+	    np.random.seed()
             
             if pool is None:
                 map_func = map
@@ -341,6 +345,8 @@ class SurrogateField(DataField):
         import pywt
         
         if self.data is not None:
+
+            np.random.seed()
 
             if pool is None:
                 map_func = map
@@ -428,6 +434,8 @@ class SurrogateField(DataField):
         """
         
         if self.model_grid is not None:
+
+            np.random.seed()
             
             if pool is None:
                 map_func = map
