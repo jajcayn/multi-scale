@@ -306,7 +306,7 @@ class DataField:
         Returns the spatial dimensions of the data as list.
         """
         
-        return list(self.data.shape[1:])
+        return list(self.data.shape[-2:])
         
     
         
@@ -333,7 +333,7 @@ class DataField:
         
         if apply_to_data:
             self.time = self.time[ndx]
-            self.data = self.data[ndx]
+            self.data = self.data[ndx, ...]
         
         return ndx
         
@@ -425,13 +425,14 @@ class DataField:
         """
         Reshape the field to 2dimensions such that axis 0 is temporal and axis 1 is spatial.
         If f is None, reshape the self.data field, else reshape the f field.
+        Should only be used with single-level data.
         """        
 
         if f is None:
             if self.data.ndim == 3:
                 self.data = np.reshape(self.data, (self.data.shape[0], np.prod(self.data.shape[1:])))
             else:
-                raise Exception('Data field is already flattened!')
+                raise Exception('Data field is already flattened, multi-level or only temporal (e.g. station)!')
 
         elif f is not None:
             if f.ndim == 3:
@@ -439,7 +440,7 @@ class DataField:
 
                 return f
             else:
-                raise Exception('The field f is already flattened!')
+                raise Exception('The field f is already flattened, multi-level or only temporal (e.g. station)!')
 
 
 
@@ -447,6 +448,7 @@ class DataField:
         """
         Reshape flattened field to original time x lat x lon shape.
         If f is None, reshape the self.data field, else reshape the f field.
+        Supposes single-level data.
         """
 
         if f is None:
@@ -454,7 +456,7 @@ class DataField:
                 new_shape = [self.data.shape[0]] + list((self.lats.shape[0], self.lons.shape[0]))
                 self.data = np.reshape(self.data, new_shape)
             else:
-                raise Exception('Data field is not flattened!')
+                raise Exception('Data field is not flattened, is multi-level or is only temporal (e.g. station)!')
 
         elif f is not None:
             if f.ndim == 2:
@@ -463,7 +465,7 @@ class DataField:
 
                 return f
             else:
-                raise Exception('The field f is not flattened!')
+                raise Exception('The field f is not flattened, is multi-level or is only temporal (e.g. station)!')
                 
                 
                 
@@ -572,16 +574,17 @@ class DataField:
         
     def average_to_daily(self):
         """
-        Averages the 6-hourly values (e.g. ERA-40 basic sampling) into daily.
+        Averages the sub-daily values (e.g. ERA-40 basic sampling is 6 hours) into daily.
         """        
         
         delta = self.time[1] - self.time[0]
         if delta < 1:
             n_times = int(1 / delta)
-            d = np.zeros([self.data.shape[0] / n_times] + self.get_spatial_dims())
+            d = np.zeros_like(self.data)
+            d = np.delete(d, slice(0, (n_times-1) * d.shape[0]/n_times), axis = 0)
             t = np.zeros(self.time.shape[0] / n_times)
             for i in range(d.shape[0]):
-                d[i, ...] = np.mean(self.data[n_times*i : n_times*i+3, ...], axis = 0)
+                d[i, ...] = np.mean(self.data[n_times*i : n_times*i+(n_times-1), ...], axis = 0)
                 t[i] = self.time[n_times*i]
                 
             self.data = d
@@ -698,29 +701,34 @@ class DataField:
     def pca_components(self, n_comps):
         """
         Estimate the PCA (EOF) components of geo-data.
+        Shoud be used on single-level data.
         """
 
-        from scipy.linalg import svd
+        if self.data.ndim == 3:
+            from scipy.linalg import svd
 
-        # reshape field so the first axis is combined spatial and second is temporal
-        d = self.data.copy()
-        d = self.flatten_field(f = d)
-        d = d.transpose()
+            # reshape field so the first axis is combined spatial and second is temporal
+            d = self.data.copy()
+            d = self.flatten_field(f = d)
+            d = d.transpose()
 
-        # remove mean of each time series
-        d -= np.mean(d, axis = 1)[:, np.newaxis]      
+            # remove mean of each time series
+            d -= np.mean(d, axis = 1)[:, np.newaxis]      
 
-        U, s, V = svd(d, False, True, True)
-        s **= 2
-        s *= 1.0 / (np.sum(s))
-        eofs = U[:, :n_comps]
-        pcs = V[:n_comps, :]
-        var = s[:n_comps]
+            U, s, V = svd(d, False, True, True)
+            s **= 2
+            s *= 1.0 / (np.sum(s))
+            eofs = U[:, :n_comps]
+            pcs = V[:n_comps, :]
+            var = s[:n_comps]
 
-        eofs = eofs.transpose()
-        eofs = self.reshape_flat_field(f = eofs)
+            eofs = eofs.transpose()
+            eofs = self.reshape_flat_field(f = eofs)
 
-        return eofs, pcs, var
+            return eofs, pcs, var
+
+        else:
+            raise Exception("PCA analysis cannot be used on multi-level data or only temporal (e.g. station) data!")
 
 
         

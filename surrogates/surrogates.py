@@ -11,7 +11,7 @@ from var_model import VARModel
 
 
 def _prepare_surrogates(a):
-    i, j, order_range, crit, ts = a
+    i, j, lev, order_range, crit, ts = a
     if not np.any(np.isnan(ts)):
         v = VARModel()
         v.estimate(ts, order_range, True, crit, None)
@@ -19,12 +19,12 @@ def _prepare_surrogates(a):
     else:
         v = None
         r = np.nan
-    return (i, j, v, r) 
+    return (i, j, lev, v, r) 
     
     
     
 def _compute_AR_surrogates(a):
-    i, j, res, model, num_tm_s = a
+    i, j, lev, res, model, num_tm_s = a
     r = np.zeros((num_tm_s, 1), dtype = np.float64)       
     if not np.all(np.isnan(res)):
         ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
@@ -34,12 +34,12 @@ def _compute_AR_surrogates(a):
     else:
         ar_surr = np.nan
         
-    return (i, j, ar_surr)
+    return (i, j, lev, ar_surr)
     
     
     
 def _compute_FT_surrogates(a):
-    i, j, data, angle = a
+    i, j, lev, data, angle = a
             
     # transform the time series to Fourier domain
     xf = np.fft.rfft(data, axis = 0)
@@ -50,14 +50,15 @@ def _compute_FT_surrogates(a):
     # return randomised time series in time domain
     ft_surr = np.fft.irfft(cxf, axis = 0)
     
-    return (i, j, ft_surr)
+    return (i, j, lev, ft_surr)
     
 
 
 def _compute_MF_surrogates(a):
     import pywt
+    np.random.seed()
     
-    i, l, ts, randomise_from_scale = a
+    i, l, lev, ts, randomise_from_scale = a
     
     if not np.all(np.isnan(ts)):
         n = int(np.log2(ts.shape[0])) # time series length should be 2^n
@@ -119,12 +120,12 @@ def _compute_MF_surrogates(a):
     else:
         mf_surr = np.nan
         
-    return (i, l, mf_surr)
+    return (i, l, lev, mf_surr)
 
 
 
 def _create_amplitude_adjusted_surrogates(a):
-    i, j, d, surr, m, v, t = a
+    i, j, lev, d, surr, m, v, t = a
     data = d.copy()
     
     if not np.all(np.isnan(data)):
@@ -145,7 +146,7 @@ def _create_amplitude_adjusted_surrogates(a):
     else:
         aa_surr = np.nan
 
-    return (i, j, aa_surr)
+    return (i, j, lev, aa_surr)
 
 
 
@@ -246,7 +247,7 @@ class SurrogateField(DataField):
         
         if self.data is not None:
 
-	    np.random.seed()
+            np.random.seed()
             
             if pool is None:
                 map_func = map
@@ -256,10 +257,16 @@ class SurrogateField(DataField):
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
                 num_lons = self.lons.shape[0]
+                if self.data.ndim == 4:
+                    num_levels = self.data.shape[1]
+                else:
+                    num_levels = 1
+                    self.data = self.data[:, np.newaxis, :, :]
             else:
                 num_lats = 1
                 num_lons = 1
-                self.data = self.data[:, np.newaxis, np.newaxis]
+                num_levels = 1
+                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
                 
             # generate uniformly distributed random angles
             a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
@@ -269,13 +276,13 @@ class SurrogateField(DataField):
             angle[0] = 0
             del a
             
-            job_data = [ (i, j, self.data[:, i, j], angle) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], angle) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
             job_results = map_func(_compute_FT_surrogates, job_data)
             
             self.surr_data = np.zeros_like(self.data)
             
-            for i, j, surr in job_results:
-                self.surr_data[:, i, j] = surr
+            for i, j, lev, surr in job_results:
+                self.surr_data[:, lev, i, j] = surr
                 
             # squeeze single-dimensional entries (e.g. station data)
             self.surr_data = np.squeeze(self.surr_data)
@@ -295,7 +302,7 @@ class SurrogateField(DataField):
         
         if self.data is not None:
 
-	    np.random.seed()
+            np.random.seed()
             
             if pool is None:
                 map_func = map
@@ -305,24 +312,30 @@ class SurrogateField(DataField):
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
                 num_lons = self.lons.shape[0]
+                if self.data.ndim == 4:
+                    num_levels = self.data.shape[1]
+                else:
+                    num_levels = 1
+                    self.data = self.data[:, np.newaxis, :, :]
             else:
                 num_lats = 1
                 num_lons = 1
-                self.data = self.data[:, np.newaxis, np.newaxis]
+                num_levels = 1
+                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
             
             # same as above except generate random angles along all dimensions of input data
             a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
-            angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_lats, num_lons))
+            angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_levels, num_lats, num_lons))
             angle[0, ...] = 0
             del a
             
-            job_data = [ (i, j, self.data[:, i, j], angle[:, i, j]) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], angle) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
             job_results = map_func(_compute_FT_surrogates, job_data)
             
             self.surr_data = np.zeros_like(self.data)
             
-            for i, j, surr in job_results:
-                self.surr_data[:, i, j] = surr
+            for i, j, lev, surr in job_results:
+                self.surr_data[:, lev, i, j] = surr
                 
             # squeeze single-dimensional entries (e.g. station data)
             self.surr_data = np.squeeze(self.surr_data)
@@ -346,8 +359,6 @@ class SurrogateField(DataField):
         
         if self.data is not None:
 
-            np.random.seed()
-
             if pool is None:
                 map_func = map
             else:
@@ -356,18 +367,24 @@ class SurrogateField(DataField):
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
                 num_lons = self.lons.shape[0]
+                if self.data.ndim == 4:
+                    num_levels = self.data.shape[1]
+                else:
+                    num_levels = 1
+                    self.data = self.data[:, np.newaxis, :, :]
             else:
                 num_lats = 1
                 num_lons = 1
-                self.data = self.data[:, np.newaxis, np.newaxis]
+                num_levels = 1
+                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
             
             self.surr_data = np.zeros_like(self.data)
 
-            job_data = [ (i, j, self.data[:, i, j], randomise_from_scale) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], randomise_from_scale) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
             job_results = map_func(_compute_MF_surrogates, job_data)
             
-            for i, j, surr in job_results:
-                self.surr_data[:, i, j] = surr
+            for i, j, lev, surr in job_results:
+                self.surr_data[:, lev, i, j] = surr
             
             # squeeze single-dimensional entries (e.g. station data)
             self.surr_data = np.squeeze(self.surr_data)
@@ -394,29 +411,35 @@ class SurrogateField(DataField):
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
                 num_lons = self.lons.shape[0]
+                if self.data.ndim == 4:
+                    num_levels = self.data.shape[1]
+                else:
+                    num_levels = 1
+                    self.data = self.data[:, np.newaxis, :, :]
             else:
                 num_lats = 1
                 num_lons = 1
-                self.data = self.data[:, np.newaxis, np.newaxis]
+                num_levels = 1
+                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
             num_tm = self.time.shape[0]
                 
-            job_data = [ (i, j, order_range, crit, self.data[:, i, j]) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, lev, order_range, crit, self.data[:, lev, i, j]) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
             job_results = map_func(_prepare_surrogates, job_data)
             max_ord = 0
             for r in job_results:
-                if r[2] is not None and r[2].order() > max_ord:
-                    max_ord = r[2].order()
+                if r[3] is not None and r[3].order() > max_ord:
+                    max_ord = r[3].order()
             num_tm_s = num_tm - max_ord
             
-            self.model_grid = np.zeros((num_lats, num_lons), dtype = np.object)
-            self.residuals = np.zeros((num_tm_s, num_lats, num_lons), dtype = np.float64)
+            self.model_grid = np.zeros((num_levels, num_lats, num_lons), dtype = np.object)
+            self.residuals = np.zeros((num_tm_s, num_levels, num_lats, num_lons), dtype = np.float64)
     
-            for i, j, v, r in job_results:
-                self.model_grid[i, j] = v
+            for i, j, lev, v, r in job_results:
+                self.model_grid[lev, i, j] = v
                 if v is not None:
-                    self.residuals[:, i, j] = r[:num_tm_s, 0]
+                    self.residuals[:, lev, i, j] = r[:num_tm_s, 0]
                 else:
-                    self.residuals[:, i, j] = np.nan
+                    self.residuals[:, lev, i, j] = np.nan
     
             self.max_ord = max_ord
             
@@ -445,18 +468,25 @@ class SurrogateField(DataField):
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
                 num_lons = self.lons.shape[0]
+                if self.data.ndim == 4:
+                    num_levels = self.data.shape[1]
+                else:
+                    num_levels = 1
+                    self.data = self.data[:, np.newaxis, :, :]
             else:
                 num_lats = 1
                 num_lons = 1
+                num_levels = 1
+                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
             num_tm_s = self.time.shape[0] - self.max_ord
             
-            job_data = [ (i, j, self.residuals[:, i, j], self.model_grid[i, j], num_tm_s) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, lev, self.residuals[:, lev, i, j], self.model_grid[lev, i, j], num_tm_s) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
             job_results = map_func(_compute_AR_surrogates, job_data)
             
-            self.surr_data = np.zeros((num_tm_s, num_lats, num_lons))
+            self.surr_data = np.zeros((num_tm_s, num_levels, num_lats, num_lons))
             
-            for i, j, surr in job_results:
-                self.surr_data[:, i, j] = surr
+            for i, j, lev, surr in job_results:
+                self.surr_data[:, lev, i, j] = surr
                     
             self.surr_data = np.squeeze(self.surr_data)
 
@@ -477,24 +507,32 @@ class SurrogateField(DataField):
             else:
                 map_func = pool.map
 
+
             if self.data.ndim > 1:
                 num_lats = self.lats.shape[0]
                 num_lons = self.lons.shape[0]
+                if self.data.ndim == 4:
+                    num_levels = self.data.shape[1]
+                else:
+                    num_levels = 1
+                    self.data = self.data[:, np.newaxis, :, :]
+                    self.surr_data = self.surr_data[:, np.newaxis, :, :]
             else:
                 num_lats = 1
                 num_lons = 1
-                self.data = self.data[:, np.newaxis, np.newaxis]
-                self.surr_data = self.surr_data[:, np.newaxis, np.newaxis]
+                num_levels = 1
+                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
+                self.surr_data = self.surr_data[:, np.newaxis, np.newaxis, np.newaxis]
                 
             old_shape = self.surr_data.shape
 
-            job_data = [ (i, j, self.data[:, i, j], self.surr_data[:, i, j], mean, var, trend) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], self.surr_data[:, lev, i, j], mean, var, trend) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
             job_results = map_func(_create_amplitude_adjusted_surrogates, job_data)
 
             self.surr_data = np.zeros(old_shape)
 
-            for i, j, AAsurr in job_results:
-                self.surr_data[:, i, j] = AAsurr
+            for i, j, lev, AAsurr in job_results:
+                self.surr_data[:, lev, i, j] = AAsurr
 
             # squeeze single-dimensional entries (e.g. station data)
             self.surr_data = np.squeeze(self.surr_data)
