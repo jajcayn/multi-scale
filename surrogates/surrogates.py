@@ -5,7 +5,7 @@ created on Mar 4, 2014
 """
 
 import numpy as np
-from src.data_class import DataField, nanmean, nanstd
+from src.data_class import DataField
 from var_model import VARModel
 
 
@@ -267,8 +267,8 @@ class SurrogateField(DataField):
         """
 
         if self.surr_data is not None:
-            self.surr_data -= nanmean(self.surr_data, axis = 0)
-            self.surr_data /= nanstd(self.surr_data, axis = 0, ddof = 1)
+            self.surr_data -= np.nanmean(self.surr_data, axis = 0)
+            self.surr_data /= np.nanstd(self.surr_data, axis = 0, ddof = 1)
         else:
             raise Exception("Surrogate data has not been created yet.")
         
