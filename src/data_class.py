@@ -588,8 +588,140 @@ class DataField:
         
         else:
             raise Exception('No sub-daily values, you can average to daily only values with finer time sampling.')
+
+
+
+    def subsample_spatial(self, lat_to, lon_to, start, average = False):
+        """
+        Subsamples the data in the spatial sense to grid "lat_to" x "lon_to".
+        If average is True, the subsampling is due to averaging the data with weigths.
+        Weights is a list of weigths in weighted average, should be odd (actual grid point in the middle).
+        if False, the subsampling is just subsampling certain values.
+        """
+
+        if self.lats is not None and self.lons is not None:
+            delta_lats = np.abs(self.lats[1] - self.lats[0])
+            delta_lons = np.abs(self.lons[1] - self.lons[0])
+            if lat_to % delta_lats == 0 and lon_to % delta_lons == 0:
+                lat_ndx = int(lat_to // delta_lats)
+                lon_ndx = int(lon_to // delta_lons)
+                start_lat_ndx = np.where(self.lats == start[0])[0]
+                start_lon_ndx = np.where(self.lons == start[1])[0]
+                if start_lon_ndx.size == 1 and start_lat_ndx.size == 1:
+                    start_lat_ndx = start_lat_ndx[0]
+                    start_lon_ndx = start_lon_ndx[0]
+                    if not average:
+                        self.lats = self.lats[start_lat_ndx::lat_ndx]
+                        self.lons = self.lons[start_lon_ndx::lon_ndx]
+                        d = self.data
+                        d = d[..., start_lat_ndx::lat_ndx, :]
+                        self.data = d[..., start_lon_ndx::lon_ndx]
+                    else:
+                        
+                        pass
+
+                else:
+                    raise Exception("Start lat and / or lon for subsampling does not exist in the data!")
+
+            else:
+                raise Exception("Subsampling lats only to multiples of %.2f and lons of %.2f" % (delta_lats, delta_lons))
+
+        else:
+            raise Exception("Cannot subsample station data, or data from one grid point!")
+
+
+
+    def smoothing_running_avg(self, points, use_to_data = False):
+        """
+        Smoothing of time series using running average over points.
+        If use_to_data is False, returns the data, otherwise rewrites the data in class.
+        """
+
+        d = np.zeros(([self.data.shape[0] - points + 1] + list(self.data.shape[1:])))
         
-        
+        for i in range(d.shape[0]):
+            d[i, ...] = np.mean(self.data[i : i+points, ...], axis = 0)
+
+        if use_to_data:
+            self.data = d.copy()
+            if points % 2 == 1:
+            # time slicing when points is odd -- cut points//2 from the beginning and from the end
+                self.time = self.time[points//2 : -points//2 + 1]
+            else:
+            # time slicing when points is even -- not sure where to cut
+                pass
+        else:
+            return d
+
+
+
+    def spatial_filter(self, filter_weights = [1, 2, 1], use_to_data = False):
+        """
+        Filters the data in spatial sense with weights filter_weights.
+        If use_to_data is False, returns the data, otherwise rewrites the data in class.
+        """
+
+        if self.data.ndim == 3: 
+            self.data = self.data[:, np.newaxis, :, :]
+
+        mask = np.zeros(self.data.shape[-2:])
+        filt = np.outer(filter_weights, filter_weights)
+
+        mask[:filt.shape[0], :filt.shape[1]] = filt
+
+        d = np.zeros((list(self.data.shape[:-2]) + [self.lats.shape[0] - len(filter_weights) + 1, self.lons.shape[0] - len(filter_weights) + 1]))
+
+        for i in range(d.shape[-2]):
+            for j in range(d.shape[-1]):
+                avg_mask = np.array([[mask for kk in range(d.shape[1])] for ll in range(d.shape[0])])
+                d[:, :, i, j] = np.average(self.data, axis = (2, 3), weights = avg_mask)
+                mask = np.roll(mask, 1, axis = 1)
+            # return mask to correct y position
+            mask = np.roll(mask, len(filter_weights)-1, axis = 1)
+            mask = np.roll(mask, 1, axis = 0)
+
+        if use_to_data:
+            self.data = np.squeeze(d).copy()
+            # space slicing when length of filter is odd -- cut length//2 from the beginning and from the end
+            if len(filter_weights) % 2 == 1:
+                self.lats = self.lats[len(filter_weights)//2 : -len(filter_weights)//2 + 1]
+                self.lons = self.lons[len(filter_weights)//2 : -len(filter_weights)//2 + 1]
+            else:
+            # space slicing when length of filter is even -- not sure where to cut
+                pass
+        else:
+            return np.squeeze(d)
+
+
+
+    def pca_components(self, n_comps):
+        """
+        Estimate the PCA (EOF) components of geo-data.
+        """
+
+        from scipy.linalg import svd
+
+        # reshape field so the first axis is combined spatial and second is temporal
+        d = self.data.copy()
+        d = self.flatten_field(f = d)
+        d = d.transpose()
+
+        # remove mean of each time series
+        d -= np.mean(d, axis = 1)[:, np.newaxis]      
+
+        U, s, V = svd(d, False, True, True)
+        s **= 2
+        s *= 1.0 / (np.sum(s))
+        eofs = U[:, :n_comps]
+        pcs = V[:n_comps, :]
+        var = s[:n_comps]
+
+        eofs = eofs.transpose()
+        eofs = self.reshape_flat_field(f = eofs)
+
+        return eofs, pcs, var
+
+
         
     def anomalise(self):
         """
