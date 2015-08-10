@@ -2,8 +2,9 @@
 created on Jan 29, 2014
 
 @author: Nikola Jajcay, jajcay(at)cs.cas.cz
-based on script by Martin Vejmelka
--- https://github.com/vejmelkam/ndw-climate --
+based on class by Martin Vejmelka -- https://github.com/vejmelkam/ndw-climate --
+
+last update on Aug 10, 2015
 """
 
 import numpy as np
@@ -12,72 +13,8 @@ from datetime import date, timedelta, datetime
 import csv
 from os.path import split
 import os
-from distutils.version import LooseVersion
 
 
-
-def nanmean(arr, axis = None):
-    """
-    Computes the mean along the axis, ignoring NaNs
-    """
-    a = arr.copy()
-    if LooseVersion(np.__version__) >= LooseVersion('1.8.0'): # if numpy version is higher than 1.8, use build-in function
-        return np.nanmean(arr, axis = axis)
-    else:
-        mask = np.isnan(a)
-        a[mask] = 0. # replace NaNs to 0.
-        total = np.sum(a, axis = axis)
-        avg = total / np.sum(~mask, axis = axis)
-
-        return avg
-        
-        
-        
-def nanvar(arr, axis = None, ddof = 0):
-    """
-    Computes the variance along the axis, ignoring NaNs
-    """  
-    a = arr.copy()      
-    if LooseVersion(np.__version__) >= LooseVersion('1.8.0'): # if numpy version is higher than 1.8, use build-in function
-        return np.nanvar(arr, axis = axis, ddof = ddof)
-    else:
-        # compute mean
-        mask = np.isnan(a)
-        a[mask] = 0. # replace NaNs to 0.
-        total = np.sum(a, axis = axis, keepdims = True)
-        cnt = np.sum(~mask, axis = axis, keepdims = True)
-        avg = total / cnt
-        
-        # compute squared deviation from mean
-        a -= avg
-        a[mask] = 0. 
-        sqr = np.multiply(a, a)
-
-        # compute variance
-        var = np.sum(sqr, axis = axis)
-        if var.ndim < cnt.ndim:
-            cnt = cnt.squeeze(axis)
-        dof = cnt - ddof
-        var /= dof
-        
-        return var
-        
-        
-        
-def nanstd(arr, axis = None, ddof = 0):
-    """
-    Computes the standard deviation along the axis, ignoring Nans
-    """
-    a = arr.copy()
-    if LooseVersion(np.__version__) >= LooseVersion('1.8.0'): # if numpy version is higher than 1.8, use build-in function
-        return np.nanstd(arr, axis = axis, ddof = ddof)
-    else:
-        var = nanvar(a, axis = axis, ddof = ddof)
-        std = np.sqrt(var)
-        
-        return std
-        
-        
         
 def nandetrend(arr, axis = 0):
     """
@@ -747,7 +684,7 @@ class DataField:
                     sel = np.logical_and(mon_mask, day == di)
                     if np.sum(sel) == 0:
                         continue
-                    avg = nanmean(self.data[sel, ...], axis = 0)
+                    avg = np.nanmean(self.data[sel, ...], axis = 0)
                     self.data[sel, ...] -= avg
         elif abs(delta - 30) < 3.0:
             # monthly data
@@ -756,7 +693,7 @@ class DataField:
                 sel = (mon == mi)
                 if np.sum(sel) == 0:
                     continue
-                avg = nanmean(self.data[sel, ...], axis = 0)
+                avg = np.nanmean(self.data[sel, ...], axis = 0)
                 self.data[sel, ...] -= avg
         else:
             raise Exception('Unknown temporal sampling in the field.')
@@ -781,9 +718,9 @@ class DataField:
                     sel = np.logical_and(mon_mask, day == di)
                     if np.sum(sel) == 0:
                         continue
-                    seasonal_mean[sel, ...] = nanmean(self.data[sel, ...], axis = 0)
+                    seasonal_mean[sel, ...] = np.nanmean(self.data[sel, ...], axis = 0)
                     self.data[sel, ...] -= seasonal_mean[sel, ...]
-                    seasonal_var[sel, ...] = nanstd(self.data[sel, ...], axis = 0, ddof = 1)
+                    seasonal_var[sel, ...] = np.nanstd(self.data[sel, ...], axis = 0, ddof = 1)
                     if np.any(seasonal_var[sel, ...] == 0.0):
                         print('**WARNING: some zero standard deviations found for date %d.%d' % (di, mi))
                         seasonal_var[seasonal_var == 0.0] = 1.0
@@ -801,9 +738,9 @@ class DataField:
             _, mon, _ = self.extract_day_month_year()
             for mi in range(1,13):
                 sel = (mon == mi)
-                seasonal_mean[sel, ...] = nanmean(self.data[sel, ...], axis = 0)
+                seasonal_mean[sel, ...] = np.nanmean(self.data[sel, ...], axis = 0)
                 self.data[sel, ...] -= seasonal_mean[sel, ...]
-                seasonal_var[sel, ...] = nanstd(self.data[sel, ...], axis = 0, ddof = 1)
+                seasonal_var[sel, ...] = np.nanstd(self.data[sel, ...], axis = 0, ddof = 1)
                 self.data[sel, ...] /= seasonal_var[sel, ...]
             if DETREND:
                 data_copy = self.data.copy()
@@ -835,8 +772,8 @@ class DataField:
         Centers data time series to zero mean and unit variance (without respect for the seasons or temporal sampling). 
         """
 
-        self.data -= nanmean(self.data, axis = 0)
-        self.data /= nanstd(self.data, axis = 0, ddof = 1) 
+        self.data -= np.nanmean(self.data, axis = 0)
+        self.data /= np.nanstd(self.data, axis = 0, ddof = 1) 
         
         
         
