@@ -66,6 +66,8 @@ class VARModel:
         """Simulate a time series using this model using the supplied residuals
            in residuals (ndarray).  This function is NOT deterministic and employs
            a spin-up phase to init the model state using random noise."""
+
+        np.random.seed()
            
         A = self.A
         w = self.w

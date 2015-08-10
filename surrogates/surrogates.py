@@ -5,8 +5,55 @@ created on Mar 4, 2014
 """
 
 import numpy as np
-from data_class import DataField, nanmean, nanstd
+from src.data_class import DataField, nanmean, nanstd
 from var_model import VARModel
+
+
+
+def get_single_FT_surrogate(ts):
+    """
+    Returns single 1D Fourier transform surrogate.
+    """
+
+    xf = np.fft.rfft(ts, axis = 0)
+    angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
+    # set the slowest frequency to zero, i.e. not to be randomised
+    angle[0] = 0
+
+    cxf = xf * np.exp(1j * angle)
+
+    return np.fft.irfft(cxf, axis = 0)
+
+
+
+def get_single_MF_surrogate(ts, randomise_from_scale = 2):
+    """
+    Returns single 1D multifractal surrogate.
+    """
+
+    return _compute_MF_surrogates([None, None, None, ts, randomise_from_scale])[-1]
+
+
+
+def get_single_AR_surrogate(ts, order_range = [1,1]):
+    """
+    Returns single 1D autoregressive surrogate of some order.
+    Order could be found numerically by setting order_range, or
+    entered manually by selecting min and max order range to the
+    desired order.
+    If the order was supposed to estimate, the order is also returned.
+    """
+
+    _, _, _, order, res = _prepare_surrogates([None, None, None, order_range, 'sbc', ts])
+    num_ts = ts.shape[0] - order.order()
+    res = res[:num_ts, 0]
+
+    surr = _compute_AR_surrogates([None, None, None, res, order, num_ts])[-1]
+
+    if (order_range[0] - order_range[1]) == 0:
+        return surr
+    else:
+        return surr, order.order()
 
 
 
@@ -457,8 +504,6 @@ class SurrogateField(DataField):
         """
         
         if self.model_grid is not None:
-
-            np.random.seed()
             
             if pool is None:
                 map_func = map
