@@ -577,11 +577,12 @@ class DataField:
         
         delta = self.time[1] - self.time[0]
         if delta < 1:
-            d = np.zeros([self.data.shape[0] / 4] + self.get_spatial_dims())
-            t = np.zeros(self.time.shape[0] / 4)
+            n_times = int(1 / delta)
+            d = np.zeros([self.data.shape[0] / n_times] + self.get_spatial_dims())
+            t = np.zeros(self.time.shape[0] / n_times)
             for i in range(d.shape[0]):
-                d[i, ...] = np.mean(self.data[4*i : 4*i+3, ...], axis = 0)
-                t[i] = self.time[4*i]
+                d[i, ...] = np.mean(self.data[n_times*i : n_times*i+3, ...], axis = 0)
+                t[i] = self.time[n_times*i]
                 
             self.data = d
             self.time = t.astype(np.int)
