@@ -532,12 +532,44 @@ class DataField:
 
 
 
+    def _ascending_descending_lat_lons(self, lats = True, lons = False, direction = 'asc'):
+        """
+        Transforms the data (and lats and lons) so that they have strictly ascending (direction = 'asc')
+        or descending (direction = 'des') order. (Needed for interpolation).
+        Returns True if manipulation took place.
+        """
+
+        lat_flg, lon_flg = False, False
+        if np.all(np.diff(self.lats) < 0) and lats and direction == 'asc':
+            self.lats = self.lats[::-1]
+            self.data = self.data[..., ::-1, :]
+            lat_flg = True
+        elif np.all(np.diff(self.lats) > 0) and lats and direction == 'des':
+            self.lats = self.lats[::-1]
+            self.data = self.data[..., ::-1, :]
+            lat_flg = True
+
+        if np.all(np.diff(self.lons) < 0) and lons and direction == 'asc':
+            self.lons = self.lons[::-1]
+            self.data = self.data[..., ::-1]
+            lon_flg = True
+        elif np.all(np.diff(self.lons) > 0) and lons and direction == 'des':
+            self.lons = self.lons[::-1]
+            self.data = self.data[..., ::-1]
+            lon_flg = True
+
+        return lat_flg, lon_flg
+
+
+
     def subsample_spatial(self, lat_to, lon_to, start, average = False):
         """
-        Subsamples the data in the spatial sense to grid "lat_to" x "lon_to".
-        If average is True, the subsampling is due to averaging the data with weigths.
-        Weights is a list of weigths in weighted average, should be odd (actual grid point in the middle).
-        if False, the subsampling is just subsampling certain values.
+        Subsamples the data in the spatial sense to grid "lat_to" x "lon_to" in degress.
+        Start is starting point for subsampling in degrees as [lat, lon]
+        If average is True, the subsampling is due to averaging the data -- using SciPy's spline
+        interpolation on the rectangle. The interpolation is done for each time step and level 
+        independently.
+        If average is False, the subsampling is just subsampling certain values.
         """
 
         if self.lats is not None and self.lons is not None:
@@ -558,8 +590,28 @@ class DataField:
                         d = d[..., start_lat_ndx::lat_ndx, :]
                         self.data = d[..., start_lon_ndx::lon_ndx]
                     else:
-                        
-                        pass
+
+                        from scipy.interpolate import RectBivariateSpline
+
+                        lat_flg, lon_flg = self._ascending_descending_lat_lons(lats = True, lons = True, direction = 'asc')
+                        # if data is single-level - create additional dummy dimension
+                        if self.data.ndim == 3:
+                            self.data = self.data[:, np.newaxis, :, :]
+                        # fields for new lats / lons
+                        new_lats = np.arange(start[0], self.lats[-1]+lat_to, lat_to)
+                        new_lons = np.arange(start[1], self.lons[-1]+lon_to, lon_to)
+                        d = np.zeros((list(self.data.shape[:2]) + [new_lats.shape[0], new_lons.shape[0]]))
+                        for t in range(self.time.shape[0]):
+                            for lvl in range(self.data.shape[1]):
+                                int_scheme = RectBivariateSpline(self.lats, self.lons, self.data[t, lvl, ...])
+
+                                d[t, lvl, ...] = int_scheme(new_lats, new_lons)
+
+                        self.lats = new_lats
+                        self.lons = new_lons
+                        self.data = np.squeeze(d)
+
+                        self._ascending_descending_lat_lons(lats = lat_flg, lons = lon_flg, direction = 'des')
 
                 else:
                     raise Exception("Start lat and / or lon for subsampling does not exist in the data!")
