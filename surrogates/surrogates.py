@@ -50,7 +50,7 @@ def get_single_AR_surrogate(ts, order_range = [1,1]):
 
     surr = _compute_AR_surrogates([None, None, None, res, order, num_ts])[-1]
 
-    if (order_range[0] - order_range[1]) == 0:
+    if np.diff(order_range) == 0:
         return surr
     else:
         return surr, order.order()

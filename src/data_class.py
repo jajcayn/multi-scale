@@ -8,7 +8,6 @@ last update on Aug 10, 2015
 """
 
 import numpy as np
-from netCDF4 import Dataset
 from datetime import date, timedelta, datetime
 import csv
 from os.path import split
@@ -83,6 +82,8 @@ class DataField:
             ECMWF ERA-40 gridded reanalysis - 'ERA-40'
             NCEP/NCAR Reanalysis 1 - 'NCEP'
         """
+
+        from netCDF4 import Dataset
         
         if dataset == 'ECA-reanalysis':
             d = Dataset(self.data_folder + filename, 'r')
@@ -99,6 +100,8 @@ class DataField:
                 print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
                 print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
                 print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+                print("The first data value is from %s and the last is from %s" % (str(self.get_date_from_ndx(0)), str(self.get_date_from_ndx(-1))))
+                print("Default temporal sampling in the data is %.2f day(s)" % (np.mean(np.diff(self.time))))
             
             d.close()     
                     
@@ -115,6 +118,8 @@ class DataField:
                 print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
                 print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
                 print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+                print("The first data value is from %s and the last is from %s" % (str(self.get_date_from_ndx(0)), str(self.get_date_from_ndx(-1))))
+                print("Default temporal sampling in the data is %.2f day(s)" % (np.mean(np.diff(self.time))))
             
             d.close()
             
@@ -125,14 +130,34 @@ class DataField:
             self.data = v[:]
             self.lons = d.variables['lon'][:]
             self.lats = d.variables['lat'][:]
-            self.time = d.variables['time'][:] # hours since 1800-01-01 00:00
-            self.time = self.time / 24.0 + date.toordinal(date(1800, 1, 1))
+            self.time = d.variables['time'][:] # hours or days since some date
+            date_since = self._parse_time_units(d.variables['time'].units)
+            if "hours" in d.variables['time'].units:
+                self.time = self.time / 24.0 + date.toordinal(date_since)
+            elif "days" in d.variables['time'].units:
+                self.time += date.toordinal(date_since)
             if print_prog:
                 print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
                 print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
                 print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+                print("The first data value is from %s and the last is from %s" % (str(self.get_date_from_ndx(0)), str(self.get_date_from_ndx(-1))))
+                print("Default temporal sampling in the data is %.2f day(s)" % (np.mean(np.diff(self.time))))
             
             d.close()
+
+
+
+    def _parse_time_units(self, time_string):
+        """
+        Parses time units from netCDF file, returns date since the record.
+        """
+
+        date_split = time_string.split('-')
+        y = date_split[0][-4:]
+        m = ("%02d" % int(date_split[1]))
+        d = ("%02d" % int(date_split[2][:2]))
+
+        return datetime.strptime("%s-%s-%s" % (y, m, d), '%Y-%m-%d')
             
             
             
@@ -826,6 +851,32 @@ class DataField:
 
         self.data -= np.nanmean(self.data, axis = 0)
         self.data /= np.nanstd(self.data, axis = 0, ddof = 1) 
+
+
+
+    def save_field(self, fname):
+        """
+        Saves entire Data Field to cPickle format.
+        """
+
+        import cPickle
+
+        with open(fname, "wb") as f:
+            cPickle.dump(self.__dict__, f, protocol = cPickle.HIGHEST_PROTOCOL)
+
+
+
+    def load_field(self, fname):
+        """
+        Loads entire Data Field from pickled file.
+        """
+
+        import cPickle
+
+        with open(fname, "rb") as f:
+            data = cPickle.load(f)
+
+        self.__dict__ = data
         
         
         
