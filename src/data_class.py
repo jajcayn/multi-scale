@@ -71,6 +71,7 @@ class DataField:
         self.time = time
         self.location = None # for station data
         self.missing = None # for station data where could be some missing values
+        self.nans = False
         
         
         
@@ -96,12 +97,16 @@ class DataField:
             self.lats = d.variables['latitude'][:]
             self.time = d.variables['time'][:] # days since 1950-01-01 00:00
             self.time += date.toordinal(date(1950, 1, 1))
+            if np.any(np.isnan(self.data)):
+                self.nans = True
             if print_prog:
                 print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
                 print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
                 print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
                 print("The first data value is from %s and the last is from %s" % (str(self.get_date_from_ndx(0)), str(self.get_date_from_ndx(-1))))
-                print("Default temporal sampling in the data is %.2f day(s)" % (np.mean(np.diff(self.time))))
+                print("Default temporal sampling in the data is %.2f day(s)" % (np.nanmean(np.diff(self.time))))
+                if np.any(np.isnan(self.data)):
+                    print("The data contains NaNs! All methods are compatible with NaNs, just to let you know!")
             
             d.close()     
                     
@@ -109,17 +114,21 @@ class DataField:
             d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
 
-            self.data = v[:] - 273.15 # ERA is in Kelvins
+            self.data = v[:]
             self.lons = d.variables['longitude'][:]
             self.lats = d.variables['latitude'][:]
             self.time = d.variables['time'][:] # hours since 1900-01-01 00:00
             self.time = self.time / 24.0 + date.toordinal(date(1900, 1, 1))
+            if np.any(np.isnan(self.data)):
+                self.nans = True
             if print_prog:
                 print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
                 print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
                 print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
                 print("The first data value is from %s and the last is from %s" % (str(self.get_date_from_ndx(0)), str(self.get_date_from_ndx(-1))))
-                print("Default temporal sampling in the data is %.2f day(s)" % (np.mean(np.diff(self.time))))
+                print("Default temporal sampling in the data is %.2f day(s)" % (np.nanmean(np.diff(self.time))))
+                if np.any(np.isnan(self.data)):
+                    print("The data contains NaNs! All methods are compatible with NaNs, just to let you know!")
             
             d.close()
             
@@ -127,7 +136,12 @@ class DataField:
             d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
             
-            self.data = v[:]
+            data = v[:] # masked array - only land data, not ocean/sea
+            if isinstance(data, np.ma.masked_array):             
+                self.data = data.data.copy() # get only data, not mask
+                self.data[data.mask] = np.nan # filled masked values with NaNs
+            else:
+                self.data = data
             self.lons = d.variables['lon'][:]
             self.lats = d.variables['lat'][:]
             self.time = d.variables['time'][:] # hours or days since some date
@@ -136,12 +150,16 @@ class DataField:
                 self.time = self.time / 24.0 + date.toordinal(date_since)
             elif "days" in d.variables['time'].units:
                 self.time += date.toordinal(date_since)
+            if np.any(np.isnan(self.data)):
+                self.nans = True
             if print_prog:
                 print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
                 print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
                 print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
                 print("The first data value is from %s and the last is from %s" % (str(self.get_date_from_ndx(0)), str(self.get_date_from_ndx(-1))))
-                print("Default temporal sampling in the data is %.2f day(s)" % (np.mean(np.diff(self.time))))
+                print("Default temporal sampling in the data is %.2f day(s)" % (np.nanmean(np.diff(self.time))))
+                if np.any(np.isnan(self.data)):
+                    print("The data contains NaNs! All methods are compatible with NaNs, just to let you know!")
             
             d.close()
 
@@ -231,6 +249,22 @@ class DataField:
         """              
         
         return self.data.copy()
+
+
+
+    def copy(self):
+        """
+        Returns a copy of DataField with data, lats, lons and time fields.
+        """
+
+        copied = DataField()
+        copied.data = self.data.copy()
+        copied.lats = self.lats.copy()
+        copied.lons = self.lons.copy()
+        copied.time = self.time.copy()
+        copied.nans = self.nans
+
+        return copied   
                                             
                     
                     
@@ -301,7 +335,7 @@ class DataField:
         
         
         
-    def select_lat_lon(self, lats, lons):
+    def select_lat_lon(self, lats, lons, apply_to_data = True):
         """
         Selects region in lat/lon. Input is for both [from, to], both are inclusive. If None, the dimension is not modified.
         """
@@ -316,12 +350,21 @@ class DataField:
                 lon_ndx = np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= lons[1]))[0]
             else:
                 lon_ndx = np.arange(len(self.lons))
-                
-            d = self.data
-            d = d[..., lat_ndx, :]
-            self.data = d[..., lon_ndx]
-            self.lats = self.lats[lat_ndx]
-            self.lons = self.lons[lon_ndx]
+            
+            if apply_to_data:
+                d = self.data
+                d = d[..., lat_ndx, :]
+                self.data = d[..., lon_ndx]
+                self.lats = self.lats[lat_ndx]
+                self.lons = self.lons[lon_ndx]
+
+                if np.any(np.isnan(self.data)):
+                    self.nans = True
+                else:
+                    self.nans = False
+            
+            return lat_ndx, lon_ndx
+
         else:
             raise Exception('Slicing data with no spatial dimensions, probably station data.')
             
@@ -517,12 +560,12 @@ class DataField:
             start_idx = self.find_date_ndx(date(y, mi, 1))
             end_idx = self._shift_index_by_month(start_idx)
             while end_idx <= self.data.shape[0] and end_idx is not None:
-                monthly_data.append(np.mean(self.data[start_idx : end_idx, ...], axis = 0))
+                monthly_data.append(np.nanmean(self.data[start_idx : end_idx, ...], axis = 0))
                 monthly_time.append(self.time[start_idx])
                 start_idx = end_idx
                 end_idx = self._shift_index_by_month(start_idx)
                 if end_idx is None: # last piece, then exit the loop
-                    monthly_data.append(np.mean(self.data[start_idx : , ...], axis = 0))
+                    monthly_data.append(np.nanmean(self.data[start_idx : , ...], axis = 0))
                     monthly_time.append(self.time[start_idx])
             self.data = np.array(monthly_data)
             self.time = np.array(monthly_time)                
@@ -546,7 +589,7 @@ class DataField:
             d = np.delete(d, slice(0, (n_times-1) * d.shape[0]/n_times), axis = 0)
             t = np.zeros(self.time.shape[0] / n_times)
             for i in range(d.shape[0]):
-                d[i, ...] = np.mean(self.data[n_times*i : n_times*i+(n_times-1), ...], axis = 0)
+                d[i, ...] = np.nanmean(self.data[n_times*i : n_times*i+(n_times-1), ...], axis = 0)
                 t[i] = self.time[n_times*i]
                 
             self.data = d
@@ -614,6 +657,7 @@ class DataField:
                         d = self.data
                         d = d[..., start_lat_ndx::lat_ndx, :]
                         self.data = d[..., start_lon_ndx::lon_ndx]
+
                     else:
 
                         from scipy.interpolate import RectBivariateSpline
@@ -638,6 +682,11 @@ class DataField:
 
                         self._ascending_descending_lat_lons(lats = lat_flg, lons = lon_flg, direction = 'des')
 
+                    if np.any(np.isnan(self.data)):
+                        self.nans = True
+                    else:
+                        self.nans = False
+
                 else:
                     raise Exception("Start lat and / or lon for subsampling does not exist in the data!")
 
@@ -658,7 +707,7 @@ class DataField:
         d = np.zeros(([self.data.shape[0] - points + 1] + list(self.data.shape[1:])))
         
         for i in range(d.shape[0]):
-            d[i, ...] = np.mean(self.data[i : i+points, ...], axis = 0)
+            d[i, ...] = np.nanmean(self.data[i : i+points, ...], axis = 0)
 
         if use_to_data:
             self.data = d.copy()
@@ -712,6 +761,83 @@ class DataField:
 
 
 
+    def check_NaNs_only_spatial(self):
+        """
+        Returns True if the NaNs contained in the data are of spatial nature, e.g.
+        masked land from sea dataset and so on.
+        returns False if also there are some NaNs in the temporal sense.
+        E.g. with spatial NaNs, the PCA could be still done, when filtering out the NaNs.
+        """
+
+        if self.nans:
+            cnt = 0
+            nangrid0 = np.isnan(self.data[0, ...])
+            for t in range(1, self.time.shape[0]):
+                if np.all(nangrid0) == np.all(np.isnan(self.data[t, ...])):
+                    cnt += 1
+
+            if self.time.shape[0] - cnt == 1:
+                return True
+            else:
+                return False
+
+        else:
+            print("No NaNs in the data, nothing happened!")
+
+
+
+    def filter_out_NaNs(self):
+        """
+        Returns flattened version of 3D data field without NaNs (e.g. for computational purposes).
+        The data is just returned, self.data is still full 3D version. Returned data has first axis
+        temporal and second combined spatial.
+        Mask is saved for internal purposes (e.g. PCA) but also returned.
+        """
+
+        if self.nans:
+            if self.check_NaNs_only_spatial():
+                d = self.data.copy()
+                d = self.flatten_field(f = d)
+                mask = np.isnan(d)
+                spatial_mask = mask[0, :]
+                d_out_shape = (d.shape[0], d.shape[1] - np.sum(spatial_mask))
+                d_out = d[~mask].reshape(d_out_shape)
+                self.spatial_mask = spatial_mask
+
+                return d_out, spatial_mask
+
+            else:
+                raise Exception("NaNs are also temporal, no way to filter them out!")
+
+        else:
+            print("No NaNs in the data, nothing happened!")
+
+
+
+    def return_NaNs(self, field, mask = None):
+        """
+        Returns NaNs to the data and reshapes it to the original shape.
+        Field has first axis temporal and second combined spatial.
+        """
+
+        if self.nans:
+            if mask is not None or self.spatial_mask is not None:
+                mask = mask if mask is not None else self.spatial_mask
+                d_out = np.zeros((field.shape[0], mask.shape[0]))
+                ndx = np.where(mask == False)[0]
+                d_out[:, ndx] = field
+                d_out[:, mask] = np.nan
+
+                return self.reshape_flat_field(f = d_out)
+
+            else:
+                raise Exception("No mask given!")
+        
+        else:
+            print("No NaNs in the data, nothing happened!")
+
+
+
     def pca_components(self, n_comps):
         """
         Estimate the PCA (EOF) components of geo-data.
@@ -722,12 +848,16 @@ class DataField:
             from scipy.linalg import svd
 
             # reshape field so the first axis is combined spatial and second is temporal
-            d = self.data.copy()
-            d = self.flatten_field(f = d)
+            # if nans, filter-out
+            if self.nans:
+                d = self.filter_out_NaNs()[0]
+            else:
+                d = self.data.copy()
+                d = self.flatten_field(f = d)
             d = d.transpose()
 
             # remove mean of each time series
-            d -= np.mean(d, axis = 1)[:, np.newaxis]      
+            d -= np.nanmean(d, axis = 1)[:, np.newaxis]    
 
             U, s, V = svd(d, False, True, True)
             s **= 2
@@ -737,7 +867,10 @@ class DataField:
             var = s[:n_comps]
 
             eofs = eofs.transpose()
-            eofs = self.reshape_flat_field(f = eofs)
+            if self.nans:
+                eofs = self.return_NaNs(field = eofs)
+            else:
+                eofs = self.reshape_flat_field(f = eofs)
 
             return eofs, pcs, var
 
