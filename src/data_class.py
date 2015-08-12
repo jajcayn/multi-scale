@@ -786,7 +786,7 @@ class DataField:
 
 
 
-    def filter_out_NaNs(self):
+    def filter_out_NaNs(self, field = None):
         """
         Returns flattened version of 3D data field without NaNs (e.g. for computational purposes).
         The data is just returned, self.data is still full 3D version. Returned data has first axis
@@ -796,7 +796,7 @@ class DataField:
 
         if self.nans:
             if self.check_NaNs_only_spatial():
-                d = self.data.copy()
+                d = self.data.copy() if field is None else field
                 d = self.flatten_field(f = d)
                 mask = np.isnan(d)
                 spatial_mask = mask[0, :]
@@ -857,14 +857,16 @@ class DataField:
             d = d.transpose()
 
             # remove mean of each time series
-            d -= np.nanmean(d, axis = 1)[:, np.newaxis]    
+            pca_mean = np.nanmean(d, axis = 1)[:, np.newaxis]
+            self.pca_mean = pca_mean
+            d -= self.pca_mean  
 
             U, s, V = svd(d, False, True, True)
-            s **= 2
-            s *= 1.0 / (np.sum(s))
+            exp_var = (s ** 2) / self.time.shape[0]
+            exp_var /= np.sum(exp_var)
             eofs = U[:, :n_comps]
             pcs = V[:n_comps, :]
-            var = s[:n_comps]
+            var = exp_var[:n_comps]
 
             eofs = eofs.transpose()
             if self.nans:
@@ -876,6 +878,36 @@ class DataField:
 
         else:
             raise Exception("PCA analysis cannot be used on multi-level data or only temporal (e.g. station) data!")
+
+
+
+    def invert_pca(self, eofs, pcs, var, pca_mean = None):
+        """
+        Inverts the PCA and returns the original data.
+        Suitable for modelling, pcs could be different than obtained from PCA.
+        """
+
+        if self.nans:
+            e = self.filter_out_NaNs(field = eofs)[0]
+        else:
+            e = eofs.copy()
+            e = self.flatten_field(f = e)
+        e = e.transpose()
+
+        pca_mean = pca_mean if pca_mean is not None else self.pca_mean
+
+        s = np.diag(var)
+
+        recons = np.dot(e, np.dot(s,pcs))
+        recons += pca_mean
+
+        recons = recons.transpose()
+        if self.nans:
+            recons = self.return_NaNs(field = recons)
+        else:
+            recons = self.reshape_flat_field(f = recons)
+
+        return recons
 
 
         
