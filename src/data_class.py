@@ -814,7 +814,7 @@ class DataField:
 
 
 
-    def return_NaNs(self, field, mask = None):
+    def return_NaNs_to_data(self, field, mask = None):
         """
         Returns NaNs to the data and reshapes it to the original shape.
         Field has first axis temporal and second combined spatial.
@@ -857,11 +857,12 @@ class DataField:
             d = d.transpose()
 
             # remove mean of each time series
-            pca_mean = np.nanmean(d, axis = 1)[:, np.newaxis]
+            pca_mean = np.mean(d, axis = 0)
             self.pca_mean = pca_mean
             d -= self.pca_mean  
 
             U, s, V = svd(d, False, True, True)
+            U *= s
             exp_var = (s ** 2) / self.time.shape[0]
             exp_var /= np.sum(exp_var)
             eofs = U[:, :n_comps]
@@ -870,7 +871,7 @@ class DataField:
 
             eofs = eofs.transpose()
             if self.nans:
-                eofs = self.return_NaNs(field = eofs)
+                eofs = self.return_NaNs_to_data(field = eofs)
             else:
                 eofs = self.reshape_flat_field(f = eofs)
 
@@ -881,7 +882,7 @@ class DataField:
 
 
 
-    def invert_pca(self, eofs, pcs, var, pca_mean = None):
+    def invert_pca(self, eofs, pcs, pca_mean = None):
         """
         Inverts the PCA and returns the original data.
         Suitable for modelling, pcs could be different than obtained from PCA.
@@ -896,14 +897,12 @@ class DataField:
 
         pca_mean = pca_mean if pca_mean is not None else self.pca_mean
 
-        s = np.diag(var)
-
-        recons = np.dot(e, np.dot(s,pcs))
+        recons = np.dot(e, pcs)
         recons += pca_mean
 
         recons = recons.transpose()
         if self.nans:
-            recons = self.return_NaNs(field = recons)
+            recons = self.return_NaNs_to_data(field = recons)
         else:
             recons = self.reshape_flat_field(f = recons)
 
