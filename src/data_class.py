@@ -144,6 +144,8 @@ class DataField:
                 self.data = data
             self.lons = d.variables['lon'][:]
             self.lats = d.variables['lat'][:]
+            if 'level' in d.variables.keys():
+                self.level = d.variables['level'][:]
             self.time = d.variables['time'][:] # hours or days since some date
             date_since = self._parse_time_units(d.variables['time'].units)
             if "hours" in d.variables['time'].units:

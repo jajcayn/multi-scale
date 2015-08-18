@@ -21,9 +21,7 @@ def _get_phase_coherence(a):
     Gets mean phase coherence for given data.
     """
 
-    i, j, phase = a
-    ph1 = phase[:, i].copy()
-    ph2 = phase[:, j].copy()
+    i, j, ph1, ph2 = a
     # get continuous phase
     for ii in range(ph1.shape[0] - 1):
         if np.abs(ph1[ii+1] - ph1[ii]) > 1:
@@ -35,9 +33,36 @@ def _get_phase_coherence(a):
     diff = ph1 - ph2
 
     # compute mean phase coherence
-    coh = np.mean(np.cos(diff)) * np.mean(np.cos(diff)) + np.mean(np.sin(diff)) * np.mean(np.sin(diff))
+    coh = np.power(np.mean(np.cos(diff)), 2) + np.power(np.mean(np.sin(diff)), 2)
+    print("computing for %d -- %d grid point" % (i, j))
 
     return i, j, coh
+
+
+def _get_mutual_inf_gauss(a):
+    """
+    Gets mutual information using Gauss algorithm for given data.
+    """
+
+    i, j, ph1, ph2 = a
+    corr = np.corrcoef([ph1, ph2])[0, 1]
+    mi = -0.5 * np.log(1 - np.power(corr, 2))
+    
+    return i, j, mi
+
+
+def _get_mutual_inf_EQQ(a):
+    """
+    Gets mutual information using EQQ algorithm for given data.
+    """
+
+    import sys
+    sys.path.append('/home/nikola/Work/phd/mutual_information')
+    from mutual_information import mutual_information
+    
+    i, j, ph1, ph2 = a
+    return i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 8, log2 = False)
+
 
 
 
@@ -58,7 +83,7 @@ class ScaleSpecificNetwork():
 
         self.phase = None
         self.amplitude = None
-        self.coherence_matrix = None
+        self.adjacency_matrix = None
 
         self.num_lats = self.g.lats.shape[0]
         self.num_lons = self.g.lons.shape[0]
@@ -100,29 +125,38 @@ class ScaleSpecificNetwork():
 
 
 
-    def get_phase_coherence_matrix(self, pool = None):
+    def get_adjacency_matrix(self, method = "MPC", pool = None):
         """
         Gets the matrix of mean phase coherence between each two grid-points.
+        Methods for adjacency matrix:
+            MPC - mean phase coherence
+            MIEQQ - mutual information - equiquantal algorithm
+            MIGAU - mutual information - Gauss algorithm
         """
         
         self.phase = self.g.flatten_field(self.phase)
 
-        self.coherence_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
+        self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
 
         if pool is None:
             map_func = map
         elif pool is not None:
             map_func = pool.map
-        job_args = [ (i, j, self.phase) for i in range(self.phase.shape[1]) for j in range(i, self.phase.shape[1]) ]
+        job_args = [ (i, j, self.phase[:, i], self.phase[:, j]) for i in range(self.phase.shape[1]) for j in range(i, self.phase.shape[1]) ]
         start = datetime.now()
-        job_results = map_func(_get_phase_coherence, job_args)
+        if method == 'MPC':
+            job_results = map_func(_get_phase_coherence, job_args)
+        elif method == 'MIGAU':
+            job_results = map_func(_get_mutual_inf_gauss, job_args)
+        elif method == 'MIEQQ':
+            job_results = map_func(_get_mutual_inf_EQQ, job_args)
         end = datetime.now()
         print end-start
         del job_args
 
         for i, j, coh in job_results:
-            self.coherence_matrix[i, j] = coh
-            self.coherence_matrix[j, i] = coh
+            self.adjacency_matrix[i, j] = coh
+            self.adjacency_matrix[j, i] = coh
 
         del job_results
         
