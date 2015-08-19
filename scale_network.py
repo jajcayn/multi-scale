@@ -1,5 +1,5 @@
 import numpy as np
-from src.data_class import load_NCEP_data_monthly, load_NCEP_data_daily
+from src.data_class import DataField
 import src.wavelet_analysis as wvlt
 from datetime import datetime
 
@@ -55,10 +55,6 @@ def _get_mutual_inf_EQQ(a):
     """
     Gets mutual information using EQQ algorithm for given data.
     """
-
-    import sys
-    sys.path.append('/home/nikola/Work/phd/mutual_information')
-    from mutual_information import mutual_information
     
     i, j, ph1, ph2 = a
     return i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 8, log2 = False)
@@ -66,27 +62,41 @@ def _get_mutual_inf_EQQ(a):
 
 
 
-class ScaleSpecificNetwork():
+class ScaleSpecificNetwork(DataField):
     """
-    Class holds geo data and can construct networks.
+    Class holds geo data (inherits methods from DataField) and can construct networks.
     """
 
-    def __init__(self, fname, varname, start_date, end_date, sampling = 'monthly', anom = False):
+    def __init__(self, fname, varname, start_date, end_date, lats, lons, level = None, sampling = 'monthly', anom = False):
         """
         Initialisation of the class.
         """
 
-        if sampling == 'monthly':
-            self.g = load_NCEP_data_monthly(fname, varname, start_date, end_date, None, None, None, anom)
-        elif sampling == 'daily':
-            self.g = load_NCEP_data_daily(fname, varname, start_date, end_date, None, None, None, anom)
+        # if sampling == 'monthly':
+        #     self.g = load_NCEP_data_monthly(fname, varname, start_date, end_date, None, None, None, anom)
+        # elif sampling == 'daily':
+        #     self.g = load_NCEP_data_daily(fname, varname, start_date, end_date, None, None, None, anom)
+
+        DataField.__init__(self)
+        self.load(fname, varname, dataset = "NCEP", print_prog = False)
+        self.select_date(start_date, end_date)
+        self.select_lat_lon(lats, lons)
+        if level is not None:
+            self.select_level(level)
+        if anom:
+            self.anomalise()
+        day, month, year = self.extract_day_month_year()
+        print("[%s] NCEP data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+                % (str(datetime.now()), str(self.data.shape), day[0], month[0], 
+                   year[0], day[-1], month[-1], year[-1]))
+
 
         self.phase = None
         self.amplitude = None
         self.adjacency_matrix = None
 
-        self.num_lats = self.g.lats.shape[0]
-        self.num_lons = self.g.lons.shape[0]
+        self.num_lats = self.lats.shape[0]
+        self.num_lons = self.lons.shape[0]
         self.sampling = sampling
 
 
@@ -105,15 +115,15 @@ class ScaleSpecificNetwork():
         per = period * y # frequency of interest
         s0 = per / fourier_factor # get scale
 
-        self.phase = np.zeros_like(self.g.data)
-        self.amplitude = np.zeros_like(self.g.data)
+        self.phase = np.zeros_like(self.data)
+        self.amplitude = np.zeros_like(self.data)
 
         if pool is None:
             map_func = map
         elif pool is not None:
             map_func = pool.map
 
-        job_args = [ (i, j, s0, self.g.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_args = [ (i, j, s0, self.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
         job_result = map_func(_get_oscillatory_modes, job_args)
         del job_args
 
@@ -134,7 +144,7 @@ class ScaleSpecificNetwork():
             MIGAU - mutual information - Gauss algorithm
         """
         
-        self.phase = self.g.flatten_field(self.phase)
+        self.phase = self.flatten_field(self.phase)
 
         self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
 
@@ -149,6 +159,10 @@ class ScaleSpecificNetwork():
         elif method == 'MIGAU':
             job_results = map_func(_get_mutual_inf_gauss, job_args)
         elif method == 'MIEQQ':
+            import sys
+            sys.path.append('/home/nikola/Work/phd/mutual_information')
+            from mutual_information import mutual_information
+            
             job_results = map_func(_get_mutual_inf_EQQ, job_args)
         end = datetime.now()
         print end-start
@@ -160,5 +174,5 @@ class ScaleSpecificNetwork():
 
         del job_results
         
-        self.phase = self.g.reshape_flat_field(self.phase)
+        self.phase = self.reshape_flat_field(self.phase)
 

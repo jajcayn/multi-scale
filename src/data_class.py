@@ -4,7 +4,7 @@ created on Jan 29, 2014
 @author: Nikola Jajcay, jajcay(at)cs.cas.cz
 based on class by Martin Vejmelka -- https://github.com/vejmelkam/ndw-climate --
 
-last update on Aug 10, 2015
+last update on Aug 19, 2015
 """
 
 import numpy as np
@@ -59,7 +59,7 @@ class DataField:
     temporal dimension and location specification.
     """
     
-    def __init__(self, data_folder = '../data/', data = None, lons = None, lats = None, time = None):
+    def __init__(self, data_folder = '', data = None, lons = None, lats = None, time = None):
         """
         Initializes either an empty data set or with given values.
         """

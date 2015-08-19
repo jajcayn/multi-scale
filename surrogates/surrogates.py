@@ -40,11 +40,11 @@ def get_single_AR_surrogate(ts, order_range = [1,1]):
     Returns single 1D autoregressive surrogate of some order.
     Order could be found numerically by setting order_range, or
     entered manually by selecting min and max order range to the
-    desired order.
-    If the order was supposed to estimate, the order is also returned.
+    desired order - e.g. [1,1].
+    If the order was supposed to estimate, it is also returned.
     """
 
-    _, _, _, order, res = _prepare_surrogates([None, None, None, order_range, 'sbc', ts])
+    _, _, _, order, res = _prepare_AR_surrogates([None, None, None, order_range, 'sbc', ts])
     num_ts = ts.shape[0] - order.order()
     res = res[:num_ts, 0]
 
@@ -57,7 +57,7 @@ def get_single_AR_surrogate(ts, order_range = [1,1]):
 
 
 
-def _prepare_surrogates(a):
+def _prepare_AR_surrogates(a):
     i, j, lev, order_range, crit, ts = a
     if not np.any(np.isnan(ts)):
         v = VARModel()
@@ -471,7 +471,7 @@ class SurrogateField(DataField):
             num_tm = self.time.shape[0]
                 
             job_data = [ (i, j, lev, order_range, crit, self.data[:, lev, i, j]) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
-            job_results = map_func(_prepare_surrogates, job_data)
+            job_results = map_func(_prepare_AR_surrogates, job_data)
             max_ord = 0
             for r in job_results:
                 if r[3] is not None and r[3].order() > max_ord:
