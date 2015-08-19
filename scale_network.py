@@ -2,18 +2,25 @@ import numpy as np
 from src.data_class import DataField
 import src.wavelet_analysis as wvlt
 from datetime import datetime
+import sys
+sys.path.append('/home/nikola/Work/phd/mutual_information')
+from mutual_information import mutual_information
 
 
 def _get_oscillatory_modes(a):
     """
     Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
     """
-    i, j, s0, data = a
+    i, j, s0, flag, data = a
     wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
     phase = np.arctan2(np.imag(wave), np.real(wave))
-    amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+    if flag:
+        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
     
-    return i, j, phase, amplitude
+    if flag:
+        return i, j, (phase, amplitude)
+    else:
+        return i, j, (phase)
 
 
 def _get_phase_coherence(a):
@@ -34,7 +41,6 @@ def _get_phase_coherence(a):
 
     # compute mean phase coherence
     coh = np.power(np.mean(np.cos(diff)), 2) + np.power(np.mean(np.sin(diff)), 2)
-    print("computing for %d -- %d grid point" % (i, j))
 
     return i, j, coh
 
@@ -101,7 +107,7 @@ class ScaleSpecificNetwork(DataField):
 
 
 
-    def wavelet(self, period, pool = None):
+    def wavelet(self, period, get_amplitude = False, pool = None):
         """
         Performs wavelet analysis on the data.
         """
@@ -116,20 +122,22 @@ class ScaleSpecificNetwork(DataField):
         s0 = per / fourier_factor # get scale
 
         self.phase = np.zeros_like(self.data)
-        self.amplitude = np.zeros_like(self.data)
+        if get_amplitude:
+            self.amplitude = np.zeros_like(self.data)
 
         if pool is None:
             map_func = map
         elif pool is not None:
             map_func = pool.map
 
-        job_args = [ (i, j, s0, self.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_args = [ (i, j, s0, get_amplitude, self.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
         job_result = map_func(_get_oscillatory_modes, job_args)
         del job_args
 
-        for i, j, ph, am in job_result:
-            self.phase[:, i, j] = ph
-            self.amplitude[:, i, j] = am
+        for i, j, res in job_result:
+            self.phase[:, i, j] = res[0]
+            if get_amplitude:
+                self.amplitude[:, i, j] = res[1]
 
         del job_result
 
@@ -159,10 +167,6 @@ class ScaleSpecificNetwork(DataField):
         elif method == 'MIGAU':
             job_results = map_func(_get_mutual_inf_gauss, job_args)
         elif method == 'MIEQQ':
-            import sys
-            sys.path.append('/home/nikola/Work/phd/mutual_information')
-            from mutual_information import mutual_information
-            
             job_results = map_func(_get_mutual_inf_EQQ, job_args)
         end = datetime.now()
         print end-start
@@ -172,7 +176,38 @@ class ScaleSpecificNetwork(DataField):
             self.adjacency_matrix[i, j] = coh
             self.adjacency_matrix[j, i] = coh
 
+        for i in range(self.adjacency_matrix.shape[0]):
+            self.adjacency_matrix[i, i] = 0.
+
         del job_results
         
         self.phase = self.reshape_flat_field(self.phase)
+
+
+    def save_net(self, fname, only_matrix = False):
+        """
+        Saves the scale specific network.
+        If only_matrix is True, saves only adjacency_matrix, else saves the whole class.
+        """
+
+        import cPickle
+
+        with open(fname, 'wb') as f:
+            if only_matrix:
+                cPickle.dump({'adjacency_matrix' : self.adjacency_matrix}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+            else:
+                cPickle.dump(self.__dict__, f, protocol = cPickle.HIGHEST_PROTOCOL)
+
+
+    def load_net(self, fname):
+        """
+        Loads the network into the class.
+        """
+
+        import cPickle
+
+        with open(fname, 'rb') as f:
+            data = cPickle.load(f)
+
+        self.__dict__ = data
 
