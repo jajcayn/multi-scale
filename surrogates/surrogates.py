@@ -91,7 +91,7 @@ def _compute_FT_surrogates(a):
     # transform the time series to Fourier domain
     xf = np.fft.rfft(data, axis = 0)
      
-    # randomise the time series with random phases       
+    # randomise the time series with random phases     
     cxf = xf * np.exp(1j * angle)
     
     # return randomised time series in time domain
@@ -323,7 +323,7 @@ class SurrogateField(DataField):
             angle[0] = 0
             del a
             
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], angle) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], angle) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_compute_FT_surrogates, job_data)
             
             self.surr_data = np.zeros_like(self.data)
@@ -375,8 +375,7 @@ class SurrogateField(DataField):
             angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_levels, num_lats, num_lons))
             angle[0, ...] = 0
             del a
-            
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], angle) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], angle[:, lev, i, j]) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_compute_FT_surrogates, job_data)
             
             self.surr_data = np.zeros_like(self.data)
@@ -427,7 +426,7 @@ class SurrogateField(DataField):
             
             self.surr_data = np.zeros_like(self.data)
 
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], randomise_from_scale) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], randomise_from_scale) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_compute_MF_surrogates, job_data)
             
             for i, j, lev, surr in job_results:
@@ -470,7 +469,7 @@ class SurrogateField(DataField):
                 self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
             num_tm = self.time.shape[0]
                 
-            job_data = [ (i, j, lev, order_range, crit, self.data[:, lev, i, j]) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
+            job_data = [ (i, j, lev, order_range, crit, self.data[:, lev, i, j]) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_prepare_AR_surrogates, job_data)
             max_ord = 0
             for r in job_results:
@@ -525,7 +524,7 @@ class SurrogateField(DataField):
                 self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
             num_tm_s = self.time.shape[0] - self.max_ord
             
-            job_data = [ (i, j, lev, self.residuals[:, lev, i, j], self.model_grid[lev, i, j], num_tm_s) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
+            job_data = [ (i, j, lev, self.residuals[:, lev, i, j], self.model_grid[lev, i, j], num_tm_s) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_compute_AR_surrogates, job_data)
             
             self.surr_data = np.zeros((num_tm_s, num_levels, num_lats, num_lons))
@@ -571,7 +570,7 @@ class SurrogateField(DataField):
                 
             old_shape = self.surr_data.shape
 
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], self.surr_data[:, lev, i, j], mean, var, trend) for i in range(num_lats) for j in range(num_lons) for lev in range(num_levels) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], self.surr_data[:, lev, i, j], mean, var, trend) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_create_amplitude_adjusted_surrogates, job_data)
 
             self.surr_data = np.zeros(old_shape)

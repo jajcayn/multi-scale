@@ -19,3 +19,4 @@ test.py
 mfdfa.py
 *_test.py
 *.zip
+*.ipynb
