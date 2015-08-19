@@ -516,12 +516,10 @@ class SurrogateField(DataField):
                     num_levels = self.data.shape[1]
                 else:
                     num_levels = 1
-                    self.data = self.data[:, np.newaxis, :, :]
             else:
                 num_lats = 1
                 num_lons = 1
                 num_levels = 1
-                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
             num_tm_s = self.time.shape[0] - self.max_ord
             
             job_data = [ (i, j, lev, self.residuals[:, lev, i, j], self.model_grid[lev, i, j], num_tm_s) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
