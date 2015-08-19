@@ -95,7 +95,7 @@ def _compute_FT_surrogates(a):
     cxf = xf * np.exp(1j * angle)
     
     # return randomised time series in time domain
-    ft_surr = np.fft.irfft(cxf, axis = 0)
+    ft_surr = np.fft.irfft(cxf, n = data.shape[0], axis = 0)
     
     return (i, j, lev, ft_surr)
     

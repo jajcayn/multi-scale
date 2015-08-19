@@ -159,9 +159,9 @@ AMPLITUDE = True
 #     g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013, 10, 1), False)
 
 ## HAMBURG -- TG_STAID000047, POTSDAM -- TG_STAID000054
-g = load_station_data('../data/TG_STAID000027.txt', date(1775,1,2), date(2014,1,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
+g = load_station_data('../data/TG_STAID000027.txt', date(1775,1,1), date(2014,1,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
 if AMPLITUDE:
-    g_amp = load_station_data('../data/TG_STAID000027.txt', date(1775,1,2), date(2014, 1, 1), False)
+    g_amp = load_station_data('../data/TG_STAID000027.txt', date(1775,1,1), date(2014, 1, 1), False)
 
 # ERA
 #g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1958,4,28), date(2013,10,1), ANOMALISE)
