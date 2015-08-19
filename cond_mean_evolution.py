@@ -149,7 +149,7 @@ AA = False
 SAME_BINS = False
 CONDITION = False
 SEASON = None
-AMPLITUDE = True
+AMPLITUDE = False
 
 
 ## loading data

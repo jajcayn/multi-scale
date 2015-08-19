@@ -22,7 +22,7 @@ def get_single_FT_surrogate(ts):
 
     cxf = xf * np.exp(1j * angle)
 
-    return np.fft.irfft(cxf, axis = 0)
+    return np.fft.irfft(cxf, n = ts.shape[0], axis = 0)
 
 
 
