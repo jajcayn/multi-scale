@@ -151,7 +151,7 @@ class ScaleSpecificNetwork(DataField):
             a = jobq.get() # get queued input
 
             if a is None: # if it is None, we are finished, put poison pill to resq
-                resq.put(None)
+                # resq.put(None)
                 break # break infinity cycle
             else:
                 i, j, ph1, ph2, method = a # compute stuff
@@ -227,8 +227,10 @@ class ScaleSpecificNetwork(DataField):
                 print "worker started"
 
             # fill queue with actual inputs
+            cnt_results = 0
             for i in range(self.phase.shape[1]):
                 for j in range(i, self.phase.shape[1]):
+                    cnt_results += 1
                     jobs.put([i, j, self.phase[:, i], self.phase[:, j], method])
             
             # fill queue with None for workers to finish
@@ -236,25 +238,35 @@ class ScaleSpecificNetwork(DataField):
                 jobs.put(None)
 
             print "queue populated"
+            print cnt_results
 
             self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
 
             # start processing results queue before actually workers finish as the queue might got filled and
             # processes would hang
-            while True:
-                a = results.get()
-                if a is None: # again, poison pill, the one None is put into results when workers are finished
-                    break
-                else:
-                    i, j, val = a # write values - matrix is symmetric across all three methods
-                    self.adjacency_matrix[i, j] = val
-                    self.adjacency_matrix[j, i] = val
+            # while True:
+            #     a = results.get()
+            #     if a is None: # again, poison pill, the one None is put into results when workers are finished
+            #         break
+            #     else:
+            #         i, j, val = a # write values - matrix is symmetric across all three methods
+            #         self.adjacency_matrix[i, j] = val
+            #         self.adjacency_matrix[j, i] = val
+            cnt = 0
+            while cnt < cnt_results:
+                i, j, val = results.get()
+                self.adjacency_matrix[i, j] = val
+                self.adjacency_matrix[j, i] = val
+                cnt += 1
 
             # finally, finish workers
             for w in workers:
                 w.join()
 
             print "workers finished"
+
+            for i in range(self.adjacency_matrix.shape[0]):
+                self.adjacency_matrix[i, i] = 0.
 
         print datetime.now()-start
         
