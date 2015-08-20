@@ -6,6 +6,9 @@ import sys
 sys.path.append('/home/nikola/Work/phd/mutual_information')
 from mutual_information import mutual_information
 
+import multiprocessing as mp
+from time import sleep
+
 
 def _get_oscillatory_modes(a):
     """
@@ -142,8 +145,39 @@ class ScaleSpecificNetwork(DataField):
         del job_result
 
 
+    def _process_matrix(self, jobq, resq):
+        
+        while True:
+            a = jobq.get() # get queued input
 
-    def get_adjacency_matrix(self, method = "MPC", pool = None):
+            if a is None: # if it is None, we are finished, put poison pill to resq
+                resq.put(None)
+                break # break infinity cycle
+            else:
+                i, j, ph1, ph2, method = a # compute stuff
+                if method == "MPC":
+                    for ii in range(ph1.shape[0] - 1):
+                        if np.abs(ph1[ii+1] - ph1[ii]) > 1:
+                            ph1[ii+1: ] += 2 * np.pi
+                        if np.abs(ph2[ii+1] - ph2[ii]) > 1:
+                            ph2[ii+1: ] += 2 * np.pi
+                    # get phase diff
+                    diff = ph1 - ph2
+                    # compute mean phase coherence
+                    coh = np.power(np.mean(np.cos(diff)), 2) + np.power(np.mean(np.sin(diff)), 2)
+                    resq.put((i, j, coh))
+
+                elif method == "MIEQQ":
+                    resq.put((i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 8, log2 = False)))
+
+                elif method == "MIGAU":
+                    corr = np.corrcoef([ph1, ph2])[0, 1]                    
+                    mi = -0.5 * np.log(1 - np.power(corr, 2)) if corr < 1. else 0
+                    resq.put((i, j, mi)) 
+
+
+
+    def get_adjacency_matrix(self, method = "MPC", pool = None, use_queue = True, num_workers = 0):
         """
         Gets the matrix of mean phase coherence between each two grid-points.
         Methods for adjacency matrix:
@@ -154,32 +188,75 @@ class ScaleSpecificNetwork(DataField):
         
         self.phase = self.flatten_field(self.phase)
 
-        self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
-
-        if pool is None:
-            map_func = map
-        elif pool is not None:
-            map_func = pool.map
-        job_args = [ (i, j, self.phase[:, i], self.phase[:, j]) for i in range(self.phase.shape[1]) for j in range(i, self.phase.shape[1]) ]
         start = datetime.now()
-        if method == 'MPC':
-            job_results = map_func(_get_phase_coherence, job_args)
-        elif method == 'MIGAU':
-            job_results = map_func(_get_mutual_inf_gauss, job_args)
-        elif method == 'MIEQQ':
-            job_results = map_func(_get_mutual_inf_EQQ, job_args)
-        end = datetime.now()
-        print end-start
-        del job_args
 
-        for i, j, coh in job_results:
-            self.adjacency_matrix[i, j] = coh
-            self.adjacency_matrix[j, i] = coh
+        if not use_queue:
+            self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
 
-        for i in range(self.adjacency_matrix.shape[0]):
-            self.adjacency_matrix[i, i] = 0.
+            if pool is None:
+                map_func = map
+            elif pool is not None:
+                map_func = pool.map
+            job_args = [ (i, j, self.phase[:, i], self.phase[:, j]) for i in range(self.phase.shape[1]) for j in range(i, self.phase.shape[1]) ]
+            if method == 'MPC':
+                job_results = map_func(_get_phase_coherence, job_args)
+            elif method == 'MIGAU':
+                job_results = map_func(_get_mutual_inf_gauss, job_args)
+            elif method == 'MIEQQ':
+                job_results = map_func(_get_mutual_inf_EQQ, job_args)
+            del job_args
 
-        del job_results
+            for i, j, coh in job_results:
+                self.adjacency_matrix[i, j] = coh
+                self.adjacency_matrix[j, i] = coh
+
+            for i in range(self.adjacency_matrix.shape[0]):
+                self.adjacency_matrix[i, i] = 0.
+
+            del job_results
+
+        else:
+
+            jobs = mp.Queue()
+            results = mp.Queue()
+
+            # start workers - BEFORE filling the queue as they are simultaneously computing while filling the queue
+            workers = [mp.Process(target = self._process_matrix, args = (jobs, results)) for i in range(num_workers)]
+            for w in workers:
+                w.start()
+                print "worker started"
+
+            # fill queue with actual inputs
+            for i in range(self.phase.shape[1]):
+                for j in range(i, self.phase.shape[1]):
+                    jobs.put([i, j, self.phase[:, i], self.phase[:, j], method])
+            
+            # fill queue with None for workers to finish
+            for i in range(num_workers):
+                jobs.put(None)
+
+            print "queue populated"
+
+            self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
+
+            # start processing results queue before actually workers finish as the queue might got filled and
+            # processes would hang
+            while True:
+                a = results.get()
+                if a is None: # again, poison pill, the one None is put into results when workers are finished
+                    break
+                else:
+                    i, j, val = a # write values - matrix is symmetric across all three methods
+                    self.adjacency_matrix[i, j] = val
+                    self.adjacency_matrix[j, i] = val
+
+            # finally, finish workers
+            for w in workers:
+                w.join()
+
+            print "workers finished"
+
+        print datetime.now()-start
         
         self.phase = self.reshape_flat_field(self.phase)
 

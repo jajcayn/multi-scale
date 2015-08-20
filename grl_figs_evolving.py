@@ -26,7 +26,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     ax1.tick_params(axis = 'both', which = 'major', labelsize = 28)
     ax1.yaxis.set_minor_locator(AutoMinorLocator(4))
     # plt.xticks(np.arange(0, cnt+8, 12), np.arange(first_mid_year, last_mid_year+8, 12), rotation = 30)
-    plt.xticks(np.arange(0, cnt+3, 4), np.arange(first_mid_year, last_mid_year+3, 4), rotation = 30)
+    plt.xticks(np.arange(0, cnt+7, 7), np.arange(first_mid_year, last_mid_year+7, 7), rotation = 30)
     # ax1.set_rasterized(True)
     # ax2 = ax1.twinx()
     # if stds is not None:
@@ -62,12 +62,12 @@ WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 seas = [[12, 1, 2], [6, 7, 8]]
 mons = {0: 'J', 1: 'F', 2: 'M', 3: 'A', 4: 'M', 5: 'J', 6: 'J', 7: 'A', 8: 'S', 9: 'O', 10: 'N', 11: 'D'}
-first_mid_year = 1946 # for short time series
+first_mid_year = 1915 # for short time series
 # first_mid_year = 1856 # for long time series
-last_mid_year = 1991
+last_mid_year = 1992
 
 
-fn = 'POTS1000FTevolution'
+fn = 'LONG--POTS1000FTevolution'
 fn_out = 'POTS1000FTevolvingSeasons'
 
 # with open('data_temp/%s.bin' % fn, 'rb') as f:
@@ -152,7 +152,8 @@ for i in range(2):
     ax.set_ylabel('DIFF SATA COND MEAN [$^{\circ}$C]', size = 40)
     ax.tick_params(axis = 'both', which = 'major', labelsize = 28)
     ax.yaxis.set_minor_locator(AutoMinorLocator(4))
-    plt.xticks(np.arange(0, cnt+8, 12), np.arange(first_mid_year, last_mid_year+8, 12), rotation = 30)
+    # plt.xticks(np.arange(0, cnt+8, 12), np.arange(first_mid_year, last_mid_year+8, 12), rotation = 30)
+    plt.xticks(np.arange(0, cnt+7, 7), np.arange(first_mid_year, last_mid_year+7, 7), rotation = 30)
     # ax2 = ax.twinx()
     # if stds is not None:
     #     ax2.fill_between(np.arange(0,diffs[1].shape[0],1), meanvars[1] + stds[1], meanvars[1] - stds[1],
