@@ -151,7 +151,6 @@ class ScaleSpecificNetwork(DataField):
             a = jobq.get() # get queued input
 
             if a is None: # if it is None, we are finished, put poison pill to resq
-                # resq.put(None)
                 break # break infinity cycle
             else:
                 i, j, ph1, ph2, method = a # compute stuff
@@ -224,7 +223,6 @@ class ScaleSpecificNetwork(DataField):
             workers = [mp.Process(target = self._process_matrix, args = (jobs, results)) for i in range(num_workers)]
             for w in workers:
                 w.start()
-                print "worker started"
 
             # fill queue with actual inputs
             cnt_results = 0
@@ -237,21 +235,8 @@ class ScaleSpecificNetwork(DataField):
             for i in range(num_workers):
                 jobs.put(None)
 
-            print "queue populated"
-            print cnt_results
-
             self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
 
-            # start processing results queue before actually workers finish as the queue might got filled and
-            # processes would hang
-            # while True:
-            #     a = results.get()
-            #     if a is None: # again, poison pill, the one None is put into results when workers are finished
-            #         break
-            #     else:
-            #         i, j, val = a # write values - matrix is symmetric across all three methods
-            #         self.adjacency_matrix[i, j] = val
-            #         self.adjacency_matrix[j, i] = val
             cnt = 0
             while cnt < cnt_results:
                 i, j, val = results.get()
@@ -263,8 +248,7 @@ class ScaleSpecificNetwork(DataField):
             for w in workers:
                 w.join()
 
-            print "workers finished"
-
+            # nullify the diagonal 
             for i in range(self.adjacency_matrix.shape[0]):
                 self.adjacency_matrix[i, i] = 0.
 
