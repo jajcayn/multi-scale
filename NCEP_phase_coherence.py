@@ -9,18 +9,15 @@ net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 
                            date(1948,1,1), date(2013,1,1), None, None, 0, 'monthly', anom = False)
                            
          
+methods = ['MIGAU', 'MIEQQ', 'MPC']
+periods = [8, 6, 4]
 
-METHOD = 'MIGAU'
-PERIOD = 8
-         
-pool = Pool(3)             
-net.wavelet(PERIOD, get_amplitude = False, pool = pool)
-pool.close()
-print "wavelet on data done"
-net.get_adjacency_matrix(method = METHOD, pool = None, use_queue = True, num_workers = 3)
-print "estimating adjacency matrix done"
-
-print net.adjacency_matrix
-
-
-# net.save_net('networks/NCEPair-surface-adjmatSCALE%d-method-%s.bin' % (PERIOD, METHOD), only_matrix = True)
+for METHOD in methods:
+	for PERIOD in periods:
+		pool = Pool(3)             
+		net.wavelet(PERIOD, get_amplitude = False, pool = pool)
+		pool.close()
+		print "wavelet on data done"
+		net.get_adjacency_matrix(method = METHOD, pool = None, use_queue = True, num_workers = 3)
+		print "estimating adjacency matrix done"
+		net.save_net('networks/NCEPair-surface-adjmat%s-scale%dyears.bin' % (METHOD, PERIOD), only_matrix = True)
