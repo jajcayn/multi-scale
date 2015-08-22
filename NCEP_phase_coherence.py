@@ -6,7 +6,7 @@ import numpy as np
 
 
 net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
-                           date(1948,1,1), date(2013,1,1), [-20, 20], [50, 150], 0, 'monthly', anom = False)
+                           date(1948,1,1), date(2013,1,1), None, None, 0, 'monthly', anom = False)
                            
          
 
