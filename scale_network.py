@@ -32,12 +32,6 @@ def _get_phase_coherence(a):
     """
 
     i, j, ph1, ph2 = a
-    # get continuous phase
-    for ii in range(ph1.shape[0] - 1):
-        if np.abs(ph1[ii+1] - ph1[ii]) > 1:
-            ph1[ii+1: ] += 2 * np.pi
-        if np.abs(ph2[ii+1] - ph2[ii]) > 1:
-            ph2[ii+1: ] += 2 * np.pi
 
     # get phase diff
     diff = ph1 - ph2
@@ -46,6 +40,35 @@ def _get_phase_coherence(a):
     coh = np.power(np.mean(np.cos(diff)), 2) + np.power(np.mean(np.sin(diff)), 2)
 
     return i, j, coh
+
+
+def _get_continuous_phase(a):
+    """
+    Tranforms phases to continuous, strictly increasing.
+    """
+
+    i, j, ph1 = a
+    # get continuous phase
+    for ii in range(ph1.shape[0] - 1):
+        if np.abs(ph1[ii+1] - ph1[ii]) > 1:
+            ph1[ii+1: ] += 2 * np.pi
+
+    return i, j, ph1
+
+
+
+def _get_phase_fluctuations(a):
+    """
+    Gets phase fluctuations.
+    """
+
+    i, j, omega, ph = a
+
+    for t in range(ph.shape[0]):
+        ph[t] -= ph[0] + omega*t 
+
+    return i, j, ph
+
 
 
 def _get_mutual_inf_gauss(a):
@@ -115,6 +138,8 @@ class ScaleSpecificNetwork(DataField):
         Performs wavelet analysis on the data.
         """
 
+        self.period = period
+
         k0 = 6. # wavenumber of Morlet wavelet used in analysis, suppose Morlet mother wavelet
         if self.sampling == 'monthly':
             y = 12
@@ -145,6 +170,58 @@ class ScaleSpecificNetwork(DataField):
         del job_result
 
 
+
+    def get_continuous_phase(self, pool = None):
+        """
+        Transforms phase from wavelet to continuous, increasing.
+        """
+
+        if pool is None:
+            map_func = map
+        elif pool is not None:
+            map_func = pool.map
+
+        job_args = [ (i, j, self.phase[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_result = map_func(_get_continuous_phase, job_args)
+        del job_args
+
+        for i, j, res in job_result:
+            self.phase[:, i, j] = res
+
+        del job_result
+
+
+
+    def get_phase_fluctuations(self, pool = None):
+        """
+        Gets phase fluctuations.
+        """
+
+        self.get_continuous_phase(pool = pool)
+
+        if self.sampling == 'monthly':
+           omega = 2 * np.pi / 12
+        elif self.sampling == 'daily':
+            omega = 2 * np.pi / 365.25
+
+        if pool is None:
+            map_func = map
+        elif pool is not None:
+            map_func = pool.map
+
+        job_args = [ (i, j, omega, self.phase[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_result = map_func(_get_phase_fluctuations, job_args)
+        del job_args
+
+        self.phase_fluctuations = np.zeros_like(self.data)
+        
+        for i, j, res in job_result:
+            self.phase_fluctuations[:, i, j] = res
+
+        del job_result
+
+
+
     def _process_matrix(self, jobq, resq):
         
         while True:
@@ -155,11 +232,6 @@ class ScaleSpecificNetwork(DataField):
             else:
                 i, j, ph1, ph2, method = a # compute stuff
                 if method == "MPC":
-                    for ii in range(ph1.shape[0] - 1):
-                        if np.abs(ph1[ii+1] - ph1[ii]) > 1:
-                            ph1[ii+1: ] += 2 * np.pi
-                        if np.abs(ph2[ii+1] - ph2[ii]) > 1:
-                            ph2[ii+1: ] += 2 * np.pi
                     # get phase diff
                     diff = ph1 - ph2
                     # compute mean phase coherence
@@ -188,6 +260,9 @@ class ScaleSpecificNetwork(DataField):
         self.phase = self.flatten_field(self.phase)
 
         start = datetime.now()
+
+        if method == "MPC":
+            self.get_continuous_phase(pool = pool)
 
         if not use_queue:
             self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
