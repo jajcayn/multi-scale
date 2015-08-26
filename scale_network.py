@@ -203,8 +203,6 @@ class ScaleSpecificNetwork(DataField):
 
 
 
-
-
     def get_continuous_phase(self, pool = None):
         """
         Transforms phase from wavelet to continuous, increasing.
@@ -297,7 +295,7 @@ class ScaleSpecificNetwork(DataField):
 
 
 
-    def get_adjacency_matrix(self, method = "MPC", pool = None, use_queue = True, num_workers = 0):
+    def get_adjacency_matrix(self, field, method = "MPC", pool = None, use_queue = True, num_workers = 0):
         """
         Gets the matrix of mean phase coherence between each two grid-points.
         Methods for adjacency matrix:
@@ -309,18 +307,18 @@ class ScaleSpecificNetwork(DataField):
         if method == "MPC":
             self.get_continuous_phase(pool = pool)
         
-        self.phase = self.flatten_field(self.phase)
+        field = self.flatten_field(field)
 
         start = datetime.now()
 
         if not use_queue:
-            self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
+            self.adjacency_matrix = np.zeros((field.shape[1], field.shape[1]))
 
             if pool is None:
                 map_func = map
             elif pool is not None:
                 map_func = pool.map
-            job_args = [ (i, j, self.phase[:, i], self.phase[:, j]) for i in range(self.phase.shape[1]) for j in range(i, self.phase.shape[1]) ]
+            job_args = [ (i, j, field[:, i], field[:, j]) for i in range(field.shape[1]) for j in range(i, field.shape[1]) ]
             if method == 'MPC':
                 job_results = map_func(_get_phase_coherence, job_args)
             elif method == 'MIGAU':
@@ -350,16 +348,16 @@ class ScaleSpecificNetwork(DataField):
 
             # fill queue with actual inputs
             cnt_results = 0
-            for i in range(self.phase.shape[1]):
-                for j in range(i, self.phase.shape[1]):
+            for i in range(field.shape[1]):
+                for j in range(i, field.shape[1]):
                     cnt_results += 1
-                    jobs.put([i, j, self.phase[:, i], self.phase[:, j], method])
+                    jobs.put([i, j, field[:, i], field[:, j], method])
             
             # fill queue with None for workers to finish
             for i in range(num_workers):
                 jobs.put(None)
 
-            self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
+            self.adjacency_matrix = np.zeros((field.shape[1], field.shape[1]))
 
             cnt = 0
             while cnt < cnt_results:
@@ -378,7 +376,7 @@ class ScaleSpecificNetwork(DataField):
 
         print datetime.now()-start
         
-        self.phase = self.reshape_flat_field(self.phase)
+        field = self.reshape_flat_field(field)
 
 
     def get_adjacency_matrix_conditioned(self, cond_ts, use_queue = True, num_workers = 0):
