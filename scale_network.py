@@ -197,7 +197,7 @@ class ScaleSpecificNetwork(DataField):
         del job_args
 
         for i, j, res in job_result:
-            self.filt_data[:, i, j] = res
+            self.filtered_data[:, i, j] = res
 
         del job_result
 
