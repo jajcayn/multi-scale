@@ -191,7 +191,7 @@ class ScaleSpecificNetwork(DataField):
         elif pool is not None:
             map_func = pool.map
 
-        self.filt_data = np.zeros_like(self.data)
+        self.filtered_data = np.zeros_like(self.data)
         job_args = [ (i, j, self.phase[:, i, j], self.amplitude[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
         job_result = map_func(_filtered_data, job_args)
         del job_args
