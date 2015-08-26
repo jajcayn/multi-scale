@@ -26,6 +26,13 @@ def _get_oscillatory_modes(a):
         return i, j, (phase)
 
 
+def _filtered_data(a):
+
+    i, j, ph, amp = a
+
+    return i, j, amp * np.cos(ph)
+
+
 def _get_phase_coherence(a):
     """
     Gets mean phase coherence for given data.
@@ -99,7 +106,7 @@ class ScaleSpecificNetwork(DataField):
     Class holds geo data (inherits methods from DataField) and can construct networks.
     """
 
-    def __init__(self, fname, varname, start_date, end_date, lats, lons, level = None, sampling = 'monthly', anom = False):
+    def __init__(self, fname, varname, start_date, end_date, lats, lons, level = None, sampling = 'monthly', anom = False, pickled = False):
         """
         Initialisation of the class.
         """
@@ -110,7 +117,10 @@ class ScaleSpecificNetwork(DataField):
         #     self.g = load_NCEP_data_daily(fname, varname, start_date, end_date, None, None, None, anom)
 
         DataField.__init__(self)
-        self.load(fname, varname, dataset = "NCEP", print_prog = False)
+        if not pickled:
+            self.load(fname, varname, dataset = "NCEP", print_prog = False)
+        else:
+            self.load_field(fname)
         self.select_date(start_date, end_date)
         self.select_lat_lon(lats, lons)
         if level is not None:
@@ -168,6 +178,30 @@ class ScaleSpecificNetwork(DataField):
                 self.amplitude[:, i, j] = res[1]
 
         del job_result
+
+
+
+    def get_filtered_data(self, pool = None):
+        """
+        Returns filtered data as x = A * cos phi, where A and phi are derived from wavelet.
+        """
+
+        if pool is None:
+            map_func = map
+        elif pool is not None:
+            map_func = pool.map
+
+        self.filt_data = np.zeros_like(self.data)
+        job_args = [ (i, j, self.phase[:, i, j], self.amplitude[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_result = map_func(_filtered_data, job_args)
+        del job_args
+
+        for i, j, res in job_result:
+            self.filt_data[:, i, j] = res
+
+        del job_result
+
+
 
 
 

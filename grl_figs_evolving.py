@@ -1,4 +1,6 @@
 import cPickle
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 from matplotlib.ticker import AutoMinorLocator
@@ -56,7 +58,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
 
 
 
-diff_ax = (0, 6)
+diff_ax = (0, 1.5)
 mean_ax = (-1, 1.5)
 WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
@@ -67,8 +69,8 @@ first_mid_year = 1915 # for short time series
 last_mid_year = 1992
 
 
-fn = 'LONG--POTS1000FTevolutionAMP'
-fn_out = 'POTS1000FTevolvingSATamp'
+fn = 'LONG--HAM1000FTevolutionAMP'
+fn_out = 'HAM1000FTevolvingSATamp'
 
 with open('data_temp/%s.bin' % fn, 'rb') as f:
     data = cPickle.load(f)
