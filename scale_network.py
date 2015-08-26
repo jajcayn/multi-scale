@@ -4,7 +4,7 @@ import src.wavelet_analysis as wvlt
 from datetime import datetime
 import sys
 sys.path.append('/home/nikola/Work/phd/mutual_information')
-from mutual_information import mutual_information
+from mutual_information import mutual_information, cond_mutual_information
 
 import multiprocessing as mp
 from time import sleep
@@ -192,7 +192,7 @@ class ScaleSpecificNetwork(DataField):
 
 
 
-    def get_phase_fluctuations(self, pool = None):
+    def get_phase_fluctuations(self, rewrite = True, pool = None):
         """
         Gets phase fluctuations.
         """
@@ -217,6 +217,9 @@ class ScaleSpecificNetwork(DataField):
         
         for i, j, res in job_result:
             self.phase_fluctuations[:, i, j] = res
+
+        if rewrite:
+            self.phase = self.phase_fluctuations.copy()
 
         del job_result
 
@@ -247,6 +250,18 @@ class ScaleSpecificNetwork(DataField):
                     resq.put((i, j, mi)) 
 
 
+    def _process_matrix_cond(self, jobq, resq):
+        
+        while True:
+            a = jobq.get() # get queued input
+
+            if a is None: # if it is None, we are finished, put poison pill to resq
+                break # break infinity cycle
+            else:
+                i, j, ph1, ph2, cond_ts = a # compute stuff
+                resq.put((i, j, cond_mutual_information(ph1, ph2, cond_ts, algorithm = 'EQQ2', bins = 8, log2 = False)))
+
+
 
     def get_adjacency_matrix(self, method = "MPC", pool = None, use_queue = True, num_workers = 0):
         """
@@ -257,12 +272,12 @@ class ScaleSpecificNetwork(DataField):
             MIGAU - mutual information - Gauss algorithm
         """
         
+        if method == "MPC":
+            self.get_continuous_phase(pool = pool)
+        
         self.phase = self.flatten_field(self.phase)
 
         start = datetime.now()
-
-        if method == "MPC":
-            self.get_continuous_phase(pool = pool)
 
         if not use_queue:
             self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
@@ -330,6 +345,55 @@ class ScaleSpecificNetwork(DataField):
         print datetime.now()-start
         
         self.phase = self.reshape_flat_field(self.phase)
+
+
+    def get_adjacency_matrix_conditioned(self, cond_ts, use_queue = True, num_workers = 0):
+
+
+        self.phase = self.flatten_field(self.phase)
+
+        start = datetime.now()
+
+        jobs = mp.Queue()
+        results = mp.Queue()
+
+        # start workers - BEFORE filling the queue as they are simultaneously computing while filling the queue
+        workers = [mp.Process(target = self._process_matrix_cond, args = (jobs, results)) for i in range(num_workers)]
+        for w in workers:
+            w.start()
+
+        # fill queue with actual inputs
+        cnt_results = 0
+        for i in range(self.phase.shape[1]):
+            for j in range(self.phase.shape[1]):
+                cnt_results += 1
+                jobs.put([i, j, self.phase[:, i], self.phase[:, j], cond_ts])
+        
+        # fill queue with None for workers to finish
+        for i in range(num_workers):
+            jobs.put(None)
+
+        self.adjacency_matrix = np.zeros((self.phase.shape[1], self.phase.shape[1]))
+
+        cnt = 0
+        while cnt < cnt_results:
+            i, j, val = results.get()
+            self.adjacency_matrix[i, j] = val
+            cnt += 1
+
+        # finally, finish workers
+        for w in workers:
+            w.join()
+
+        # nullify the diagonal 
+        for i in range(self.adjacency_matrix.shape[0]):
+            self.adjacency_matrix[i, i] = 0.
+
+        print datetime.now()-start
+        
+        self.phase = self.reshape_flat_field(self.phase)
+
+
 
 
     def save_net(self, fname, only_matrix = False):
