@@ -5,20 +5,21 @@ import numpy as np
 from src.data_class import DataField
 import csv
 import matplotlib.pyplot as plt
+import src.wavelet_analysis as wvlt
 
 
-## PHASE FLUCTUATIONS NETWORK
-net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
-                           date(1958,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
+# ## PHASE FLUCTUATIONS NETWORK
+# net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
+#                            date(1958,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
 
-pool = Pool(4)             
-net.wavelet(1, get_amplitude = False, pool = pool)
-print "wavelet done"
-net.get_phase_fluctuations(rewrite = True, pool = pool)
-print "fluctuations done"
-pool.close()
-net.get_adjacency_matrix(method = "MIGAU", pool = None, use_queue = True, num_workers = 4)
-net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatMIGAU.bin', only_matrix = True)
+# pool = Pool(5)             
+# net.wavelet(1, get_amplitude = False, pool = pool)
+# print "wavelet done"
+# net.get_phase_fluctuations(rewrite = True, pool = pool)
+# print "fluctuations done"
+# pool.close()
+# net.get_adjacency_matrix(net.phase, method = "MIEQQ", pool = None, use_queue = True, num_workers = 5)
+# net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatMIEQQ.bin', only_matrix = True)
 
 
 ## PHASE FLUCTUATIONS CONDITION NAO
@@ -34,49 +35,59 @@ NAOdata.time = np.array(nao_time)
 
 NAOdata.select_date(date(1958,1,1), date(2014,1,1))
 
+period = 8
+
+k0 = 6. # wavenumber of Morlet wavelet used in analysis, suppose Morlet mother wavelet
+y = 12
+fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
+per = period * y # frequency of interest
+s0 = per / fourier_factor # get scale
+wave, _, _, _ = wvlt.continous_wavelet(NAOdata.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
+NAOphase = np.arctan2(np.imag(wave), np.real(wave))[0, :]
+
 net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
                            date(1958,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
 
-if net.data.shape[0] != NAOdata.data.shape[0]:
+if net.data.shape[0] != NAOphase.shape[0]:
     print "WRONG SHAPES!"
 else:
-    pool = Pool(4)             
-    net.wavelet(1, get_amplitude = False, pool = pool)
+    pool = Pool(5)             
+    net.wavelet(8, get_amplitude = False, pool = pool)
     print "wavelet done"
-    net.get_phase_fluctuations(rewrite = True, pool = pool)
-    print "fluctuations done"
+    # net.get_phase_fluctuations(rewrite = True, pool = pool)
+    # print "fluctuations done"
     pool.close()
-    net.get_adjacency_matrix_conditioned(cond_ts = NAOdata.data, use_queue = True, num_workers = 4)
-    net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatMIEQQcondNAO.bin', only_matrix = True)
+    net.get_adjacency_matrix_conditioned(cond_ts = NAOphase, use_queue = True, num_workers = 5)
+    net.save_net('networks/NCEP-SAT8y-phase-adjmatCMIEQQcondNAOphase.bin', only_matrix = True)
 
 
 ## PHASE FLUCTUATIONS CONDITION SOI
-SOIdata = DataField()
-soi = []
-soi_time = []
-with open("/home/nikola/Work/phd/data/SOImonthly.csv", "r") as f:
-    reader = csv.reader(f)
-    for row in reader:
-        soi_time.append(date(int(row[0][:4]), int(row[0][4:]), 1).toordinal())
-        soi.append(float(row[1]))
+# SOIdata = DataField()
+# soi = []
+# soi_time = []
+# with open("/home/nikola/Work/phd/data/SOImonthly.csv", "r") as f:
+#     reader = csv.reader(f)
+#     for row in reader:
+#         soi_time.append(date(int(row[0][:4]), int(row[0][4:]), 1).toordinal())
+#         soi.append(float(row[1]))
 
-SOIdata.data = np.array(soi)
-SOIdata.time = np.array(soi_time)
+# SOIdata.data = np.array(soi)
+# SOIdata.time = np.array(soi_time)
 
-SOIdata.select_date(date(1958,1,1), date(2014,1,1))
+# SOIdata.select_date(date(1958,1,1), date(2014,1,1))
 
 
-net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
-                           date(1958,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
+# net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
+#                            date(1958,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
 
-if net.data.shape[0] != SOIdata.data.shape[0]:
-    print "WRONG SHAPES!"
-else:
-    pool = Pool(4)             
-    net.wavelet(1, get_amplitude = False, pool = pool)
-    print "wavelet done"
-    net.get_phase_fluctuations(rewrite = True, pool = pool)
-    print "fluctuations done"
-    pool.close()
-    net.get_adjacency_matrix_conditioned(cond_ts = SOIdata.data, use_queue = True, num_workers = 4)
-    net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatMIEQQcondSOI.bin', only_matrix = True)
+# if net.data.shape[0] != SOIdata.data.shape[0]:
+#     print "WRONG SHAPES!"
+# else:
+#     pool = Pool(5)             
+#     net.wavelet(1, get_amplitude = False, pool = pool)
+#     print "wavelet done"
+#     net.get_phase_fluctuations(rewrite = True, pool = pool)
+#     print "fluctuations done"
+#     pool.close()
+#     net.get_adjacency_matrix_conditioned(cond_ts = SOIdata.data, use_queue = True, num_workers = 5)
+#     net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatCMIEQQcondSOI.bin', only_matrix = True)

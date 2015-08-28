@@ -96,7 +96,7 @@ def _get_mutual_inf_EQQ(a):
     """
     
     i, j, ph1, ph2 = a
-    return i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 8, log2 = False)
+    return i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 4, log2 = False)
 
 
 
@@ -274,7 +274,7 @@ class ScaleSpecificNetwork(DataField):
                     resq.put((i, j, coh))
 
                 elif method == "MIEQQ":
-                    resq.put((i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 8, log2 = False)))
+                    resq.put((i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 4, log2 = False)))
 
                 elif method == "MIGAU":
                     corr = np.corrcoef([ph1, ph2])[0, 1]                    
@@ -291,7 +291,7 @@ class ScaleSpecificNetwork(DataField):
                 break # break infinity cycle
             else:
                 i, j, ph1, ph2, cond_ts = a # compute stuff
-                resq.put((i, j, cond_mutual_information(ph1, ph2, cond_ts, algorithm = 'EQQ2', bins = 8, log2 = False)))
+                resq.put((i, j, cond_mutual_information(ph1, ph2, cond_ts, algorithm = 'EQQ2', bins = 4, log2 = False)))
 
 
 
@@ -397,7 +397,7 @@ class ScaleSpecificNetwork(DataField):
         # fill queue with actual inputs
         cnt_results = 0
         for i in range(self.phase.shape[1]):
-            for j in range(self.phase.shape[1]):
+            for j in range(i, self.phase.shape[1]):
                 cnt_results += 1
                 jobs.put([i, j, self.phase[:, i], self.phase[:, j], cond_ts])
         
@@ -428,7 +428,7 @@ class ScaleSpecificNetwork(DataField):
 
 
 
-    def save_net(self, fname, only_matrix = False):
+    def save_net(self, fname, only_matrix = True):
         """
         Saves the scale specific network.
         If only_matrix is True, saves only adjacency_matrix, else saves the whole class.
@@ -438,7 +438,7 @@ class ScaleSpecificNetwork(DataField):
 
         with open(fname, 'wb') as f:
             if only_matrix:
-                cPickle.dump({'adjacency_matrix' : self.adjacency_matrix}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+                cPickle.dump({'adjacency_matrix' : self.adjacency_matrix.astype(np.float16)}, f, protocol = cPickle.HIGHEST_PROTOCOL)
             else:
                 cPickle.dump(self.__dict__, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
