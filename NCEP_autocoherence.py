@@ -26,26 +26,26 @@ def _get_autocoherence(a):
 
 
 ## autocoherence phase
-print "computing autocoherence for phase..."
-for PERIOD in periods:
-    for AVG in avg_to:
-        print("computing for %d year period and averaging up to %d" % (PERIOD, 12*AVG*PERIOD))
-        net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
-                                   date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = True)
-        pool = Pool(WORKERS)             
-        net.wavelet(PERIOD, get_amplitude = False, pool = pool)
-        print "wavelet on data done"
-        autocoherence = np.zeros(net.get_spatial_dims())
-        job_args = [ (i, j, int(AVG*12*PERIOD), net.phase[:, i, j]) for i in range(net.lats.shape[0]) for j in range(net.lons.shape[0]) ]
-        job_result = pool.map(_get_autocoherence, job_args)
-        del job_args
-        pool.close()
-        for i, j, res in job_result:
-            autocoherence[i, j] = res
-        del job_result
+# print "computing autocoherence for phase..."
+# for PERIOD in periods:
+#     for AVG in avg_to:
+#         print("computing for %d year period and averaging up to %d" % (PERIOD, 12*AVG*PERIOD))
+#         net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
+#                                    date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = True)
+#         pool = Pool(WORKERS)             
+#         net.wavelet(PERIOD, get_amplitude = False, pool = pool)
+#         print "wavelet on data done"
+#         autocoherence = np.zeros(net.get_spatial_dims())
+#         job_args = [ (i, j, int(AVG*12*PERIOD), net.phase[:, i, j]) for i in range(net.lats.shape[0]) for j in range(net.lons.shape[0]) ]
+#         job_result = pool.map(_get_autocoherence, job_args)
+#         del job_args
+#         pool.close()
+#         for i, j, res in job_result:
+#             autocoherence[i, j] = res
+#         del job_result
 
-        with open("networks/NCEP-SATAsurface-autocoherence-phase-scale%dyears-avg-to-%.1f.bin" % (PERIOD, AVG), "wb") as f:
-            cPickle.dump({'autocoherence' : autocoherence, 'lats' : net.lats, 'lons' : net.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+#         with open("networks/NCEP-SATAsurface-autocoherence-phase-scale%dyears-avg-to-%.1f.bin" % (PERIOD, AVG), "wb") as f:
+#             cPickle.dump({'autocoherence' : autocoherence, 'lats' : net.lats, 'lons' : net.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 
 ## autocoherence filtered data - SATA
