@@ -299,9 +299,9 @@ class ScaleSpecificNetwork(DataField):
                     w1 = np.complex(0, 0)
                     w2 = w1; w3 = w1
                     for t in range(0, self.time.shape[0]):
-                        w1 += ph1[i] * np.conjugate(ph2[i])
-                        w2 += ph1[i] * np.conjugate(ph1[i])
-                        w3 += ph2[i] * np.conjugate(ph2[i])
+                        w1 += ph1[t] * np.conjugate(ph2[t])
+                        w2 += ph1[t] * np.conjugate(ph1[t])
+                        w3 += ph2[t] * np.conjugate(ph2[t])
                     w1 /= np.sqrt(np.abs(w2) * np.abs(w3))
                     resq.put((i, j, np.abs(w1)))
 
