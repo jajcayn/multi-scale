@@ -14,16 +14,19 @@ def _get_oscillatory_modes(a):
     """
     Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
     """
-    i, j, s0, flag, data = a
+    i, j, s0, flag, flag2, data = a
     wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
     phase = np.arctan2(np.imag(wave), np.real(wave))
     if flag:
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
-    
+
+    ret = [phase]
     if flag:
-        return i, j, (phase, amplitude)
-    else:
-        return i, j, (phase)
+        ret.append(amplitude)
+    if flag2:
+        ret.append(wave)
+    
+    return i, j, ret
 
 
 def _filtered_data(a):
@@ -135,6 +138,7 @@ class ScaleSpecificNetwork(DataField):
 
         self.phase = None
         self.amplitude = None
+        self.wave = None
         self.adjacency_matrix = None
 
         self.num_lats = self.lats.shape[0]
@@ -143,7 +147,7 @@ class ScaleSpecificNetwork(DataField):
 
 
 
-    def wavelet(self, period, get_amplitude = False, pool = None):
+    def wavelet(self, period, get_amplitude = False, save_wavelet = False, pool = None):
         """
         Performs wavelet analysis on the data.
         """
@@ -162,13 +166,15 @@ class ScaleSpecificNetwork(DataField):
         self.phase = np.zeros_like(self.data)
         if get_amplitude:
             self.amplitude = np.zeros_like(self.data)
+        if save_wavelet:
+            self.wave = np.zeros_like(self.data, dtype = np.complex64)
 
         if pool is None:
             map_func = map
         elif pool is not None:
             map_func = pool.map
 
-        job_args = [ (i, j, s0, get_amplitude, self.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_args = [ (i, j, s0, get_amplitude, save_wavelet, self.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
         job_result = map_func(_get_oscillatory_modes, job_args)
         del job_args
 
@@ -176,6 +182,10 @@ class ScaleSpecificNetwork(DataField):
             self.phase[:, i, j] = res[0]
             if get_amplitude:
                 self.amplitude[:, i, j] = res[1]
+            if save_wavelet and get_amplitude:
+                self.wave[:, i, j] = res[2]
+            if save_wavelet and not get_amplitude:
+                self.wave[:, i, j] = res[1]
 
         del job_result
 
@@ -281,6 +291,20 @@ class ScaleSpecificNetwork(DataField):
                     mi = -0.5 * np.log(1 - np.power(corr, 2)) if corr < 1. else 0
                     resq.put((i, j, mi)) 
 
+                elif method == "COV":
+                    resq.put((i, j, np.cov(ph1, ph2, ddof = 1)[0,1]))
+
+                elif method == "WCOH":
+                    # input field must be wave from wavelet!!!!
+                    w1 = np.complex(0, 0)
+                    w2 = w1; w3 = w1
+                    for t in range(0, self.time.shape[0]):
+                        w1 += ph1[i] * np.conjugate(ph2[i])
+                        w2 += ph1[i] * np.conjugate(ph1[i])
+                        w3 += ph2[i] * np.conjugate(ph2[i])
+                    w1 /= np.sqrt(np.abs(w2) * np.abs(w3))
+                    resq.put((i, j, np.abs(w1)))
+
 
     def _process_matrix_cond(self, jobq, resq):
         
@@ -302,6 +326,8 @@ class ScaleSpecificNetwork(DataField):
             MPC - mean phase coherence
             MIEQQ - mutual information - equiquantal algorithm
             MIGAU - mutual information - Gauss algorithm
+            COV - covariance matrix
+            WCOH - wavelet coherence
         """
         
         if method == "MPC":
@@ -337,6 +363,9 @@ class ScaleSpecificNetwork(DataField):
             del job_results
 
         else:
+
+            if method == "WCOH" and field.dtype != np.complex64:
+                raise Exception("Wavelet coherence requires input field to be wave data from wavelet!")
 
             jobs = mp.Queue()
             results = mp.Queue()
