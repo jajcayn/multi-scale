@@ -72,6 +72,7 @@ class DataField:
         self.location = None # for station data
         self.missing = None # for station data where could be some missing values
         self.nans = False
+        self.cos_weights = None
         
         
         
@@ -401,7 +402,24 @@ class DataField:
             years[i] = dt.year
             
         return days, months, years
+
+
+
+    def latitude_cos_weights(self):
+        """
+        Returns a grid with scaling weights based on cosine of latitude.
+        """
         
+        if self.cos_weights != None:
+            return self.cos_weights
+
+        cos_weights = np.zeros(self.get_spatial_dims())
+        for ndx in range(self.lats.shape[0]):
+            cos_weights[ndx, :] = np.cos(self.lats[ndx] * np.pi/180.) ** 0.5
+
+        self.cos_weights = cos_weights
+        return cos_weights
+
         
         
     def missing_day_month_year(self):
