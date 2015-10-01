@@ -6,7 +6,6 @@ created on Mar 4, 2014
 
 import numpy as np
 from src.data_class import DataField
-from var_model import VARModel
 
 
 
@@ -15,6 +14,7 @@ def get_single_FT_surrogate(ts):
     Returns single 1D Fourier transform surrogate.
     """
 
+    np.random.seed()
     xf = np.fft.rfft(ts, axis = 0)
     angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
     # set the slowest frequency to zero, i.e. not to be randomised
@@ -58,6 +58,7 @@ def get_single_AR_surrogate(ts, order_range = [1,1]):
 
 
 def _prepare_AR_surrogates(a):
+    from var_model import VARModel
     i, j, lev, order_range, crit, ts = a
     if not np.any(np.isnan(ts)):
         v = VARModel()
