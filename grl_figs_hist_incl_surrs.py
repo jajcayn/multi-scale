@@ -58,8 +58,8 @@ def _reconstruction_surrs(sg, a, jobq, resq, idx):
         resq.put([data_diff, np.mean(amplitude2)])
 
 
-g = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), True)
-g_amp = load_station_data('TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), True)
+g = load_station_data('../data/TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), True)
+g_amp = load_station_data('../data/TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), True)
 g_data = DataField()
 
 
@@ -97,8 +97,10 @@ cond_means = np.zeros((BINS, 2, 1))
 def get_equidistant_bins(num):
     return np.array(np.linspace(-np.pi, np.pi, num+1))
 
-start_cut = date(1962,1,1)
-l = 17532
+# start_cut = date(1962,1,1)
+start_cut = date(1958,1,1)
+# l = 17532
+l = '16k'
 
 g_data.data, g_data.time, idx = g.get_data_of_precise_length(l, start_cut, None, False) # 16k
 print g_data.get_date_from_ndx(0), g_data.get_date_from_ndx(-1)
@@ -211,19 +213,19 @@ ax4.set_xlabel("MEAN AMPLITUDE [$^{\circ}$C]", size = 20)
 ax4.tick_params(axis = 'both', which = 'major', labelsize = 18)
 p_val_amp = 1. - float(np.sum(np.greater(np.mean(amplitude), amp_surr))) / NUM_SURR
 
-plt.savefig("debug/PRGhist_diff_%.2f_amp_%.2f.eps" % (p_val_diff, p_val_amp))
+plt.savefig("grl_fig/PRGhist_diff_%.2f_amp_%.2f.png" % (p_val_diff, p_val_amp))
 
-to_txt = np.zeros((cond_means.shape[0], 3))
-to_txt[:, 0] = np.arange(1, 9, 1)
-to_txt[:, 1] = cond_means[:, 0, 0]
-to_txt[:, 2] = cond_means[:, 1, 0]
+# to_txt = np.zeros((cond_means.shape[0], 3))
+# to_txt[:, 0] = np.arange(1, 9, 1)
+# to_txt[:, 1] = cond_means[:, 0, 0]
+# to_txt[:, 2] = cond_means[:, 1, 0]
 
-np.savetxt('debug/hist_SATA.txt', to_txt, fmt = '%.3f')
+# np.savetxt('grl_fig/hist_SATA.txt', to_txt, fmt = '%.3f')
 
-to_txt2 = np.zeros((NUM_SURR + 1, 2))
-to_txt2[:-1, 0] = surr_diff
-to_txt2[-1, 0] = data_diff
-to_txt2[:-1, 1] = amp_surr
-to_txt2[-1, 1] = np.mean(amplitude)
+# to_txt2 = np.zeros((NUM_SURR + 1, 2))
+# to_txt2[:-1, 0] = surr_diff
+# to_txt2[-1, 0] = data_diff
+# to_txt2[:-1, 1] = amp_surr
+# to_txt2[-1, 1] = np.mean(amplitude)
 
-np.savetxt('debug/hist_surrSATAdiff_%.2f_amp_%.2f.txt' % (p_val_diff, p_val_amp), to_txt2, fmt = '%.3f')
+# np.savetxt('grl_fig/hist_surrSATAdiff_%.2f_amp_%.2f.txt' % (p_val_diff, p_val_amp), to_txt2, fmt = '%.3f')

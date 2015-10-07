@@ -14,9 +14,9 @@ STATIONS = None # ['TG_STAID000047.txt', 'TG_STAID000054.txt']
 
 
 if STATIONS == None:
-    g = load_station_data('TG_STAID000027.txt', date(1924,1,15), date(2013,10,1), True)
+    g = load_station_data('../data/TG_STAID000027.txt', date(1924,1,15), date(2013,10,1), True)
     if AMPLITUDE:
-        g_amp = load_station_data('TG_STAID000027.txt', date(1924,1,15), date(2013, 10, 1), False)
+        g_amp = load_station_data('../data/TG_STAID000027.txt', date(1924,1,15), date(2013, 10, 1), False)
     g_data = DataField()
 else:
     for i in range(len(STATIONS)):
@@ -82,9 +82,12 @@ else:
 def get_equidistant_bins(num):
     return np.array(np.linspace(-np.pi, np.pi, num+1))
 
-start_cut = date(1958,1,1)
+# start_cut = date(1958,1,1)
+start_cut = date(1962,1,1)
+l = 17532
 if STATIONS == None:
-    g_data.data, g_data.time, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
+    g_data.data, g_data.time, idx = g.get_data_of_precise_length(l, start_cut, None, False)
+    print g_data.get_date_from_ndx(0), g_data.get_date_from_ndx(-1)
     phase = phase[0, idx[0] : idx[1]]
     if AMPLITUDE:
         amplitude = amplitude[idx[0] : idx[1]]
@@ -194,11 +197,11 @@ if AMPLITUDE:
     tit += '\n SAT amplitude'
 # plt.suptitle(tit, size = 22)
 
-plt.savefig("debug/PRGhistSeasons.png")
+plt.savefig("grl_fig/PRGhistSeasons.png")
 
-to_txt = np.zeros((cond_means.shape[0], 3))
-to_txt[:, 0] = np.arange(1, 9, 1)
-to_txt[:, 1] = cond_means[:, 0, 0]
-to_txt[:, 2] = cond_means[:, 1, 0]
+# to_txt = np.zeros((cond_means.shape[0], 3))
+# to_txt[:, 0] = np.arange(1, 9, 1)
+# to_txt[:, 1] = cond_means[:, 0, 0]
+# to_txt[:, 2] = cond_means[:, 1, 0]
 
-np.savetxt('debug/SATAvsSAT_test.txt', to_txt, fmt = '%.3f')
+# np.savetxt('grl_fig/SATAvsSAT_test.txt', to_txt, fmt = '%.3f')
