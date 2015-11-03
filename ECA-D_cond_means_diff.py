@@ -86,7 +86,7 @@ LONS = [-12.5, 40] #[-40.375, -11.375] #lons ECA: -40.375 -- 75.375 = 464 grid p
 SURR_TYPE = None # None, for data, MF, FT, AR or ALL (use only with ERA reanalysis, not ECA&D)
 NUM_SURR = 100 # number of surrogates to be evaluated
 NUM_FILES = 1
-LOG = True # if True, output will be written to log defined in log_file, otherwise printed to screen
+LOG = False # if True, output will be written to log defined in log_file, otherwise printed to screen
 SEASON = None#[12, 1, 2]
 AMPLITUDE = True # season cannot be used with amplitude, it does not make any sense
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
@@ -107,7 +107,7 @@ def log(msg):
 ## load and prepare data
 # ECA&D
 if ECA:
-    g = load_ECA_D_data_daily('tg_0.25deg_reg_v10.0.nc', 'tg', date(1950,1,1), date(2014,1,1), 
+    g = load_ECA_D_data_daily('../data/tg_0.25deg_reg_v10.0.nc', 'tg', date(1950,1,1), date(2014,1,1), 
                                 LATS, LONS, False, logger_function = log)
     if AMPLITUDE:
         log("Evaluating amplitude of the yearly cycle instead of total SAT(A) variability...")
@@ -228,7 +228,7 @@ log("Analysis on data done. Saving file...")
 #     fname = ('result/ECA-D_%s%s_cond_mean_var_data_from_%s_16k' % ('SATamplitude_' if AMPLITUDE else '', 'SATA' if ANOMALISE else 'SAT', str(START_DATE)))
 # else:
 #     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))    
-fname = "GRL-RESUBMISSION-amplitude"
+fname = "result/GRL-RESUBMISSION-amplitude"
 with open(fname + '.bin', 'wb') as f:
 #    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
 #                   'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var, 
