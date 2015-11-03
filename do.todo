@@ -84,4 +84,12 @@ discussion:
    ✔ Hamburg + Potsdam = evolving + evolving sezony s FT surr do SUPP, napis ze SATamp je podobna, z ECA vidime ze aj tam by to malo byt vyznamne, tak sme sa na to pozreli @done (15-03-12 16:10)
 
 
- ☐ kod na MF surr: python dopis AA, matlab napis komplet
+ ✔ kod na MF surr: python dopis AA, matlab napis komplet @done (15-11-03 15:17)
+
+ GRL paper -- RESUMBMISSION:
+   ☐ line 148-149: What is interpretation of the geographical pattern seen in Fig. 4, in particular increased temperature difference over Scandinavia? -- Nikola, please, plot the amplitude of the annual cycle in ECA, to see, if larger differences correspond to larger amplitude of the annual cycle. We can also plot the differences in Fig. 4 in percent of the actual amplitude of the annual cycle – didn’t we do it already?
+   ☐ draw maps - amplitude of AAC / SATA, differences (AAC / SATA) divided by amplitude / sd same can be for evolution, differences divided by amplitude / sd of segment
+   ☐ Fig. 6 What is interpretation of apparent differences of geographical pattern with Fig. 4? -- Any idea? We will see if the differences in AAC correlate with the AAC itself. In the same way we can investigate the overall SATA variance over Europe, but here I do not think it will be the case. Probably the strength of influence of the 8yr cycle changes by some mechanism, cf map in Fig 6 with geographical map – can mountains stop the spread of the influence?..
+   ☐ Nikola, please try to plot evolution of AAC in the same moving windows as the AAC conditional means differences.
+   ☐ plot: Fig. 5 cumulative histo
+   ☐ merge fig2 + fig 3 in supp
