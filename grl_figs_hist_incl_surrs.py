@@ -4,7 +4,7 @@ import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
-from surrogates.surrogates import SurrogateField
+from src.surrogates import SurrogateField
 from multiprocessing import Process, Queue
 
 
@@ -187,11 +187,12 @@ ax3.spines['top'].set_visible(False)
 ax3.spines['right'].set_visible(False)
 ax3.spines['left'].set_visible(False)
 ax3.tick_params(color = '#6A4A3C') 
-n, bins, patch = ax3.hist(surr_diff, 50, histtype = 'stepfilled')
+n, bins, patch = ax3.hist(surr_diff, 50, histtype = 'stepfilled', cumulative = True)
 print surr_diff.min(), surr_diff.max(), data_diff
 plt.setp(patch, 'facecolor', '#BF3919', 'edgecolor', '#BF3919', 'alpha', 0.9)
 ax3.vlines(data_diff, 0, n.max(), color = "#76C06E", linewidth = 3.5)
-ax3.axis([0.3, 1.8, 0, 80])
+# ax3.axis([0.3, 1.8, 0, 80])
+ax3.set_xlim(0.3, 1.9)
 ax3.set_xlabel("DIFFERENCE [$^{\circ}$C]", size = 20)
 ax3.tick_params(axis = 'both', which = 'major', labelsize = 18)
 p_val_diff = 1. - float(np.sum(np.greater(data_diff, surr_diff))) / NUM_SURR
@@ -203,11 +204,12 @@ ax4.spines['top'].set_visible(False)
 ax4.spines['right'].set_visible(False)
 ax4.spines['left'].set_visible(False)
 ax4.tick_params(color = '#6A4A3C') 
-n, bins, patch = ax4.hist(amp_surr, 50, histtype = 'stepfilled')
+n, bins, patch = ax4.hist(amp_surr, 50, histtype = 'stepfilled', cumulative = True)
 print amp_surr.min(), amp_surr.max(), np.mean(amplitude)
 plt.setp(patch, 'facecolor', '#BF3919', 'edgecolor', '#BF3919', 'alpha', 0.9)
 ax4.vlines(np.mean(amplitude), 0, n.max(), color = "#76C06E", linewidth = 3.5)
-ax4.axis([0.3, 1.8, 0, 60])
+# ax4.axis([0.3, 1.8, 0, 60])
+ax4.set_xlim(0.3, 1.9)
 ax4.set_xlabel("MEAN AMPLITUDE [$^{\circ}$C]", size = 20)
 # ax4.set_xticks(np.arange(0, 1, 0.2))
 ax4.tick_params(axis = 'both', which = 'major', labelsize = 18)

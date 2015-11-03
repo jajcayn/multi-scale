@@ -46,19 +46,19 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
     m.drawparallels(np.arange(20, 80, 10), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 30)
     m.drawmeridians(np.arange(-40, 80, 10), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 30)
     x, y = m(*np.meshgrid(lons, lats))
-    if not MEANS:
-        levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
-    else:
-        levs = np.arange(0.1,8.1,0.1) # 0 - 4 / 0.2
+    # if not MEANS:
+    #     levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
+    # else:
+    #     levs = np.arange(0.1,30.1,0.1) # 0 - 4 / 0.2
     if ECA:
-        cs = m.contourf(x, y, diffs, levels = levs, cmap = plt.get_cmap('CMRmap'))
+        cs = m.contourf(x, y, diffs, 40, cmap = plt.get_cmap('CMRmap'))
     else:
         cs = m.contourf(x, y, diffs[::-1, :], levels = levs, cmap = plt.get_cmap('CMRmap'))
     # cbar = m.colorbar(cs, location = 'right', size = "5%", pad = "10%")
-    cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05, ticks = np.arange(0, 9, 1))
+    cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05)
     cbar.ax.tick_params(labelsize = 30)
     if MEANS:
-        cbar.set_label("DIFFERENCE [$^{\circ}$C]", size = 38, labelpad = 30)
+        cbar.set_label("DIFFERENCE/SD", size = 38, labelpad = 30)
     else:
         cbar.set_label("differecnce in standard deviation [$^{\circ}$C]", size = 23)
     if SIGN:
@@ -68,12 +68,13 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
             title = ("%s reanalysis - differences of conditional standard deviation \n %d %s surrogates" % ('ECA & D' if ECA else 'ERA-40', num_surr, SURR_TYPE))        
     else:
         if MEANS:
-            title = ("%s reanalysis - differences in cond. mean SATA \n DATA" % ('ECA&D' if ECA else 'ERA-40'))
+            # title = ("%s reanalysis - differences in cond. mean SATA \n DATA" % ('ECA&D' if ECA else 'ERA-40'))
             # title = ("%s reanalysis - scaled mean of bins \n SAT amplitude - DATA" % ('ECA & D' if ECA else 'ERA-40'))
+            title = "DIFFERENCE div SD SATA"
         else:
             title = ("%s reanalysis - differences of conditional standard deviation \n MF SURROGATE STD" % ('ECA & D' if ECA else 'ERA-40'))
     title += subtit
-    # plt.title(title, size = 35)
+    plt.title(title, size = 35)
     
     if fname != None:
         plt.savefig(fname)
@@ -87,7 +88,7 @@ START_DATE = date(1958,1,1)
 MEANS = True
 ANOMALISE = True
 PICKLE = True # whether to use pickled file or hickled
-SIGN = True # wheter to check significance or just plot results
+SIGN = False # wheter to check significance or just plot results
 SIGMAS_ABOVE = 2
 PERCENTIL = 95
 SAME_BINS = False
@@ -101,81 +102,84 @@ FALSE_POS = False
 
 # load data 
 print("[%s] Loading data..." % (str(datetime.now())))
-if ECA:
-    fname = ('result/new_grl/ECA-D_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
-                                                              str(START_DATE)))
-else:
-    fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
-                                                              str(START_DATE)))
+# if ECA:
+#     fname = ('result/new_grl/ECA-D_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+#                                                               str(START_DATE)))
+# else:
+#     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
+#                                                               str(START_DATE)))
 if PICKLE:
+    fname = "result/grl-resub/GRL-RESUBMISSION-sata-w-sd"
     with open(fname + '.bin', 'rb') as f:
         data = cPickle.load(f)
 else:
     data = hkl.load(fname + '.hkl')
+print data.keys()
 bins_data = data['bins_data']
 bins_data_var = data['bins_data_var']
 lats = data['lats']
 lons = data['lons']
+sd_data = data['std']
 del data
 
 # load surrogates
-bins_surrogates_list = []
-bins_surrogates_var_list = []
-print("[%s] Data loaded. Now loading surrogates..." % (str(datetime.now())))
-if ECA:
-    fname = ('result/new_grl/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
-                 SURR_TYPE, str(START_DATE)))
-else:
-    fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
-                 SURR_TYPE, str(START_DATE)))
-if PICKLE:
-    for i in range(NUM_FILES):
-        with open(fname + '_%d' % (i) + '.bin', 'rb') as f:
-            data = cPickle.load(f)
-        bins_surrogates_list.append(data['bins_surrogates'])
-        bins_surrogates_var_list.append(data['bins_surrogates_var'])
-    with open("result/ECA-D_SATamplitude_SATA_cond_mean_var_data_from_1958-01-01_16kOLD.bin", 'rb') as f:
-        data = cPickle.load(f)
-        lat_surrs_large = data['lats']
-        lons_surrs_large = data['lons']
+# bins_surrogates_list = []
+# bins_surrogates_var_list = []
+# print("[%s] Data loaded. Now loading surrogates..." % (str(datetime.now())))
+# if ECA:
+#     fname = ('result/new_grl/ECA-D_%s_cond_mean_var_%ssurrogates_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', 
+#                  SURR_TYPE, str(START_DATE)))
+# else:
+#     fname = ('result/ERA_%s_cond_mean_var_%ssurrogates_from_%s_16k_OLD' % ('SATA' if ANOMALISE else 'SAT', 
+#                  SURR_TYPE, str(START_DATE)))
+# if PICKLE:
+#     for i in range(NUM_FILES):
+#         with open(fname + '_%d' % (i) + '.bin', 'rb') as f:
+#             data = cPickle.load(f)
+#         bins_surrogates_list.append(data['bins_surrogates'])
+#         bins_surrogates_var_list.append(data['bins_surrogates_var'])
+#     with open("result/ECA-D_SATamplitude_SATA_cond_mean_var_data_from_1958-01-01_16kOLD.bin", 'rb') as f:
+#         data = cPickle.load(f)
+#         lat_surrs_large = data['lats']
+#         lons_surrs_large = data['lons']
 
-else:
-    data = hkl.load(fname + '.hkl')
-del data
-print("[%s] Surrogates loaded." % (str(datetime.now())))
-bins_surrogates = np.zeros(([NUM_FILES * bins_surrogates_list[0].shape[1]] + list(bins_surrogates_list[0].shape[2:])))
-pointer = 0
-for i in range(NUM_FILES):
-    lat_ndx = np.nonzero(np.logical_and(lat_surrs_large >= LATS[0], lat_surrs_large <= LATS[1]))[0]
-    lon_ndx = np.nonzero(np.logical_and(lons_surrs_large >= LONS[0], lons_surrs_large <= LONS[1]))[0]
-    if bins_surrogates_list[i].shape[2] > 120:
-        a = bins_surrogates_list[i][0, ...]
-        e = a[:, lat_ndx, :, :]
-        bins_surrogates[pointer:pointer+100, ...] = e[:, :, lon_ndx, :]
-    else:
-        bins_surrogates[pointer:pointer+100, ...] = bins_surrogates_list[i][0, ...]
-    pointer += bins_surrogates_list[0].shape[1]
-del bins_surrogates_list
-bins_surrogates_var = np.zeros_like(bins_surrogates)
-pointer = 0
+# else:
+#     data = hkl.load(fname + '.hkl')
+# del data
+# print("[%s] Surrogates loaded." % (str(datetime.now())))
+# bins_surrogates = np.zeros(([NUM_FILES * bins_surrogates_list[0].shape[1]] + list(bins_surrogates_list[0].shape[2:])))
+# pointer = 0
 # for i in range(NUM_FILES):
-#     bins_surrogates_var[pointer:pointer+100, ...] = bins_surrogates_var_list[i][0, ...]
-#     pointer += bins_surrogates_var_list[0].shape[1]
-del bins_surrogates_var_list
-print("[%s] Data prepared to test and plot..." % (str(datetime.now())))
+#     lat_ndx = np.nonzero(np.logical_and(lat_surrs_large >= LATS[0], lat_surrs_large <= LATS[1]))[0]
+#     lon_ndx = np.nonzero(np.logical_and(lons_surrs_large >= LONS[0], lons_surrs_large <= LONS[1]))[0]
+#     if bins_surrogates_list[i].shape[2] > 120:
+#         a = bins_surrogates_list[i][0, ...]
+#         e = a[:, lat_ndx, :, :]
+#         bins_surrogates[pointer:pointer+100, ...] = e[:, :, lon_ndx, :]
+#     else:
+#         bins_surrogates[pointer:pointer+100, ...] = bins_surrogates_list[i][0, ...]
+#     pointer += bins_surrogates_list[0].shape[1]
+# del bins_surrogates_list
+# bins_surrogates_var = np.zeros_like(bins_surrogates)
+# pointer = 0
+# # for i in range(NUM_FILES):
+# #     bins_surrogates_var[pointer:pointer+100, ...] = bins_surrogates_var_list[i][0, ...]
+# #     pointer += bins_surrogates_var_list[0].shape[1]
+# del bins_surrogates_var_list
+# print("[%s] Data prepared to test and plot..." % (str(datetime.now())))
 
-lat_ndx = np.nonzero(np.logical_and(lats >= LATS[0], lats <= LATS[1]))[0]
-lon_ndx = np.nonzero(np.logical_and(lons >= LONS[0], lons <= LONS[1]))[0]
-d = bins_data[lat_ndx, ...]
-bins_data = d[:, lon_ndx, ...]
-e = bins_surrogates[:, lat_ndx, ...]
-bins_surrogates = e[:, :, lon_ndx, :]
-lats = lats[lat_ndx]
-lons = lons[lon_ndx]
+# lat_ndx = np.nonzero(np.logical_and(lats >= LATS[0], lats <= LATS[1]))[0]
+# lon_ndx = np.nonzero(np.logical_and(lons >= LONS[0], lons <= LONS[1]))[0]
+# d = bins_data[lat_ndx, ...]
+# bins_data = d[:, lon_ndx, ...]
+# e = bins_surrogates[:, lat_ndx, ...]
+# bins_surrogates = e[:, :, lon_ndx, :]
+# lats = lats[lat_ndx]
+# lons = lons[lon_ndx]
 
 
-print bins_data.shape
-print bins_surrogates.shape
+# print bins_data.shape
+# print bins_surrogates.shape
 
 
 
@@ -336,7 +340,7 @@ else:
     if ECA:
         # fname = ('debug/ECA-D_SATamplitude_%s_cond_%s_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
         #                                                                str(START_DATE)))
-        fname = ('debug/ECA-D_%s_scaled_%s_bins_data_from_%s.eps' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
+        fname = ('debug/ECA-D_%s_scaled_%s_bins_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
                                                                        str(START_DATE)))
     else:
         fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
@@ -344,6 +348,7 @@ else:
     if MEANS:
         result = np.zeros((bins_data.shape[0], bins_data.shape[1]))
         result_data = np.zeros_like(result)
+        amp = np.zeros_like(result)
         for lat in range(lats.shape[0]):
             for lon in range(lons.shape[0]):
                 result[lat, lon] = bins_data[lat, lon, :].max() - bins_data[lat, lon].min()
@@ -351,6 +356,8 @@ else:
                 # result[lat, lon] = np.mean(bins_data[lat, lon, :])
                 # result[lat, lon] /= np.mean(bins_data[lat, lon, :])
                 # result[lat, lon] = np.mean([np.mean(bins_surrogates[i, lat, lon, :]) for i in range(bins_surrogates.shape[0])])
+                amp[lat, lon] = sd_data[lat, lon]
+        result /= amp
         render_differences_map(result, lats, lons, subtit = (' - no significance test'), 
                                 fname = fname)
     # else:

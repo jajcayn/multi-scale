@@ -6,7 +6,7 @@ created on May 20, 2014
 
 from src import wavelet_analysis
 from src.data_class import load_station_data, DataField
-from surrogates.surrogates import SurrogateField
+from src.surrogates import SurrogateField
 import numpy as np
 from datetime import datetime, date
 import matplotlib.pyplot as plt
@@ -36,7 +36,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
     ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
     ax1.set_xlabel('middle year of %.2f-year wide window' % (WINDOW_LENGTH / 365.25), size = 14)
-    ax1.set_ylabel('difference in cond %s in temperature [$^{\circ}$C]' % (MOMENT), size = 14)
+    ax1.set_ylabel('difference in cond mean SATamplitude [$^{\circ}$C]', size = 14)
     # year_diff = np.round((last_mid_year - first_mid_year) / 10)
     # print last_mid_year, first_mid_year, year_diff
     # xnames = np.arange(first_mid_year, last_mid_year, year_diff)
@@ -58,7 +58,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
             if percentil != None:
                 for pos in np.where(percentil[:, 1] == True)[0]:
                     ax2.plot(pos, meanvars[0][pos], 'o', markersize = 8, color = '#CA4F17')
-        ax2.set_ylabel('mean of cond %s in temperature [$^{\circ}$C]' % (MOMENT), size = 14)
+        ax2.set_ylabel('amplitude', size = 14)
         ax2.axis([0, cnt-1, mean_ax[0], mean_ax[1]])
         for tl in ax2.get_yticklabels():
             tl.set_color('#CA4F17')
@@ -86,7 +86,8 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     else:
         tit += ('%.2f-year window, %d-year shift' % (WINDOW_LENGTH, WINDOW_SHIFT))
     #plt.title(tit)
-    tit = ('Evolution of difference in cond %s temp SATA -- %s \n %s' % (MOMENT, g.location, ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
+    # tit = ('Evolution of difference in cond %s temp SATA -- %s \n %s' % (MOMENT, g.location, ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
+    tit = "Evolution of difference in cond means SAT amplitude"
     tit += subtit
     plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
@@ -137,7 +138,7 @@ WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MOMENT = 'mean' # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 3
-NUM_SURR = 1000 # how many surrs will be used to evaluate
+NUM_SURR = 0 # how many surrs will be used to evaluate
 SURR_TYPE = 'FT'
 diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
 mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
@@ -154,14 +155,14 @@ AMPLITUDE = True
 
 ## loading data
 ## PRG
-# g = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013,10,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
-# if AMPLITUDE:
-#     g_amp = load_station_data('TG_STAID000027.txt', date(1834,4,28), date(2013, 10, 1), False)
+g = load_station_data('../data/TG_STAID000027.txt', date(1775,1,1), date(2015,1,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
+if AMPLITUDE:
+    g_amp = load_station_data('../data/TG_STAID000027.txt', date(1775,1,1), date(2015,1,1), False)
 
 ## HAMBURG -- TG_STAID000047, POTSDAM -- TG_STAID000054
-g = load_station_data('../data/TG_STAID000054.txt', date(1893,1,1), date(2014,1,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
-if AMPLITUDE:
-    g_amp = load_station_data('../data/TG_STAID000054.txt', date(1893,1,1), date(2014, 1, 1), False)
+# g = load_station_data('../data/TG_STAID000054.txt', date(1893,1,1), date(2014,1,1), ANOMALISE) # 15-01-1924 if 32k, 28-04-1834 if 64k
+# if AMPLITUDE:
+#     g_amp = load_station_data('../data/TG_STAID000054.txt', date(1893,1,1), date(2014, 1, 1), False)
 
 # ERA
 #g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1958,4,28), date(2013,10,1), ANOMALISE)
@@ -496,6 +497,7 @@ difference_data = np.array(difference_data)
 meanvar_data = np.array(meanvar_data)
 difference_95perc = np.array(difference_95perc)
 mean_95perc = np.array(mean_95perc)
+smooth_amp = np.array(smooth_amp)
 
 if CONDITION:
     total_surrogates_condition = np.array(total_surrogates_condition)
@@ -516,12 +518,13 @@ if PLOT:
                 subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
                 percentil = where_percentil, phase = phase_tot, fname = fn)
     else:
-        with open('debug/LONG--POTS%d%sevolution%s%s.bin' % (NUM_SURR, SURR_TYPE, 'AMP' if AMPLITUDE else '', ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''), 'wb') as f:
-            cPickle.dump({'difference_data' : difference_data, 'difference_surr' : np.array(difference_surr), 'meanvar_data' : meanvar_data, 
-                            'meanvar_surr' : np.array(meanvar_surr), 'difference_surr_std' : np.array(difference_surr_std), 
-                            'meanvar_surr_std' : np.array(meanvar_surr_std), 'cnt' : cnt, 'difference_95perc' : difference_95perc,
-                            'mean_95perc' : mean_95perc, 'where_percentil' : where_percentil}, f, protocol = cPickle.HIGHEST_PROTOCOL)
-        # render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
-        #         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
-        #         percentil = where_percentil, fname = fn)
+        # with open('debug/LONG--POTS%d%sevolution%s%s.bin' % (NUM_SURR, SURR_TYPE, 'AMP' if AMPLITUDE else '', ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''), 'wb') as f:
+        #     cPickle.dump({'difference_data' : difference_data, 'difference_surr' : np.array(difference_surr), 'meanvar_data' : meanvar_data, 
+        #                     'meanvar_surr' : np.array(meanvar_surr), 'difference_surr_std' : np.array(difference_surr_std), 
+        #                     'meanvar_surr_std' : np.array(meanvar_surr_std), 'cnt' : cnt, 'difference_95perc' : difference_95perc,
+        #                     'mean_95perc' : mean_95perc, 'where_percentil' : where_percentil}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+        # # render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
+        # #         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
+        # #         percentil = where_percentil, fname = fn)
+        render(difference_data, smooth_amp, fname = "debug/test.png")
     print first_mid_year, last_mid_year
