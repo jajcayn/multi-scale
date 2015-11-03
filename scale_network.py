@@ -2,9 +2,7 @@ import numpy as np
 from src.data_class import DataField
 import src.wavelet_analysis as wvlt
 from datetime import datetime
-import sys
-sys.path.append('/home/nikola/Work/phd/mutual_information')
-from mutual_information import mutual_information, cond_mutual_information
+from src.mutual_information import mutual_information, cond_mutual_information
 
 import multiprocessing as mp
 from time import sleep

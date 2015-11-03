@@ -3,9 +3,7 @@ from datetime import date
 from multiprocessing import Pool
 import numpy as np
 import cPickle
-import sys
-sys.path.append('/home/nikola/Work/phd/mutual_information')
-from mutual_information import mutual_information
+from src.mutual_information import mutual_information
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 from mpl_toolkits import basemap
