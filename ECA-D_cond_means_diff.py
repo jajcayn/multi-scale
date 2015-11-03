@@ -88,7 +88,7 @@ NUM_SURR = 100 # number of surrogates to be evaluated
 NUM_FILES = 1
 LOG = False # if True, output will be written to log defined in log_file, otherwise printed to screen
 SEASON = None#[12, 1, 2]
-AMPLITUDE = True # season cannot be used with amplitude, it does not make any sense
+AMPLITUDE = False # season cannot be used with amplitude, it does not make any sense
 # warning: logging into log file will suppress printing warnings handled by modules e.g. numpy's warnings
 
 
@@ -220,6 +220,11 @@ if pool is not None:
     pool.close()
     pool.join()
     del pool
+
+amp_data = np.zeros(g.get_spatial_dims())
+for i in range(g.lats.shape[0]):
+    for j in range(g.lons.shape[0]):
+        amp_data[i, j] = np.std(g.data[:, i, j], ddof = 1)
         
 log("Analysis on data done. Saving file...")
 ## save file in case something will go wrong with surrogates..
@@ -228,13 +233,13 @@ log("Analysis on data done. Saving file...")
 #     fname = ('result/ECA-D_%s%s_cond_mean_var_data_from_%s_16k' % ('SATamplitude_' if AMPLITUDE else '', 'SATA' if ANOMALISE else 'SAT', str(START_DATE)))
 # else:
 #     fname = ('result/ERA_%s_cond_mean_var_data_from_%s_16k' % ('SATA' if ANOMALISE else 'SAT', str(START_DATE)))    
-fname = "result/GRL-RESUBMISSION-amplitude"
+fname = "result/GRL-RESUBMISSION-sata-w-sd"
 with open(fname + '.bin', 'wb') as f:
 #    cPickle.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
 #                   'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var, 
 #                   'lats' : g.lats, 'lons' : g.lons}, f, protocol = cPickle.HIGHEST_PROTOCOL)
     cPickle.dump({'bins_data' : bins_data, 'bins_data_var' : bins_data_var, 'season' : SEASON, 
-                   'lats' : g.lats, 'lons' : g.lons, 'amp_data' : amp_data}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+                   'lats' : g.lats, 'lons' : g.lons, 'std' : amp_data}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 # hkl.dump({'difference_data' : difference_data, 'mean_data' : mean_data, 
 #           'difference_data_var' : difference_data_var, 'mean_data_var' : mean_data_var,
 #           'lats' : g.lats, 'lons' : g.lons}, fname + '.hkl', mode = 'w')
