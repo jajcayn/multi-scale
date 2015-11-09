@@ -4,6 +4,8 @@ from datetime import date
 from src.surrogates import SurrogateField
 from src import wavelet_analysis as wvlt
 from src import mutual_information as mi
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 
@@ -94,8 +96,6 @@ def load_neutron_NESDIS_data(fname, start_date, end_date, anom = True):
 
     return g, g_surr, seasonality
 
-    return g
-
 
 
 def _coherency_surrogates(a):
@@ -149,6 +149,11 @@ for LEVEL in LEVELS:
             temp = load_bin_data(fname, date(1964, 4, 1), date(2001, 1, 1), True)
         # fname_aa = '../data/aa_day.raw' if DAILY else 'aa_month1209.raw'
         aa = load_AAgeomag_data(fname_aa, date(1950, 1, 1), date(2001, 1, 1), True, daily = DAILY)
+        aa_surr = SurrogateField()
+        aa_seas = aa.get_seasonality()
+        aa_surr.copy_field(aa)
+
+        aa.return_seasonality(aa_seas[0], aa_seas[1], None)
         # aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2001, 1, 1), True, True)
         # aa, aa_surr, aa_seas = load_neutron_NESDIS_data('../data/cosmic-ray-flux_monthly_kiel.txt',date(1964, 4, 1), date(2001, 1, 1), True)
         # temp = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2014, 1, 1), True, daily = DAILY)
