@@ -1357,7 +1357,7 @@ def load_AAgeomag_data(filename, start_date, end_date, anom, daily = False):
         g = DataField(data_folder = path)
     else:
         g = DataField()
-    raw_data = np.loadtxt(g.data_folder + filename) # first column is continous year and second is actual data
+    raw_data = np.loadtxt(g.data_folder + name) # first column is continous year and second is actual data
     g.data = np.array(raw_data[:, 1])
     time = []
     
