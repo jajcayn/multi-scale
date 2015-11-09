@@ -94,6 +94,11 @@ discussion:
    ✔ plot: Fig. 5 cumulative histo @done (15-11-03 17:46)
    ☐ merge fig2 + fig 3 in supp
    ✔ replot spatial figs in usual colorbar - full maps with outline for significance @done (15-11-09 11:06)
+
+Cosmic rays:
    ✔ coherence with cosmic rays @done (15-11-09 12:36)
-   ☐ prg vs cosmic rays till 2000
+   ✔ prg vs cosmic rays till 2000 @done (15-11-09 15:05)
    ☐ coherence cosmic rays vs AA index
+   ☐ histograms with data span as with fig. 5
+   ☐ surrogates from cosmic rays, compare with temperature, FT 1000
+   ☐ test other cosmic rays station -- Colorado, Chile (should be)
