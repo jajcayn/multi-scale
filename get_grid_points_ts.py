@@ -26,20 +26,25 @@ LEVEL = -3# none or level
 # else:
 #     g = load_ERA_data_daily('ERA40_EU', 't2m', date(1958,1,1), date(2014,1,1), [LAT - 5, LAT + 5], 
 #                             [LON - 5, LON + 5], False, parts = 3)
+GRID_POINTS = [[50, 15], [50, 12.5], [52.5, 12.5], [52.5, 15]]
 
-g = load_NCEP_data_monthly('air.mon.mean.levels.nc', 'air', date(1948,1,1), date(2012, 1, 1), 
-	[LAT - 5, LAT + 5], [LON - 5, LON + 5], level = LEVEL, anom = False)
-                            
-lat_arg = np.argmin(np.abs(LAT - g.lats))
-lon_arg = np.argmin(np.abs(LON - g.lons))
+for lat,lon in GRID_POINTS:
 
-ts = g.data[:, lat_arg, lon_arg].copy()
-time = g.time.copy()
-loc = ("GRID | lat: %.1f, lon: %.1f" % (g.lats[lat_arg], g.lons[lon_arg]))
-g_grid = DataField(data = ts, time = time)
-g_grid.location = loc
+    g = load_NCEP_data_monthly('../data/air.mon.mean.levels.nc', 'air', date(1948,1,1), date(2014, 1, 1), 
+    	[lat-1, lat+1], [lon-1, lon+1], level = LEVEL, anom = False)
 
-with open("%s_time_series_%.1fN_%.1fE.bin" % ('NCEP30hPa', g.lats[lat_arg], g.lons[lon_arg]), 'wb') as f:
-    cPickle.dump({'g' : g_grid}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+    print g.data.shape
+                                
+    lat_arg = np.argmin(np.abs(LAT - g.lats))
+    lon_arg = np.argmin(np.abs(LON - g.lons))
+
+    ts = g.data[:, lat_arg, lon_arg].copy()
+    time = g.time.copy()
+    loc = ("GRID | lat: %.1f, lon: %.1f" % (g.lats[lat_arg], g.lons[lon_arg]))
+    g_grid = DataField(data = ts, time = time)
+    g_grid.location = loc
+
+    with open("%s_time_series_%.1fN_%.1fE.bin" % ('NCEP30hPa', lat, lon), 'wb') as f:
+        cPickle.dump({'g' : g_grid}, f, protocol = cPickle.HIGHEST_PROTOCOL)
     
 print("[%s] Dumped time-series from %.1f N and %.1f E." % (str(datetime.now()), g.lats[lat_arg], g.lons[lon_arg]))

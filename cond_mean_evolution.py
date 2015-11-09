@@ -34,47 +34,47 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
             for pos in np.where(percentil[:, 0] == True)[0]:
                 ax1.plot(pos, diffs[0][pos], 'o', markersize = 8, color = '#403A37')
     #ax1.plot(total_diffs[0], np.arange(0,len(total_diffs[0])), total_diffs[1], np.arange(0, cnt))
-    ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
+    # ax1.axis([0, cnt-1, diff_ax[0], diff_ax[1]])
     ax1.set_xlabel('middle year of %.2f-year wide window' % (WINDOW_LENGTH / 365.25), size = 14)
-    ax1.set_ylabel('difference in cond mean SATamplitude [$^{\circ}$C]', size = 14)
+    ax1.set_ylabel('difference in cond mean SATA / SD', size = 14)
     # year_diff = np.round((last_mid_year - first_mid_year) / 10)
     # print last_mid_year, first_mid_year, year_diff
     # xnames = np.arange(first_mid_year, last_mid_year, year_diff)
     # print xnames
     # plt.xticks(np.linspace(0, cnt, len(xnames)), xnames, rotation = 30)
     plt.xticks(np.arange(0, cnt+8, 8), np.arange(first_mid_year, last_mid_year+8, 8), rotation = 30)
-    if not PLOT_PHASE:
-        ax2 = ax1.twinx()
-        if len(meanvars) > 3:
-            ax2.plot(meanvars, color = '#CA4F17', linewidth = 2, figure = fig) # color = '#CA4F17'
-        else:
-            p4, = ax2.plot(meanvars[1], color = '#64C4A0', linewidth = 1.5, figure = fig)
-            if stds is not None:
-                ax2.plot(meanvars[1] + stds[1], color = '#64C4A0', linewidth = 0.7, figure = fig)
-                ax2.plot(meanvars[1] - stds[1], color = '#64C4A0', linewidth = 0.7, figure = fig)
-                ax2.fill_between(np.arange(0,diffs[1].shape[0],1), meanvars[1] + stds[1], meanvars[1] - stds[1],
-                                 facecolor = "#64C4A0", alpha = 0.5)
-            p3, = ax2.plot(meanvars[0], color = '#CA4F17', linewidth = 2, figure = fig)
-            if percentil != None:
-                for pos in np.where(percentil[:, 1] == True)[0]:
-                    ax2.plot(pos, meanvars[0][pos], 'o', markersize = 8, color = '#CA4F17')
-        ax2.set_ylabel('amplitude', size = 14)
-        ax2.axis([0, cnt-1, mean_ax[0], mean_ax[1]])
-        for tl in ax2.get_yticklabels():
-            tl.set_color('#CA4F17')
-        if len(diffs) < 3:
-            plt.legend([p1, p2, p3, p4], ["difference DATA", "difference SURROGATE mean", "mean DATA", "mean SURROGATE mean"], loc = 2)
+    # if not PLOT_PHASE:
+    #     ax2 = ax1.twinx()
+    #     if len(meanvars) > 3:
+    #         ax2.plot(meanvars, color = '#CA4F17', linewidth = 2, figure = fig) # color = '#CA4F17'
+    #     else:
+    #         p4, = ax2.plot(meanvars[1], color = '#64C4A0', linewidth = 1.5, figure = fig)
+    #         if stds is not None:
+    #             ax2.plot(meanvars[1] + stds[1], color = '#64C4A0', linewidth = 0.7, figure = fig)
+    #             ax2.plot(meanvars[1] - stds[1], color = '#64C4A0', linewidth = 0.7, figure = fig)
+    #             ax2.fill_between(np.arange(0,diffs[1].shape[0],1), meanvars[1] + stds[1], meanvars[1] - stds[1],
+    #                              facecolor = "#64C4A0", alpha = 0.5)
+    #         p3, = ax2.plot(meanvars[0], color = '#CA4F17', linewidth = 2, figure = fig)
+    #         if percentil != None:
+    #             for pos in np.where(percentil[:, 1] == True)[0]:
+    #                 ax2.plot(pos, meanvars[0][pos], 'o', markersize = 8, color = '#CA4F17')
+    #     ax2.set_ylabel('SD', size = 14)
+    #     # ax2.axis([0, cnt-1, mean_ax[0], mean_ax[1]])
+    #     for tl in ax2.get_yticklabels():
+    #         tl.set_color('#CA4F17')
+    #     if len(diffs) < 3:
+    #         plt.legend([p1, p2, p3, p4], ["difference DATA", "difference SURROGATE mean", "mean DATA", "mean SURROGATE mean"], loc = 2)
 
-    elif PLOT_PHASE:
-        ax2 = ax1.twinx().twiny()
-        p3, = ax2.plot(phase, color = '#CA4F17', linewidth = 1.25, figure = fig)
-        ax2.set_ylabel('phase of wavelet in window [rad]', size = 14)
-        ax2.axis([0, phase.shape[0], -2*np.pi, 2*np.pi])
-        for tl in ax2.get_yticklabels():
-            tl.set_color('#CA4F17')
-        for tl in ax2.get_xticklabels():
-            tl.set_color('#CA4F17')
-        plt.legend([p1, p2, p3], ["difference DATA", "difference SURROGATE mean", "phase DATA"], loc = 2)
+    # elif PLOT_PHASE:
+    #     ax2 = ax1.twinx().twiny()
+    #     p3, = ax2.plot(phase, color = '#CA4F17', linewidth = 1.25, figure = fig)
+    #     ax2.set_ylabel('phase of wavelet in window [rad]', size = 14)
+    #     ax2.axis([0, phase.shape[0], -2*np.pi, 2*np.pi])
+    #     for tl in ax2.get_yticklabels():
+    #         tl.set_color('#CA4F17')
+    #     for tl in ax2.get_xticklabels():
+    #         tl.set_color('#CA4F17')
+    #     plt.legend([p1, p2, p3], ["difference DATA", "difference SURROGATE mean", "phase DATA"], loc = 2)
     tit = 'SURR: Evolution of difference in cond'
     tit += (' %s in temp, ' % MOMENT)
     if not ANOMALISE:
@@ -89,7 +89,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     # tit = ('Evolution of difference in cond %s temp SATA -- %s \n %s' % (MOMENT, g.location, ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
     tit = "Evolution of difference in cond means SAT amplitude"
     tit += subtit
-    plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
+    # plt.text(0.5, 1.05, tit, horizontalalignment = 'center', size = 16, transform = ax2.transAxes)
     #ax2.set_xticks(np.arange(start_date.year, end_date.year, 20))
     
     if fname is not None:
@@ -150,7 +150,7 @@ AA = False
 SAME_BINS = False
 CONDITION = False
 SEASON = None
-AMPLITUDE = True
+AMPLITUDE = False
 
 
 ## loading data
@@ -371,8 +371,8 @@ while end_idx < g.data.shape[0]:
         else:
             ndx_season = None
         phase_bins = get_equidistant_bins() # equidistant bins
-        if AMPLITUDE:
-            smooth_amp.append(np.mean(amplitude))
+        # if AMPLITUDE:
+        smooth_amp.append(np.std(g_working.data))
         for i in range(cond_means.shape[0]): # get conditional means for current phase range
             ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
             if MOMENT == 'std':
@@ -526,5 +526,6 @@ if PLOT:
         # # render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
         # #         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
         # #         percentil = where_percentil, fname = fn)
-        render(difference_data, smooth_amp, fname = "debug/test.png")
+        print smooth_amp
+        render(difference_data/smooth_amp, smooth_amp, fname = "debug/test.png")
     print first_mid_year, last_mid_year

@@ -93,3 +93,7 @@ discussion:
    ✔ Nikola, please try to plot evolution of AAC in the same moving windows as the AAC conditional means differences. @done (15-11-03 17:37)
    ✔ plot: Fig. 5 cumulative histo @done (15-11-03 17:46)
    ☐ merge fig2 + fig 3 in supp
+   ✔ replot spatial figs in usual colorbar - full maps with outline for significance @done (15-11-09 11:06)
+   ✔ coherence with cosmic rays @done (15-11-09 12:36)
+   ☐ prg vs cosmic rays till 2000
+   ☐ coherence cosmic rays vs AA index
