@@ -95,6 +95,7 @@ discussion:
    ☐ merge fig2 + fig 3 in supp
    ✔ replot spatial figs in usual colorbar - full maps with outline for significance @done (15-11-09 11:06)
    ☐ histograms with data span as with fig. 5
+   ☐ evolution plots with not +-SD but with one line of 95th percentil
 
 Cosmic rays:
    ✔ coherence with cosmic rays @done (15-11-09 12:36)
@@ -104,3 +105,6 @@ Cosmic rays:
    ✔ test other cosmic rays station -- Colorado, Chile (should be) @done (15-11-09 16:22)
    ☐ Oulu station long period surrogates
    ☐ pick period and do a NCEP map -- WHICH PERIOD??
+   ☐ plot spectrum of cosmic data - Oulu, possibly others
+   ☐ plot spectrum of PRG temp -- same time span as Oulu (cosmic) data
+   ☐ difference of continuous phase from wavelets (on that significant period or on every significant period) between PRG station vs Oulu and plot as a function of time
