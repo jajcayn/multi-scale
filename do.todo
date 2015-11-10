@@ -102,3 +102,5 @@ Cosmic rays:
    ✔ coherence cosmic rays vs AA index @done (15-11-09 15:50)
    ✔ surrogates from cosmic rays, compare with temperature, FT 1000 @done (15-11-10 11:42)
    ✔ test other cosmic rays station -- Colorado, Chile (should be) @done (15-11-09 16:22)
+   ☐ Oulu station long period surrogates
+   ☐ pick period and do a NCEP map -- WHICH PERIOD??
