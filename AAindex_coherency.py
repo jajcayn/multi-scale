@@ -143,20 +143,20 @@ for LEVEL in LEVELS:
     for GRID_POINT in GRID_POINTS:
 
         if STATION:
-            temp = load_station_data('../data/TG_STAID000027.txt', date(1964, 4, 1), date(2001, 1, 1), True, to_monthly = not DAILY)
+            temp = load_station_data('../data/TG_STAID000027.txt', date(1950, 1, 1), date(2001, 1, 1), True, to_monthly = not DAILY)
         else:
             fname = ("NCEP%s_time_series_%.1fN_%.1fE.bin" % (LEVEL, GRID_POINT[0], GRID_POINT[1]))
             temp = load_bin_data(fname, date(1964, 4, 1), date(2001, 1, 1), True)
-        # fname_aa = '../data/aa_day.raw' if DAILY else 'aa_month1209.raw'
-        aa = load_AAgeomag_data(fname_aa, date(1950, 1, 1), date(2001, 1, 1), True, daily = DAILY)
-        aa_surr = SurrogateField()
-        aa_seas = aa.get_seasonality()
-        aa_surr.copy_field(aa)
+        fname_aa = '../data/aa_day.raw' if DAILY else '../data/aa_month1209.raw'
+        # aa = load_AAgeomag_data(fname_aa, date(1964, 4, 1), date(2001, 1, 1), True, daily = DAILY)
+        # aa_surr = SurrogateField()
+        # aa_seas = aa.get_seasonality()
+        # aa_surr.copy_field(aa)
 
-        aa.return_seasonality(aa_seas[0], aa_seas[1], None)
-        # aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2001, 1, 1), True, True)
+        # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
+        aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2001, 1, 1), True, True)
         # aa, aa_surr, aa_seas = load_neutron_NESDIS_data('../data/cosmic-ray-flux_monthly_kiel.txt',date(1964, 4, 1), date(2001, 1, 1), True)
-        # temp = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2014, 1, 1), True, daily = DAILY)
+        temp = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2001, 1, 1), True, daily = DAILY)
 
         # temp.data = temp.data[-SAMPLES:]
         # temp.time = temp.time[-SAMPLES:]
@@ -239,7 +239,8 @@ for LEVEL in LEVELS:
         plt.figure(figsize=(16,12))
         ax = plt.subplot(211)
         # plt.title("COHERENCE cosmic rays vs. %s SAT %.1fN x %.1fE -- %d - %d" % (LEVEL, GRID_POINT[0], GRID_POINT[1], y1, y2), size = 30)
-        plt.title("COHERENCE cosmic rays %s vs. station PRG -- %d - %d" % (aa.location[:-12], y1, y2), size = 30)
+        # plt.title("COHERENCE cosmic rays %s vs. station PRG -- %d - %d" % (aa.location[:-12], y1, y2), size = 30)
+        plt.title("COHERENCE cosmic rays %s vs. AA index -- %d - %d" % (aa.location[:-12], y1, y2), size = 30)
         plt.plot(scales, coherence, color = "#006E91", linewidth = 2)
         plt.errorbar(scales, np.mean(results[:, 0, :], axis = 0), yerr = np.std(results[:, 0, :], axis = 0, ddof = 1),color = "#DDCF0B", linewidth = 1)
         for time in range(coherence.shape[0]):
@@ -261,8 +262,8 @@ for LEVEL in LEVELS:
         ax.tick_params(axis='both', which='major', labelsize=15)
         plt.xlabel("period [years]", size = 25)
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic-till2000.png")
-        # plt.savefig("AAindex_vs_Oulu_cosmic.png")
-        plt.savefig("station_PRG_vs_%s_cosmic-till2000.png" % aa.location[:-12])
+        plt.savefig("AAindex_vs_Oulu_cosmic-surrsOulu.png")
+        # plt.savefig("station_PRG_vs_%s_cosmic-till2000.png" % aa.location[:-12])
 
 
 
