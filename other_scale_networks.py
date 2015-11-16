@@ -1,7 +1,7 @@
 from scale_network import ScaleSpecificNetwork
 from datetime import date
 from multiprocessing import Pool
-
+import numpy as np
 
 WORKERS = 10
 PERIOD = 4
