@@ -194,7 +194,9 @@ def _cmi_surrogates(a):
     return cmi1, cmi2
 
 
-
+## temp -> AA
+idx1 = 'sunspots'
+idx2 = 'Oulu CR'
 
 for LEVEL in LEVELS:
     for GRID_POINT in GRID_POINTS:
@@ -215,7 +217,40 @@ for LEVEL in LEVELS:
         # aa_surr.copy_field(aa)
         # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
 
-        aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
+names = [['OuluCR', 'sunspot'], ['sunspot', 'AAindex'], ['AAindex', 'OuluCR']]
+
+for [idx1, idx2] in names:
+        if idx1 == 'OuluCR':
+            temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
+        elif idx1 == 'sunspot':
+            temp = load_sunspot_data("../data/sunspot_monthly.txt", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+            temp_surr = SurrogateField()
+            temp_seas = temp.get_seasonality()
+            temp_surr.copy_field(temp)
+            temp.return_seasonality(temp_seas[0], temp_seas[1], None)
+        elif idx1 == 'AAindex':
+            temp, temp_surr, temp_seas = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+            temp_surr = SurrogateField()
+            temp_seas = temp.get_seasonality()
+            temp_surr.copy_field(temp)
+            temp.return_seasonality(temp_seas[0], temp_seas[1], None)
+
+        if idx2 == 'OuluCR':
+            aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
+        elif idx2 == 'sunspot':
+            aa = load_sunspot_data("../data/sunspot_monthly.txt", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+            aa_surr = SurrogateField()
+            aa_seas = aa.get_seasonality()
+            aa_surr.copy_field(aa)
+            aa.return_seasonality(aa_seas[0], aa_seas[1], None)
+        elif idx2 == 'AAindex':
+            aa, aa_surr, aa_seas = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+            aa_surr = SurrogateField()
+            aa_seas = aa.get_seasonality()
+            aa_surr.copy_field(aa)
+            aa.return_seasonality(aa_seas[0], aa_seas[1], None)
+
+
         # aa_surr.prepare_AR_surrogates(order_range = [1,10])
         # temp, _, _ = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
         # aa, aa_surr, aa_seas = load_neutron_NESDIS_data('../data/cosmic-ray-flux_monthly_calgary.txt',date(1964, 4, 1), date(2009, 1, 1), True)
@@ -306,7 +341,7 @@ for LEVEL in LEVELS:
 
         # SURRS - cmi
         pool = Pool(4)
-        args = [(aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales)]
+        args = [(aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
         results = pool.map(_cmi_surrogates, args)
         pool.close()
         pool.join()
@@ -345,7 +380,7 @@ for LEVEL in LEVELS:
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
 
         import cPickle
-        with open("CMI-AA-stuff.bin", "wb") as f:
+        with open("CMI-%s-%s.bin" % (idx1, idx2), "wb") as f:
             cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
                 'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
@@ -353,38 +388,40 @@ for LEVEL in LEVELS:
         plt.figure(figsize=(16,12))
         ax = plt.subplot(211)
         # plt.title("COHERENCE cosmic rays Oulu vs. %s SAT %.1fN x %.1fE -- %d - %d" % (LEVEL, GRID_POINT[0], GRID_POINT[1], y1, y2), size = 30)
-        plt.title("COHERENCE sunspot number vs. Oulu cosmic -- %d - %d \n AR(%d) surrogates from Oulu CR" % ( y1, y2, aa_surr.max_ord), size = 30)
+        plt.title("CMI %s vs %s -- %d - %d" % (idx1, idx2, y1, y2), size = 30)
         # plt.title("COHERENCE cosmic rays %s vs. AA index -- %d - %d" % (aa.location[:-12], y1, y2), size = 30)
-        plt.plot(scales, coherence, color = "#006E91", linewidth = 2.2)
+        plt.plot(scales, cmi1, color = "#006E91", linewidth = 2.2, label = "%s -> %s" % (idx1, idx2))
         # surr mean
         plt.plot(scales, np.mean(results[:, 0, :], axis = 0), color = "#DDCF0B", linewidth = 1.5)
         results = np.sort(results, axis = 0)
         plt.plot(scales, results[int(0.95*NUM_SURR), 0, :], color = "#DDCF0B", linewidth = 0.8)
         plt.fill_between(scales, np.mean(results[:, 0, :], axis = 0), results[int(0.95*NUM_SURR), 0, :], facecolor = "#DDCF0B", alpha = 0.5)
-        for time in range(coherence.shape[0]):
-            if coh_sig[time]:
-                plt.plot(scales[time], coherence[time], 'o', markersize = 12, color = "#006E91")
-        plt.ylabel("MI [nats]", size = 25)
+        for time in range(cmi1.shape[0]):
+            if cmi1_sig[time]:
+                plt.plot(scales[time], cmi1[time], 'o', markersize = 12, color = "#006E91")
+        plt.ylabel("CMI [nats]", size = 25)
+        ax.legend()
         plt.xlim(SCALES_SPAN)
         plt.xticks(scales[6::24], scales[6::24]/12)
         ax.tick_params(axis='both', which='major', labelsize=15)
         ax = plt.subplot(212)
-        plt.plot(scales, wvlt_coherence, color = "#251F21", linewidth = 2.2)
+        plt.plot(scales, cmi2, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
         plt.plot(scales, np.mean(results[:, 1, :], axis = 0),color = "#71545E", linewidth = 1.5)
         plt.plot(scales, results[int(0.95*NUM_SURR), 1, :], color = "#71545E", linewidth = 0.8)
         plt.fill_between(scales, np.mean(results[:, 1, :], axis = 0), results[int(0.95*NUM_SURR), 1, :], facecolor = "#71545E", alpha = 0.5)
-        for time in range(wvlt_coherence.shape[0]):
-            if wvlt_sig[time]:
-                plt.plot(scales[time], wvlt_coherence[time], 'o', markersize = 12, color = "#251F21")
-        plt.ylabel("wavelet coherence", size = 25)
+        for time in range(cmi2.shape[0]):
+            if cmi2_sig[time]:
+                plt.plot(scales[time], cmi2[time], 'o', markersize = 12, color = "#251F21")
+        plt.ylabel("CMI [nats]", size = 25)
         plt.xlim(SCALES_SPAN)
         plt.xticks(scales[6::24], scales[6::24]/12)
         ax.tick_params(axis='both', which='major', labelsize=15)
         plt.xlabel("period [years]", size = 25)
+        ax.legend()
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("sunspot_vs_Oulu_cosmic--CRsurrs-autoregressive.png")
+        plt.savefig("CMI%s-%s.png" % (idx1, idx2))
 
 
 
