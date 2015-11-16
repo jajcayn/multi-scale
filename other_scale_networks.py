@@ -6,7 +6,7 @@ from multiprocessing import Pool
 WORKERS = 10
 PERIOD = 4
 
-def load_nino34_wavelet_phase(fname, start_date, end_date, anom = True):
+def load_nino34_wavelet_phase(start_date, end_date, anom = True):
     from src.data_class import DataField
     import src.wavelet_analysis as wvlt
     from datetime import date
@@ -39,7 +39,7 @@ def load_nino34_wavelet_phase(fname, start_date, end_date, anom = True):
 
 
 
-nino34_phase = load_nino34_wavelet_phase()
+nino34_phase = load_nino34_wavelet_phase(date(1948,1,1), date(2014,1,1), True)
 net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
                        date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
 pool = Pool(WORKERS)             
