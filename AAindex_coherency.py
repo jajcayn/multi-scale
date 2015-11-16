@@ -146,6 +146,53 @@ def _coherency_surrogates(a):
     return coherence, wvlt_coherence
 
 
+def _cmi_surrogates(a):
+    aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales = a
+    aa_surr.construct_fourier_surrogates_spatial()
+    aa_surr.add_seasonality(aa_seas[0], aa_seas[1], None)
+
+    temp_surr.construct_fourier_surrogates_spatial()
+    temp_surr.add_seasonality(temp_seas[0], temp_seas[1], None)
+
+
+    cmi1 = []
+    cmi2 = []
+
+    for sc in scales:
+        period = sc # frequency of interest in months
+        s0 = period / fourier_factor # get scale
+        wave_temp, _, _, _ = wvlt.continous_wavelet(temp.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        phase_temp = np.arctan2(np.imag(wave_temp), np.real(wave_temp))[0, 12:-12] # get phases from oscillatory modes
+
+        wave_temp, _, _, _ = wvlt.continous_wavelet(temp_surr.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        phase_temp_surr = np.arctan2(np.imag(wave_temp), np.real(wave_temp))[0, 12:-12] # get phases from oscillatory modes
+
+
+        wave_aa, _, _, _ = wvlt.continous_wavelet(aa.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        phase_aa = np.arctan2(np.imag(wave_aa), np.real(wave_aa))[0, 12:-12] # get phases from oscillatory modes
+
+        wave_aa, _, _, _ = wvlt.continous_wavelet(aa_surr.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        phase_aa_surr = np.arctan2(np.imag(wave_aa), np.real(wave_aa))[0, 12:-12] # get phases from oscillatory modes
+
+        # cmi1
+        tmp = []
+        for tau in range(1,30):
+            x, y, z = mi.get_time_series_condition([phase_temp_surr, phase_aa], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
+            tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
+        cmi1.append(np.mean(np.array(tmp)))
+
+        # cmi2
+        tmp = []
+        for tau in range(1,30):
+            x, y, z = mi.get_time_series_condition([phase_aa_surr, phase_temp], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
+            tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
+        cmi2.append(np.mean(np.array(tmp)))
+
+    cmi1 = np.array(cmi1)
+    cmi2 = np.array(cmi2)
+
+    return cmi1, cmi2
+
 
 
 
@@ -169,7 +216,7 @@ for LEVEL in LEVELS:
         # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
 
         aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
-        aa_surr.prepare_AR_surrogates(order_range = [1,10])
+        # aa_surr.prepare_AR_surrogates(order_range = [1,10])
         # temp, _, _ = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
         # aa, aa_surr, aa_seas = load_neutron_NESDIS_data('../data/cosmic-ray-flux_monthly_calgary.txt',date(1964, 4, 1), date(2009, 1, 1), True)
         temp = load_sunspot_data("../data/sunspot_monthly.txt", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
@@ -269,18 +316,21 @@ for LEVEL in LEVELS:
         # coh_sig = np.zeros_like(coherence, dtype = np.bool)
         # wvlt_sig = np.zeros_like(coherence, dtype = np.bool)
 
-        for time in range(results.shape[-1]):
-            greater = np.greater(coherence[time], results[:, 0, time])
-            if np.sum(greater) > 0.95*NUM_SURR:
-                coh_sig[time] = True
-            else:
-                coh_sig[time] = False
+        cmi1_sig = np.zeros_like(cmi1, dtype = np.bool)
+        cmi2_sig = np.zeros_like(cmi2, dtype = np.bool)
 
-            greater = np.greater(wvlt_coherence[time], results[:, 1, time])
+        for time in range(results.shape[-1]):
+            greater = np.greater(cmi1[time], results[:, 0, time])
             if np.sum(greater) > 0.95*NUM_SURR:
-                wvlt_sig[time] = True
+                cmi1_sig[time] = True
             else:
-                wvlt_sig[time] = False
+                cmi1_sig[time] = False
+
+            greater = np.greater(cmi2[time], results[:, 1, time])
+            if np.sum(greater) > 0.95*NUM_SURR:
+                cmi2_sig[time] = True
+            else:
+                cmi2_sig[time] = False
 
 
         y1 = temp.get_date_from_ndx(0).year
@@ -293,6 +343,11 @@ for LEVEL in LEVELS:
 
         # np.savetxt(fname[:-4] + "_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
+
+        import cPickle
+        with open("CMI-AA-stuff.bin", "wb") as f:
+            cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
+                'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 
         plt.figure(figsize=(16,12))
