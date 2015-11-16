@@ -15,7 +15,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     ax1.tick_params(color = "#686A69")
     cnt = diffs[0].shape[0]
     if stds is not None:
-        ax1.fill_between(np.arange(0,diffs[1].shape[0],1), diffs[1] + stds[0], diffs[1] - stds[0],
+        ax1.fill_between(np.arange(0,diffs[1].shape[0],1), diffs[1], stds[0],
                          facecolor = "#CA6D57", edgecolor = "#CA6D57", alpha = 0.5)
     p2, = ax1.plot(diffs[1], color = '#BF3919', linewidth = 1.5, figure = fig)
     p1, = ax1.plot(diffs[0], color = '#76C06E', linewidth = 4, figure = fig) #19BF86
@@ -27,8 +27,8 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
     ax1.set_ylabel('DIFF ACC COND MEAN [$^{\circ}$C]', size = 40)
     ax1.tick_params(axis = 'both', which = 'major', labelsize = 28)
     ax1.yaxis.set_minor_locator(AutoMinorLocator(4))
-    # plt.xticks(np.arange(0, cnt+8, 12), np.arange(first_mid_year, last_mid_year+8, 12), rotation = 30)
-    plt.xticks(np.arange(0, cnt+7, 7), np.arange(first_mid_year, last_mid_year+7, 7), rotation = 30)
+    plt.xticks(np.arange(0, cnt+8, 12), np.arange(first_mid_year, last_mid_year+8, 12), rotation = 30)
+    # plt.xticks(np.arange(0, cnt+7, 7), np.arange(first_mid_year, last_mid_year+7, 7), rotation = 30)
     # ax1.set_rasterized(True)
     # ax2 = ax1.twinx()
     # if stds is not None:
@@ -64,13 +64,13 @@ WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 seas = [[12, 1, 2], [6, 7, 8]]
 mons = {0: 'J', 1: 'F', 2: 'M', 3: 'A', 4: 'M', 5: 'J', 6: 'J', 7: 'A', 8: 'S', 9: 'O', 10: 'N', 11: 'D'}
-first_mid_year = 1915 # for short time series
+first_mid_year = 1797 # for short time series
 # first_mid_year = 1856 # for long time series
 last_mid_year = 1992
 
 
-fn = 'LONG--HAM1000FTevolutionAMP'
-fn_out = 'HAM1000FTevolvingSATamp'
+fn = 'LONG--PRG1000FTevolutionAMP'
+fn_out = 'LONG--PRG1000FTevolutionAMP'
 
 with open('data_temp/%s.bin' % fn, 'rb') as f:
     data = cPickle.load(f)
@@ -78,28 +78,28 @@ with open('data_temp/%s.bin' % fn, 'rb') as f:
 for k, v in data.iteritems():
     locals()[k] = v
 
-fn = ("debug/%s.eps" % fn_out)  
+fn = ("grl_fig/%s.png" % fn_out)  
 SEASON = None  
 render([difference_data, difference_surr], [meanvar_data, meanvar_surr], [difference_surr_std, meanvar_surr_std],
             subtit = ("95 percentil: difference - %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt)),
             percentil = where_percentil, fname = fn)
 
 
-# to_txt = np.zeros((cnt, 5))
-# # first col - continuous year
-# to_txt[:, 0] = np.arange(first_mid_year, last_mid_year, 1)
-# # second col - data
-# to_txt[:, 1] = difference_data
-# # third col - mean surr
-# to_txt[:, 2] = difference_surr
-# # fourth col - std surr
-# to_txt[:, 3] = difference_surr_std
-# # fifth col - percentil
-# to_txt[:, 4] = -50.
-# for pos in np.where(where_percentil[:, 0] == True)[0]:
-#     to_txt[pos, 4] = difference_data[pos]
+to_txt = np.zeros((cnt, 5))
+# first col - continuous year
+to_txt[:, 0] = np.arange(first_mid_year, last_mid_year, 1)
+# second col - data
+to_txt[:, 1] = difference_data
+# third col - mean surr
+to_txt[:, 2] = difference_surr
+# fourth col - std surr
+to_txt[:, 3] = difference_surr_std
+# fifth col - percentil
+to_txt[:, 4] = -50.
+for pos in np.where(where_percentil[:, 0] == True)[0]:
+    to_txt[pos, 4] = difference_data[pos]
 
-# np.savetxt('debug/%s.txt' % fn_out, to_txt, fmt = '%.3f')
+np.savetxt('grl_fig/%s.txt' % fn_out, to_txt, fmt = '%.3f')
 
 
 

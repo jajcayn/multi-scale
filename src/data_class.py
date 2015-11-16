@@ -1388,6 +1388,38 @@ def load_AAgeomag_data(filename, start_date, end_date, anom, daily = False):
            year[0], month[-1], year[-1]))
            
     return g
+
+
+
+def load_sunspot_data(filename, start_date, end_date, anom, daily = False):
+    """
+    Data loader for ASCII file of sunspot number -- http://www.sidc.be/silso/datafiles TXT version.
+    """
+
+    g = DataField()
+    raw = np.loadtxt(filename)
+
+    g.data = np.array(raw[:, 3])
+    time = []
+
+    for t in range(raw.shape[0]):
+        time.append(date(int(raw[t, 0]), int(raw[t, 1]), 1).toordinal())
+
+    g.time = np.array(time)
+    g.location = 'The Sun'
+
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    _, month, year = g.extract_day_month_year()
+    
+    print("[%s] Sunspot number data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
+        % (str(datetime.now()), str(g.data.shape), month[0], 
+           year[0], month[-1], year[-1]))
+           
+    return g
     
     
     

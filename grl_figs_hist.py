@@ -14,9 +14,9 @@ STATIONS = None # ['TG_STAID000047.txt', 'TG_STAID000054.txt']
 
 
 if STATIONS == None:
-    g = load_station_data('../data/TG_STAID000027.txt', date(1924,1,15), date(2013,10,1), True)
+    g = load_station_data('../data/TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), True)
     if AMPLITUDE:
-        g_amp = load_station_data('../data/TG_STAID000027.txt', date(1924,1,15), date(2013, 10, 1), False)
+        g_amp = load_station_data('../data/TG_STAID000027.txt', date(1958, 1, 1), date(2013, 11, 10), False)
     g_data = DataField()
 else:
     for i in range(len(STATIONS)):
@@ -199,9 +199,9 @@ if AMPLITUDE:
 
 plt.savefig("grl_fig/PRGhistSeasons.png")
 
-# to_txt = np.zeros((cond_means.shape[0], 3))
-# to_txt[:, 0] = np.arange(1, 9, 1)
-# to_txt[:, 1] = cond_means[:, 0, 0]
-# to_txt[:, 2] = cond_means[:, 1, 0]
+to_txt = np.zeros((cond_means.shape[0], 3))
+to_txt[:, 0] = np.arange(1, 9, 1)
+to_txt[:, 1] = cond_means[:, 0, 0]
+to_txt[:, 2] = cond_means[:, 1, 0]
 
-# np.savetxt('grl_fig/SATAvsSAT_test.txt', to_txt, fmt = '%.3f')
+np.savetxt('grl_fig/fig2GRL--RESUBMISSION.txt', to_txt, fmt = '%.3f')

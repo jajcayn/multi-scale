@@ -94,8 +94,8 @@ discussion:
    ✔ plot: Fig. 5 cumulative histo @done (15-11-03 17:46)
    ☐ merge fig2 + fig 3 in supp
    ✔ replot spatial figs in usual colorbar - full maps with outline for significance @done (15-11-09 11:06)
-   ☐ histograms with data span as with fig. 5
-   ☐ evolution plots with not +-SD but with one line of 95th percentil
+   ✔ histograms with data span as with fig. 5 @done (15-11-11 10:45)
+   ✔ evolution plots with not +-SD but with one line of 95th percentil @done (15-11-11 11:30)
 
 Cosmic rays:
    ✔ coherence with cosmic rays @done (15-11-09 12:36)
@@ -103,8 +103,11 @@ Cosmic rays:
    ✔ coherence cosmic rays vs AA index @done (15-11-09 15:50)
    ✔ surrogates from cosmic rays, compare with temperature, FT 1000 @done (15-11-10 11:42)
    ✔ test other cosmic rays station -- Colorado, Chile (should be) @done (15-11-09 16:22)
-   ☐ Oulu station long period surrogates
+   ✔ Oulu station long period surrogates @done (15-11-11 10:07)
+   ✔ NCEP 4 grid points vs. Oulu surrs @done (15-11-11 10:29)
    ☐ pick period and do a NCEP map -- WHICH PERIOD??
-   ☐ plot spectrum of cosmic data - Oulu, possibly others
-   ☐ plot spectrum of PRG temp -- same time span as Oulu (cosmic) data
-   ☐ difference of continuous phase from wavelets (on that significant period or on every significant period) between PRG station vs Oulu and plot as a function of time
+   ✔ plot spectrum of cosmic data - Oulu, possibly others @done (15-11-11 11:52)
+   ✔ plot spectrum of PRG temp -- same time span as Oulu (cosmic) data @done (15-11-11 11:52)
+   ✔ difference of continuous phase from wavelets (on that significant period or on every significant period) between PRG station vs Oulu and plot as a function of time @done (15-11-11 14:33)
+   ☐ sunspot data
+   ☐ AAindex vs. CRays vs. sunspot number triangle

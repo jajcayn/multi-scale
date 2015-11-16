@@ -26,8 +26,8 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
         p2, = ax1.plot(diffs[1], color = '#899591', linewidth = 1.5, figure = fig)
         if stds is not None:
             ax1.plot(diffs[1] + stds[0], color = '#899591', linewidth = 0.7, figure = fig)
-            ax1.plot(diffs[1] - stds[0], color = '#899591', linewidth = 0.7, figure = fig)
-            ax1.fill_between(np.arange(0,diffs[1].shape[0],1), diffs[1] + stds[0], diffs[1] - stds[0],
+            # ax1.plot(diffs[1] - stds[0], color = '#899591', linewidth = 0.7, figure = fig)
+            ax1.fill_between(np.arange(0,diffs[1].shape[0],1), diffs[1] + stds[0], diffs[1],
                              facecolor = "#899591", alpha = 0.5)
         p1, = ax1.plot(diffs[0], color = '#403A37', linewidth = 2, figure = fig)
         if percentil != None:
@@ -138,7 +138,7 @@ WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MOMENT = 'mean' # if True, compute conditional means, if False, compute conditional variance
 WORKERS = 3
-NUM_SURR = 0 # how many surrs will be used to evaluate
+NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'FT'
 diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
 mean_ax = (18, 22) # means -> -1, 1.5, var -> 9, 18
@@ -150,7 +150,7 @@ AA = False
 SAME_BINS = False
 CONDITION = False
 SEASON = None
-AMPLITUDE = False
+AMPLITUDE = True
 
 
 ## loading data
@@ -457,9 +457,13 @@ while end_idx < g.data.shape[0]:
                 w.join()
                 
             difference_surr.append(np.mean(diffs))
-            difference_surr_std.append(np.std(diffs, ddof = 1))
+            diffs = np.sort(diffs)
+            difference_surr_std.append(diffs[int(0.95*NUM_SURR)])
+            # difference_surr_std.append(np.std(diffs, ddof = 1))
             meanvar_surr.append(np.mean(mean_vars))
-            meanvar_surr_std.append(np.std(mean_vars, ddof = 1))
+            # meanvar_surr_std.append(np.std(mean_vars, ddof = 1))
+            mean_vars = np.sort(mean_vars)
+            meanvar_surr_std.append(mean_vars[int(0.95*NUM_SURR)])
             
             percentil = difference_data[-1] > diffs
             no_true = percentil[percentil == True].shape[0]
@@ -468,7 +472,7 @@ while end_idx < g.data.shape[0]:
             percentil = meanvar_data[-1] > mean_vars
             no_true = percentil[percentil == True].shape[0]
             mean_95perc.append(True if (no_true > NUM_SURR * 0.95) else False)
-            print("%d. time point - data: %.2f, surr mean: %.2f, surr std: %.2f, total surrs: %d" % (cnt, difference_data[-1], np.mean(diffs), np.std(diffs, ddof = 1), tot))
+            print("%d. time point - data: %.2f, surr mean: %.2f, surr std: %.2f, total surrs: %d" % (cnt, difference_data[-1], np.mean(diffs), diffs[int(0.95*NUM_SURR)], tot))
             
             if CONDITION:
                 total_surrogates_condition.append(tot)
@@ -508,7 +512,7 @@ if PLOT_PHASE:
     phase_tot = np.concatenate([phase_total[i] for i in range(len(phase_total))])
 
 if PLOT:
-    fn = ("debug/HAM_%s_%s%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT, 'SATamplitude_' if AMPLITUDE else '', 
+    fn = ("grl_fig/PRG_%s_%s%d_%s%ssurr_%sk_window%s%s%s%s.png" % (MOMENT, 'SATamplitude_' if AMPLITUDE else '', 
             NUM_SURR, SURR_TYPE, 'amplitude_adjusted' if AA else '' , '16to14' if WINDOW_LENGTH < 16000 else '32to16', 
             '_phase' if PLOT_PHASE else '', '_same_bins' if SAME_BINS else '', '_condition' if CONDITION else '', 
             ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''))
@@ -518,14 +522,14 @@ if PLOT:
                 subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
                 percentil = where_percentil, phase = phase_tot, fname = fn)
     else:
-        # with open('debug/LONG--POTS%d%sevolution%s%s.bin' % (NUM_SURR, SURR_TYPE, 'AMP' if AMPLITUDE else '', ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''), 'wb') as f:
-        #     cPickle.dump({'difference_data' : difference_data, 'difference_surr' : np.array(difference_surr), 'meanvar_data' : meanvar_data, 
-        #                     'meanvar_surr' : np.array(meanvar_surr), 'difference_surr_std' : np.array(difference_surr_std), 
-        #                     'meanvar_surr_std' : np.array(meanvar_surr_std), 'cnt' : cnt, 'difference_95perc' : difference_95perc,
-        #                     'mean_95perc' : mean_95perc, 'where_percentil' : where_percentil}, f, protocol = cPickle.HIGHEST_PROTOCOL)
-        # # render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
-        # #         subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
-        # #         percentil = where_percentil, fname = fn)
-        print smooth_amp
-        render(difference_data/smooth_amp, smooth_amp, fname = "debug/test.png")
+        with open('grl_fig/LONG--PRG%d%sevolution%s%s.bin' % (NUM_SURR, SURR_TYPE, 'AMP' if AMPLITUDE else '', ''.join([mons[m-1] for m in SEASON]) if SEASON != None else ''), 'wb') as f:
+            cPickle.dump({'difference_data' : difference_data, 'difference_surr' : np.array(difference_surr), 'meanvar_data' : meanvar_data, 
+                            'meanvar_surr' : np.array(meanvar_surr), 'difference_surr_std' : np.array(difference_surr_std), 
+                            'meanvar_surr_std' : np.array(meanvar_surr_std), 'cnt' : cnt, 'difference_95perc' : difference_95perc,
+                            'mean_95perc' : mean_95perc, 'where_percentil' : where_percentil}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+        render([difference_data, np.array(difference_surr)], [meanvar_data, np.array(meanvar_surr)], [np.array(difference_surr_std), np.array(meanvar_surr_std)],
+                subtit = ("95 percentil: difference - %d/%d and mean %d/%d" % (difference_95perc[difference_95perc == True].shape[0], cnt, mean_95perc[mean_95perc == True].shape[0], cnt)),
+                percentil = where_percentil, fname = fn)
+        # print smooth_amp
+        # render(difference_data/smooth_amp, smooth_amp, fname = "debug/test.png")
     print first_mid_year, last_mid_year
