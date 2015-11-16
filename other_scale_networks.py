@@ -17,7 +17,7 @@ def load_nino34_wavelet_phase(start_date, end_date, anom = True):
         for m in range(1,13):
             dat = float(raw[y, m])
             data.append(dat)
-            time.append(date(int(raw[y]), m, 1).toordinal())
+            time.append(date(int(raw[y, 0]), m, 1).toordinal())
 
     g = DataField(data = np.array(data), time = np.array(time))
     g.location = "NINO3.4"
