@@ -229,7 +229,7 @@ for [idx1, idx2] in names:
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], None)
         elif idx1 == 'AAindex':
-            temp, temp_surr, temp_seas = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+            temp = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality()
             temp_surr.copy_field(temp)
@@ -244,7 +244,7 @@ for [idx1, idx2] in names:
             aa_surr.copy_field(aa)
             aa.return_seasonality(aa_seas[0], aa_seas[1], None)
         elif idx2 == 'AAindex':
-            aa, aa_surr, aa_seas = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+            aa = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality()
             aa_surr.copy_field(aa)

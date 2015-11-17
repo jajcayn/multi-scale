@@ -114,9 +114,10 @@ Cosmic rays:
 
 
 Scale specific networks:
-  ☐ SAT4y conditioned on SOI (like 8y NAO), use also NINO3.4
+  ✔ SAT4y conditioned on SOI (like 8y NAO), use also NINO3.4 @done (15-11-17 16:13)
   ☐ 8y filtered data variance -- remove the artefacts, possbile is to use eof, and don't use the EOF containing those artifacts
   ☐ use automutual function as a measure, L2 difference or something like that, or correlation 
+  ☐ compute networks with ERA data (????)
 
 
 indices:
