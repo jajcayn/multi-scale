@@ -31,7 +31,7 @@ def load_nino34_wavelet_phase(start_date, end_date, anom = True):
     per = PERIOD * 12 # frequency of interest
     s0 = per / fourier_factor # get scale
 
-    wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
+    wave, _, _, _ = wvlt.continous_wavelet(g.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
     phase = np.arctan2(np.imag(wave), np.real(wave))[0, :]
 
     return phase
