@@ -176,14 +176,14 @@ def _cmi_surrogates(a):
 
         # cmi1
         tmp = []
-        for tau in range(1,30):
+        for tau in range(1,200):
             x, y, z = mi.get_time_series_condition([phase_temp_surr, phase_aa], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
             tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
         cmi1.append(np.mean(np.array(tmp)))
 
         # cmi2
         tmp = []
-        for tau in range(1,30):
+        for tau in range(1,200):
             x, y, z = mi.get_time_series_condition([phase_aa_surr, phase_temp], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
             tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
         cmi2.append(np.mean(np.array(tmp)))
@@ -294,18 +294,23 @@ for [idx1, idx2] in names:
             # coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
 
             # cmi1
+            plt.figure()
             tmp = []
-            for tau in range(1,30):
+            for tau in range(1,200):
                 x, y, z = mi.get_time_series_condition([phase_temp, phase_aa], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
                 tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
             cmi1.append(np.mean(np.array(tmp)))
+            plt.plot(tmp, label = "1->2")
 
             # cmi2
             tmp = []
-            for tau in range(1,30):
+            for tau in range(1,200):
                 x, y, z = mi.get_time_series_condition([phase_aa, phase_temp], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
                 tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
             cmi2.append(np.mean(np.array(tmp)))
+            plt.plot(tmp, label = "2->1")
+            plt.legend()
+            plt.savefig("CMItesting%dmon.png" % sc)
 
             # wavelet coherence
             # w1 = np.complex(0, 0)
