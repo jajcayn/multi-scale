@@ -97,6 +97,9 @@ discussion:
    ✔ histograms with data span as with fig. 5 @done (15-11-11 10:45)
    ✔ evolution plots with not +-SD but with one line of 95th percentil @done (15-11-11 11:30)
 
+
+--- ✄ -----------------------
+
 Cosmic rays:
    ✔ coherence with cosmic rays @done (15-11-09 12:36)
    ✔ prg vs cosmic rays till 2000 @done (15-11-09 15:05)
@@ -113,11 +116,14 @@ Cosmic rays:
    ☐ AAindex vs. CRays vs. sunspot number triangle
 
 
+--- ✄ -----------------------
+
 Scale specific networks:
   ✔ SAT4y conditioned on SOI (like 8y NAO), use also NINO3.4 @done (15-11-17 16:13)
-  ☐ 8y filtered data variance -- remove the artefacts, possbile is to use eof, and don't use the EOF containing those artifacts
-  ☐ use automutual function as a measure, L2 difference or something like that, or correlation 
-  ☐ compute networks with ERA data (????)
+  ☐ 8y filtered data variance -- remove the artefacts, possbile is to use eof, and don't use the EOF containing those artifacts -- original data -> EOF -> try to find artefacts -> inverse EOF without the artefacts
+  ☐ use automutual function as a measure (lags 1 - 3x a scale - maybe 2x a scale), L2 difference or something like that, or correlation 
+  ☐ condition each (4,6,8,11,15) scale on NAO and NINO3.4 of the appropriate scale
+  ✘ compute networks with ERA data (????) @cancelled (15-11-18 11:25)
 
 
 indices:
