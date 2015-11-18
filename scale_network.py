@@ -100,6 +100,19 @@ def _get_mutual_inf_EQQ(a):
     return i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 4, log2 = False)
 
 
+def _get_automutual_info(a):
+    """
+    Gets automutual information function.
+    """
+
+    i, j, to, ph = a
+    result = []
+    for tau in range(1,to):
+        result.append(mutual_information(ph[tau:], ph[:-tau], algorithm = 'EQQ2', bins = 4, log2 = False))
+
+    return i, j, np.array(result)
+
+
 
 
 class ScaleSpecificNetwork(DataField):
@@ -231,6 +244,31 @@ class ScaleSpecificNetwork(DataField):
         del job_result
 
 
+    def get_automutualinf(self, endpoint, pool = None):
+        """
+        Gets auto-mutual information function (nonlinear autocorrelation).
+        endpoint in months
+        """
+
+        if self.phase is None:
+            raise Exception("Automutual information is computed from phases, do a wavelet first!")
+
+        if pool is None:
+            map_func = map
+        elif pool is not None:
+            map_func = pool.map
+
+        job_args = [ (i, j, endpoint, self.phase[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_result = map_func(_get_automutual_info, job_args)
+        del job_args
+
+        self.automutual_info = np.zeros((endpoint - 1, self.num_lats, self.num_lons))
+
+        for i, j, res in job_result:
+            self.automutual_info[:, i, j] = res
+
+        del job_result
+
 
     def get_phase_fluctuations(self, rewrite = True, pool = None):
         """
@@ -303,6 +341,13 @@ class ScaleSpecificNetwork(DataField):
                     w1 /= np.sqrt(np.abs(w2) * np.abs(w3))
                     resq.put((i, j, np.abs(w1)))
 
+                elif method[0] == 'L':
+                    p = int(method[1])
+                    res = 0
+                    for t in range(ph1.shape[0]):
+                        res += np.power(np.abs(ph1[t] - ph2[t]), p)
+                    resq.put((i, j, res))
+
 
     def _process_matrix_cond(self, jobq, resq):
         
@@ -326,6 +371,7 @@ class ScaleSpecificNetwork(DataField):
             MIGAU - mutual information - Gauss algorithm
             COV - covariance matrix
             WCOH - wavelet coherence
+            L1 or L2 - Lp difference
         """
         
         if method == "MPC":
@@ -364,6 +410,8 @@ class ScaleSpecificNetwork(DataField):
 
             if method == "WCOH" and field.dtype != np.complex64:
                 raise Exception("Wavelet coherence requires input field to be wave data from wavelet!")
+            if method[0] == 'L' and int(method[1]) not in [1,2]:
+                raise Exception("Lp method shoud use p = 1 or 2")
 
             jobs = mp.Queue()
             results = mp.Queue()

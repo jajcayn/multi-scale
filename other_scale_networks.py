@@ -4,8 +4,6 @@ from multiprocessing import Pool
 import numpy as np
 
 WORKERS = 10
-PERIOD = 4
-
 def load_nino34_wavelet_phase(start_date, end_date, anom = True):
     from src.data_class import DataField
     import src.wavelet_analysis as wvlt
@@ -39,13 +37,42 @@ def load_nino34_wavelet_phase(start_date, end_date, anom = True):
 
 
 
-nino34_phase = load_nino34_wavelet_phase(date(1948,1,1), date(2014,1,1), True)
-net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
-                       date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
-pool = Pool(WORKERS)             
-net.wavelet(PERIOD, get_amplitude = False, pool = pool)
-print "wavelet on data done"
-pool.close()
-net.get_adjacency_matrix_conditioned(nino34_phase, use_queue = True, num_workers = WORKERS)
-print "estimating adjacency matrix done"
-net.save_net('networks/NCEP-SAT4y-phase-adjmatCMIEQQcondNINOphase.bin', only_matrix = True)
+# nino34_phase = load_nino34_wavelet_phase(date(1948,1,1), date(2014,1,1), True)
+print "computing phase automutual inf. networks, 3x scale"
+to_do = [['L2', 4], ['L2', 6], ['L2', 8], ['L2', 11], ['L2', 15],
+          ['L1', 4], ['L1', 6], ['L1', 8], ['L1', 11], ['L1', 15]]
+for do in to_do:
+    METHOD = do[0]
+    PERIOD = do[1]
+    print("computing for %d period using %s method" % (PERIOD, METHOD))
+    net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
+                       date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = True)
+    pool = Pool(WORKERS)             
+    net.wavelet(PERIOD, get_amplitude = False, pool = pool)
+    print "wavelet on data done"
+    net.get_automutualinf(3*PERIOD*12, pool = pool)
+    print "automutual info function estimate done"
+    pool.close()
+    net.get_adjacency_matrix(net.automutual_info, method = METHOD, pool = None, use_queue = True, num_workers = WORKERS)
+    print "estimating adjacency matrix done"
+    net.save_net('networks/NCEP-SATAsurface-phase-automutual-to-3x-scale-adjmat%s-scale%dyears.bin' % (METHOD, PERIOD), only_matrix = True)
+
+
+print "computing phase automutual inf. networks, 2x scale"
+to_do = [['L2', 4], ['L2', 6], ['L2', 8], ['L2', 11], ['L2', 15],
+          ['L1', 4], ['L1', 6], ['L1', 8], ['L1', 11], ['L1', 15]]
+for do in to_do:
+    METHOD = do[0]
+    PERIOD = do[1]
+    print("computing for %d period using %s method" % (PERIOD, METHOD))
+    net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
+                       date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = True)
+    pool = Pool(WORKERS)             
+    net.wavelet(PERIOD, get_amplitude = False, pool = pool)
+    print "wavelet on data done"
+    net.get_automutualinf(2*PERIOD*12, pool = pool)
+    print "automutual info function estimate done"
+    pool.close()
+    net.get_adjacency_matrix(net.automutual_info, method = METHOD, pool = None, use_queue = True, num_workers = WORKERS)
+    print "estimating adjacency matrix done"
+    net.save_net('networks/NCEP-SATAsurface-phase-automutual-to-2x-scale-adjmat%s-scale%dyears.bin' % (METHOD, PERIOD), only_matrix = True)
