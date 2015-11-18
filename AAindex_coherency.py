@@ -217,13 +217,13 @@ for LEVEL in LEVELS:
         # aa_surr.copy_field(aa)
         # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
 
-names = [['OuluCR', 'sunspot'], ['sunspot', 'AAindex'], ['AAindex', 'OuluCR']]
+names = [['sunspot', 'AAindex']]
 
 for [idx1, idx2] in names:
         if idx1 == 'OuluCR':
             temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
         elif idx1 == 'sunspot':
-            temp = load_sunspot_data("../data/sunspot_monthly.txt", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+            temp = load_sunspot_data("../data/sunspot_monthly.txt", date(1868, 1, 1), date(2010, 1, 1), False, daily = DAILY)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality()
             temp_surr.copy_field(temp)
@@ -244,7 +244,7 @@ for [idx1, idx2] in names:
             aa_surr.copy_field(aa)
             aa.return_seasonality(aa_seas[0], aa_seas[1], None)
         elif idx2 == 'AAindex':
-            aa = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+            aa = load_AAgeomag_data("../data/aa_month1209.raw", date(1868, 1, 1), date(2010, 1, 1), False, daily = DAILY)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality()
             aa_surr.copy_field(aa)
@@ -254,11 +254,11 @@ for [idx1, idx2] in names:
         # aa_surr.prepare_AR_surrogates(order_range = [1,10])
         # temp, _, _ = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
         # aa, aa_surr, aa_seas = load_neutron_NESDIS_data('../data/cosmic-ray-flux_monthly_calgary.txt',date(1964, 4, 1), date(2009, 1, 1), True)
-        temp = load_sunspot_data("../data/sunspot_monthly.txt", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
-        temp_surr = SurrogateField()
-        temp_seas = temp.get_seasonality()
-        temp_surr.copy_field(temp)
-        temp.return_seasonality(temp_seas[0], temp_seas[1], None)
+        # temp = load_sunspot_data("../data/sunspot_monthly.txt", date(1964, 4, 1), date(2009, 1, 1), False, daily = DAILY)
+        # temp_surr = SurrogateField()
+        # temp_seas = temp.get_seasonality()
+        # temp_surr.copy_field(temp)
+        # temp.return_seasonality(temp_seas[0], temp_seas[1], None)
         # temp = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)[0]
 
         # temp.data = temp.data[-SAMPLES:]
