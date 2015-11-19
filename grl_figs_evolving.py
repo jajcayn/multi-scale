@@ -58,7 +58,7 @@ def render(diffs, meanvars, stds = None, subtit = '', percentil = None, phase = 
 
 
 
-diff_ax = (0, 1.5)
+diff_ax = (0, 2.2)
 mean_ax = (-1, 1.5)
 WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
@@ -69,11 +69,13 @@ first_mid_year = 1797 # for short time series
 last_mid_year = 1992
 
 
-fn = 'LONG--PRG1000FTevolutionAMP'
-fn_out = 'LONG--PRG1000FTevolutionAMP'
+fn = 'LONG--PRG1000FTevolution'
+fn_out = 'LONG--PRG1000FTevolution'
 
 with open('data_temp/%s.bin' % fn, 'rb') as f:
     data = cPickle.load(f)
+
+print data.keys()
 
 for k, v in data.iteritems():
     locals()[k] = v
@@ -85,21 +87,21 @@ render([difference_data, difference_surr], [meanvar_data, meanvar_surr], [differ
             percentil = where_percentil, fname = fn)
 
 
-to_txt = np.zeros((cnt, 5))
-# first col - continuous year
-to_txt[:, 0] = np.arange(first_mid_year, last_mid_year, 1)
-# second col - data
-to_txt[:, 1] = difference_data
-# third col - mean surr
-to_txt[:, 2] = difference_surr
-# fourth col - std surr
-to_txt[:, 3] = difference_surr_std
-# fifth col - percentil
-to_txt[:, 4] = -50.
-for pos in np.where(where_percentil[:, 0] == True)[0]:
-    to_txt[pos, 4] = difference_data[pos]
+# to_txt = np.zeros((cnt, 5))
+# # first col - continuous year
+# to_txt[:, 0] = np.arange(first_mid_year, last_mid_year, 1)
+# # second col - data
+# to_txt[:, 1] = difference_data
+# # third col - mean surr
+# to_txt[:, 2] = difference_surr
+# # fourth col - std surr
+# to_txt[:, 3] = difference_surr_std
+# # fifth col - percentil
+# to_txt[:, 4] = -50.
+# for pos in np.where(where_percentil[:, 0] == True)[0]:
+#     to_txt[pos, 4] = difference_data[pos]
 
-np.savetxt('grl_fig/%s.txt' % fn_out, to_txt, fmt = '%.3f')
+# np.savetxt('grl_fig/%s.txt' % fn_out, to_txt, fmt = '%.3f')
 
 
 

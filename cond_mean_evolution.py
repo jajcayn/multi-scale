@@ -137,7 +137,7 @@ PERIOD = 8 # years, period of wavelet
 WINDOW_LENGTH = 13462 # 13462, 16384
 WINDOW_SHIFT = 1 # years, delta in the sliding window analysis
 MOMENT = 'mean' # if True, compute conditional means, if False, compute conditional variance
-WORKERS = 3
+WORKERS = 20
 NUM_SURR = 1000 # how many surrs will be used to evaluate
 SURR_TYPE = 'FT'
 diff_ax = (0, 1.5) # means -> 0, 2, var -> 1, 8
@@ -150,8 +150,7 @@ AA = False
 SAME_BINS = False
 CONDITION = False
 SEASON = None
-AMPLITUDE = True
-
+AMPLITUDE = False
 
 ## loading data
 ## PRG
