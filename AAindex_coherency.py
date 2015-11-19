@@ -5,7 +5,7 @@ from src.surrogates import SurrogateField
 from src import wavelet_analysis as wvlt
 from src import mutual_information as mi
 import matplotlib
-matplotlib.use('Agg')
+# matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 
@@ -176,14 +176,14 @@ def _cmi_surrogates(a):
 
         # cmi1
         tmp = []
-        for tau in range(1,200):
+        for tau in range(1,250):
             x, y, z = mi.get_time_series_condition([phase_temp_surr, phase_aa], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
             tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
         cmi1.append(np.mean(np.array(tmp)))
 
         # cmi2
         tmp = []
-        for tau in range(1,200):
+        for tau in range(1,250):
             x, y, z = mi.get_time_series_condition([phase_aa_surr, phase_temp], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
             tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
         cmi2.append(np.mean(np.array(tmp)))
@@ -224,6 +224,7 @@ for [idx1, idx2] in names:
             temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), False, True)
         elif idx1 == 'sunspot':
             temp = load_sunspot_data("../data/sunspot_monthly.txt", date(1868, 1, 1), date(2010, 1, 1), False, daily = DAILY)
+            temp.get_data_of_precise_length(length = 1024, end_date = date(2007, 1, 1), COPY = True)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality()
             temp_surr.copy_field(temp)
@@ -245,6 +246,7 @@ for [idx1, idx2] in names:
             aa.return_seasonality(aa_seas[0], aa_seas[1], None)
         elif idx2 == 'AAindex':
             aa = load_AAgeomag_data("../data/aa_month1209.raw", date(1868, 1, 1), date(2010, 1, 1), False, daily = DAILY)
+            aa.get_data_of_precise_length(length = 1024, end_date = date(2007,1,1), COPY = True)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality()
             aa_surr.copy_field(aa)
@@ -296,21 +298,22 @@ for [idx1, idx2] in names:
             # cmi1
             plt.figure()
             tmp = []
-            for tau in range(1,200):
-                x, y, z = mi.get_time_series_condition([phase_temp, phase_aa], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
+            for tau in range(1,250):
+                x, y, z = mi.get_time_series_condition([phase_temp, phase_aa], tau = tau, dim_of_condition = 1, eta = 0, phase_diff = True)
                 tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
             cmi1.append(np.mean(np.array(tmp)))
             plt.plot(tmp, label = "1->2")
 
             # cmi2
             tmp = []
-            for tau in range(1,200):
-                x, y, z = mi.get_time_series_condition([phase_aa, phase_temp], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
+            for tau in range(1,250):
+                x, y, z = mi.get_time_series_condition([phase_aa, phase_temp], tau = tau, dim_of_condition = 1, eta = 0, phase_diff = True)
                 tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
             cmi2.append(np.mean(np.array(tmp)))
             plt.plot(tmp, label = "2->1")
             plt.legend()
             plt.savefig("CMItesting%dmon.png" % sc)
+            plt.close()
 
             # wavelet coherence
             # w1 = np.complex(0, 0)

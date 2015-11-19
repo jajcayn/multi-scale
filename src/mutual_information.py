@@ -25,13 +25,13 @@ def get_time_series_condition(ts, tau = 1, reversed = False, dim_of_condition = 
             raise Exception("Input must be a list of 1D arrays (or a 2 x length array).")
         if ts[0].shape != ts[1].shape:
             raise Exception("Both time series must be the same length.") 
-        master = ts[1] if reversed else ts[0]
-        slave = ts[0] if reversed else ts[1]
+        master = ts[1].copy() if reversed else ts[0].copy()
+        slave = ts[0].copy() if reversed else ts[1].copy()
     elif isinstance(ts, np.ndarray):
         if np.squeeze(ts).ndim != 2:
             raise Exception("Input must be 2 x length array (or a list of 1D arrays).")
-        master = ts[1, :] if reversed else ts[0, :]
-        slave = ts[0, :] if reversed else ts[1, :]
+        master = ts[1, :].copy() if reversed else ts[0, :].copy()
+        slave = ts[0, :].copy() if reversed else ts[1, :].copy()
     else:
         raise Exception("Input not understood. Use either list of 1D arrays or 2 x length array.")
 
@@ -64,8 +64,7 @@ def get_time_series_condition(ts, tau = 1, reversed = False, dim_of_condition = 
         z.append(cond)
 
     if phase_diff:
-        y -= z[0]
-        y[y < -np.pi] += 2 * np.pi
+        y = y - z[0]
 
     return (x, y, z)
 
