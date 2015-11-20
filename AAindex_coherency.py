@@ -120,7 +120,7 @@ def _coherency_surrogates(a):
     for sc in scales:
         period = sc # frequency of interest in months
         s0 = period / fourier_factor # get scale
-        wave_temp, _, _, _ = wvlt.continous_wavelet(temp[:-aa_surr.max_ord], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        wave_temp, _, _, _ = wvlt.continous_wavelet(temp, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase_temp = np.arctan2(np.imag(wave_temp), np.real(wave_temp))[0, 12:-12] # get phases from oscillatory modes
 
         wave_aa, _, _, _ = wvlt.continous_wavelet(aa_surr.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
