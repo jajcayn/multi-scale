@@ -1301,46 +1301,48 @@ def load_NCEP_data_daily(filename, varname, start_date, end_date, lats, lons, le
     
     
     
-def load_sunspot_data(filename, start_date, end_date, smoothed = False):
-    """
-    Data loader for ASCII file of sunspot number from Royal Observatory of Belgium.
-    """
+# def load_sunspot_data(filename, start_date, end_date, daily = False, smoothed = False):
+#     """
+#     Data loader for ASCII file of sunspot number from Royal Observatory of Belgium.
+#     """
     
-    path, name = split(filename)
-    if path != '':
-        path += "/"
-        g = DataField(data_folder = path)
-    else:
-        g = DataField()
-    with open(g.data_folder + filename, 'rb') as f:
-        time = []
-        data = []
-        reader = csv.reader(f)
-        for row in reader:
-            year = int(row[0][:4])
-            month = int(row[0][4:6])
-            day = 1
-            time.append(date(year, month, day).toordinal())
-            if not smoothed:
-                data.append(float(row[0][19:24]))
-            else:
-                if row[0][27:32] == '':
-                    data.append(np.nan)
-                else:
-                    data.append(float(row[0][27:32]))
+#     path, name = split(filename)
+#     if path != '':
+#         path += "/"
+#         g = DataField(data_folder = path)
+#     else:
+#         g = DataField()
+#     with open(g.data_folder + filename, 'rb') as f:
+#         time = []
+#         data = []
+#         reader = csv.reader(f)
+#         if not daily:
+#             for row in reader:
+#                 year = int(row[0][:4])
+#                 month = int(row[0][4:6])
+#                 day = 1
+#                 time.append(date(year, month, day).toordinal())
+#                 if not smoothed:
+#                     data.append(float(row[0][19:24]))
+#                 else:
+#                     if row[0][27:32] == '':
+#                         data.append(np.nan)
+#                     else:
+#                         data.append(float(row[0][27:32]))
+#         eli
     
-    g.data = np.array(data)
-    g.time = np.array(time)
-    g.location = 'The Sun'
-    print("** loaded")
-    g.select_date(start_date, end_date)
-    _, month, year = g.extract_day_month_year()
+#     g.data = np.array(data)
+#     g.time = np.array(time)
+#     g.location = 'The Sun'
+#     print("** loaded")
+#     g.select_date(start_date, end_date)
+#     _, month, year = g.extract_day_month_year()
     
-    print("[%s] %s data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
-        % (str(datetime.now()), 'Sunspot' if not smoothed else 'Smoothed sunspot', str(g.data.shape), month[0], 
-           year[0], month[-1], year[-1]))
+#     print("[%s] %s data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
+#         % (str(datetime.now()), 'Sunspot' if not smoothed else 'Smoothed sunspot', str(g.data.shape), month[0], 
+#            year[0], month[-1], year[-1]))
            
-    return g
+#     return g
 
 
 
@@ -1399,11 +1401,17 @@ def load_sunspot_data(filename, start_date, end_date, anom, daily = False):
     g = DataField()
     raw = np.loadtxt(filename)
 
-    g.data = np.array(raw[:, 3])
+    if not daily:
+        g.data = np.array(raw[:, 3])
+    elif daily:
+        g.data = np.array(raw[:, 4])
     time = []
 
     for t in range(raw.shape[0]):
-        time.append(date(int(raw[t, 0]), int(raw[t, 1]), 1).toordinal())
+        if not daily:
+            time.append(date(int(raw[t, 0]), int(raw[t, 1]), 1).toordinal())
+        elif daily:
+            time.append(date(int(raw[t, 0]), int(raw[t, 1]), int(raw[t, 2])).toordinal())
 
     g.time = np.array(time)
     g.location = 'The Sun'
