@@ -396,7 +396,7 @@ for [idx1, idx2] in names:
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
 
         import cPickle
-        with open("CMI-coh-%s-%s.bin" % (idx1, idx2), "wb") as f:
+        with open("CMI-coh-%s-%s--DAILY.bin" % (idx1, idx2), "wb") as f:
             cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
                 'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig, 
                 'coherence' : coherence, 'wvlt_coherence' : wvlt_coherence, 'results2' : results2,
@@ -439,7 +439,7 @@ for [idx1, idx2] in names:
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("CMI%s-%s.png" % (idx1, idx2))
+        plt.savefig("CMI%s-%s--DAILY.png" % (idx1, idx2))
         plt.close()
 
         plt.figure(figsize=(16,12))
@@ -478,7 +478,7 @@ for [idx1, idx2] in names:
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("coherence%s-%s.png" % (idx1, idx2))
+        plt.savefig("coherence%s-%s--DAILY.png" % (idx1, idx2))
 
 
 
