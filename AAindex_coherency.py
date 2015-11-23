@@ -214,31 +214,31 @@ names = [['sunspot', 'AAindex'], ['sunspot', 'OuluCR'], ['OuluCR', 'AAindex']]
 
 for [idx1, idx2] in names:
         if idx1 == 'OuluCR':
-            temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
         elif idx1 == 'sunspot':
-            temp = load_sunspot_data("../data/sunspot_monthly.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp = load_sunspot_data("../data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             # temp.get_data_of_precise_length(length = 1024, end_date = date(2007, 1, 1), COPY = True)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality(True)
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], temp_seas[2])
         elif idx1 == 'AAindex':
-            temp = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality(True)
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], temp_seas[2])
 
         if idx2 == 'OuluCR':
-            aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_ray_data.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
         elif idx2 == 'sunspot':
-            aa = load_sunspot_data("../data/sunspot_monthly.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa = load_sunspot_data("../data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality(True)
             aa_surr.copy_field(aa)
             aa.return_seasonality(aa_seas[0], aa_seas[1], aa_seas[2])
         elif idx2 == 'AAindex':
-            aa = load_AAgeomag_data("../data/aa_month1209.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             # aa.get_data_of_precise_length(length = 1024, end_date = date(2007,1,1), COPY = True)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality(True)
