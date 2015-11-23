@@ -1411,6 +1411,7 @@ def load_sunspot_data(filename, start_date, end_date, anom, daily = False):
         if not daily:
             time.append(date(int(raw[t, 0]), int(raw[t, 1]), 1).toordinal())
         elif daily:
+            print int(raw[t, 0], raw[t, 1], raw[t, 2]
             time.append(date(int(raw[t, 0]), int(raw[t, 1]), int(raw[t, 2])).toordinal())
 
     g.time = np.array(time)
