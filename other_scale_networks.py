@@ -142,7 +142,7 @@ def load_NAOindex_wavelet_phase(start_date, end_date, anom = True):
 
     return phase
 
-    
+
 
 # print "computing phase conditioned on NINO3.4"
 # to_do = [6, 8, 11, 15]
@@ -166,6 +166,8 @@ for PERIOD in to_do:
     nao_phase = load_NAOindex_wavelet_phase(date(1948,1,1), date(2014,1,1), True)
     net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
                            date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
+    print nao_phase.shape
+    print net.data.shape
     pool = Pool(WORKERS)             
     net.wavelet(PERIOD, get_amplitude = False, pool = pool)
     print "wavelet on data done"
