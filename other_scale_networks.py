@@ -144,20 +144,20 @@ def load_NAOindex_wavelet_phase(start_date, end_date, anom = True):
 
     
 
-print "computing phase conditioned on NINO3.4"
-to_do = [6, 8, 11, 15]
+# print "computing phase conditioned on NINO3.4"
+# to_do = [6, 8, 11, 15]
 
-for PERIOD in to_do:
-    nino34_phase = load_nino34_wavelet_phase(date(1948,1,1), date(2014,1,1), True)
-    net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
-                           date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
-    pool = Pool(WORKERS)             
-    net.wavelet(PERIOD, get_amplitude = False, pool = pool)
-    print "wavelet on data done"
-    pool.close()
-    net.get_adjacency_matrix_conditioned(nino34_phase, use_queue = True, num_workers = WORKERS)
-    print "estimating adjacency matrix done"
-    net.save_net('networks/NCEP-SAT%dy-phase-adjmatCMIEQQcondNINOphase.bin' % (PERIOD), only_matrix = True)
+# for PERIOD in to_do:
+#     nino34_phase = load_nino34_wavelet_phase(date(1948,1,1), date(2014,1,1), True)
+#     net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
+#                            date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
+#     pool = Pool(WORKERS)             
+#     net.wavelet(PERIOD, get_amplitude = False, pool = pool)
+#     print "wavelet on data done"
+#     pool.close()
+#     net.get_adjacency_matrix_conditioned(nino34_phase, use_queue = True, num_workers = WORKERS)
+#     print "estimating adjacency matrix done"
+#     net.save_net('networks/NCEP-SAT%dy-phase-adjmatCMIEQQcondNINOphase.bin' % (PERIOD), only_matrix = True)
 
 print "computing phase conditioned on NAO"
 to_do = [4, 6, 11, 15]
