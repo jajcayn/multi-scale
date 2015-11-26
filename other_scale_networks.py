@@ -168,10 +168,10 @@ for PERIOD in to_do:
                            date(1948,1,1), date(2014,1,1), None, None, 0, 'monthly', anom = False)
     print nao_phase.shape
     print net.data.shape
-    pool = Pool(WORKERS)             
-    net.wavelet(PERIOD, get_amplitude = False, pool = pool)
-    print "wavelet on data done"
-    pool.close()
-    net.get_adjacency_matrix_conditioned(nao_phase, use_queue = True, num_workers = WORKERS)
-    print "estimating adjacency matrix done"
-    net.save_net('networks/NCEP-SAT%dy-phase-adjmatCMIEQQcondNAOphase.bin' % (PERIOD), only_matrix = True)
+    # pool = Pool(WORKERS)             
+    # net.wavelet(PERIOD, get_amplitude = False, pool = pool)
+    # print "wavelet on data done"
+    # pool.close()
+    # net.get_adjacency_matrix_conditioned(nao_phase, use_queue = True, num_workers = WORKERS)
+    # print "estimating adjacency matrix done"
+    # net.save_net('networks/NCEP-SAT%dy-phase-adjmatCMIEQQcondNAOphase.bin' % (PERIOD), only_matrix = True)
