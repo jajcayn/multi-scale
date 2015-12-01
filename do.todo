@@ -123,9 +123,9 @@ Scale specific networks:
   ✔ SAT4y conditioned on SOI (like 8y NAO), use also NINO3.4 @done (15-11-17 16:13)
   ✘ 8y filtered data variance -- remove the artefacts, possbile is to use eof, and don't use the EOF containing those artifacts -- original data -> EOF -> try to find artefacts -> inverse EOF without the artefacts @cancelled (15-11-18 18:01)
   ✔ use automutual function as a measure (lags 1 - 3x a scale - maybe 2x a scale), L2 difference or something like that, or correlation  @done (15-11-18 18:01)
-  ☐ condition each (4,6,8,11,15) scale on NAO and NINO3.4 of the appropriate scale
+  ✔ condition each (4,6,8,11,15) scale on NAO and NINO3.4 of the appropriate scale @done (15-12-01 09:20)
   ✘ compute networks with ERA data (????) @cancelled (15-11-18 11:25)
-  ☐ phase MIGAU 8yrs scale from ERA data
+  ☐ phase MIGAU {4,6,8,11,15}yrs scale from ERA data
 
 
 indices:
