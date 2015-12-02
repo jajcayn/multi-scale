@@ -5,11 +5,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-WORKERS = 10
+WORKERS = 4
 
 # print "computing SATA phase ERA data networks..."
-to_do = [['MIGAU', 8], ['MIGAU', 4], ['MIGAU', 6], ['MIGAU', 11], ['MIGAU', 15]]
-            # ['MIEQQ', 4], ['MIEQQ', 6], ['MIEQQ', 8], ['MIEQQ', 11], ['MIEQQ', 15]]
+to_do = [['L2', 8], ['L2', 4], ['L2', 6], ['L2', 11], ['L2', 15],
+            ['L1', 8], ['L1', 4], ['L1', 6], ['L1', 11], ['L1', 15]]
 
 for do in to_do:
     METHOD = do[0]
@@ -31,11 +31,11 @@ for do in to_do:
     pool.close()
 
     phase_diffs = net.phase - net2.phase
-    print phase_diffs.shape
+    # print phase_diffs.shape
 
-# import cPickle
-# with open("networks/NCEP-ERA-phase_diff.bin", "wb") as f:
-#     cPickle.dump({'phase_diff' : })
+    net.get_adjacency_matrix(phase_diffs, method = METHOD, pool = None, use_queue = True, num_workers = WORKERS)
+    net.save_net('networks/NCEP-ERA-phase-diff-adjmat%s-scale%dyears.bin' % (METHOD, PERIOD), only_matrix = True)
+
 # net.get_adjacency_matrix(net.phase, method = METHOD, pool = None, use_queue = True, num_workers = WORKERS)
 # print "estimating adjacency matrix done"
 # net.save_net('networks/ERA-SATAsurface-phase-adjmat%s-scale%dyears.bin' % (METHOD, PERIOD), only_matrix = True)
