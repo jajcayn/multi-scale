@@ -718,25 +718,33 @@ class DataField:
 
 
 
-    def smoothing_running_avg(self, points, use_to_data = False):
+    def smoothing_running_avg(self, points, cut_edges = False, use_to_data = False):
         """
         Smoothing of time series using running average over points.
         If use_to_data is False, returns the data, otherwise rewrites the data in class.
         """
 
-        d = np.zeros(([self.data.shape[0] - points + 1] + list(self.data.shape[1:])))
+        if cut_edges:
+            d = np.zeros(([self.data.shape[0] - points + 1] + list(self.data.shape[1:])))
+        else:
+            d = np.zeros_like(self.data)
+            window = points//2
         
         for i in range(d.shape[0]):
-            d[i, ...] = np.nanmean(self.data[i : i+points, ...], axis = 0)
+            if cut_edges:
+                d[i, ...] = np.nanmean(self.data[i : i+points, ...], axis = 0)
+            else:
+                d[i, ...] = np.nanmean(self.data[max(i-window,1) : min(i+window,d.shape[0]), ...], axis = 0)
 
         if use_to_data:
             self.data = d.copy()
-            if points % 2 == 1:
-            # time slicing when points is odd -- cut points//2 from the beginning and from the end
-                self.time = self.time[points//2 : -points//2 + 1]
-            else:
-            # time slicing when points is even -- not sure where to cut
-                pass
+            if cut_edges:
+                if points % 2 == 1:
+                # time slicing when points is odd -- cut points//2 from the beginning and from the end
+                    self.time = self.time[points//2 : -points//2 + 1]
+                else:
+                # time slicing when points is even -- not sure where to cut
+                    pass
         else:
             return d
 
@@ -1028,13 +1036,14 @@ class DataField:
 
 
 
-    def center_data(self):
+    def center_data(self, var = False):
         """
         Centers data time series to zero mean and unit variance (without respect for the seasons or temporal sampling). 
         """
 
         self.data -= np.nanmean(self.data, axis = 0)
-        self.data /= np.nanstd(self.data, axis = 0, ddof = 1) 
+        if var:
+            self.data /= np.nanstd(self.data, axis = 0, ddof = 1) 
 
 
 
@@ -1300,51 +1309,6 @@ def load_NCEP_data_daily(filename, varname, start_date, end_date, lats, lons, le
     return g
     
     
-    
-# def load_sunspot_data(filename, start_date, end_date, daily = False, smoothed = False):
-#     """
-#     Data loader for ASCII file of sunspot number from Royal Observatory of Belgium.
-#     """
-    
-#     path, name = split(filename)
-#     if path != '':
-#         path += "/"
-#         g = DataField(data_folder = path)
-#     else:
-#         g = DataField()
-#     with open(g.data_folder + filename, 'rb') as f:
-#         time = []
-#         data = []
-#         reader = csv.reader(f)
-#         if not daily:
-#             for row in reader:
-#                 year = int(row[0][:4])
-#                 month = int(row[0][4:6])
-#                 day = 1
-#                 time.append(date(year, month, day).toordinal())
-#                 if not smoothed:
-#                     data.append(float(row[0][19:24]))
-#                 else:
-#                     if row[0][27:32] == '':
-#                         data.append(np.nan)
-#                     else:
-#                         data.append(float(row[0][27:32]))
-#         eli
-    
-#     g.data = np.array(data)
-#     g.time = np.array(time)
-#     g.location = 'The Sun'
-#     print("** loaded")
-#     g.select_date(start_date, end_date)
-#     _, month, year = g.extract_day_month_year()
-    
-#     print("[%s] %s data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
-#         % (str(datetime.now()), 'Sunspot' if not smoothed else 'Smoothed sunspot', str(g.data.shape), month[0], 
-#            year[0], month[-1], year[-1]))
-           
-#     return g
-
-
 
 def load_AAgeomag_data(filename, start_date, end_date, anom, daily = False):
     """
@@ -1455,3 +1419,49 @@ def load_bin_data(filename, start_date, end_date, anom):
            year[0], day[-1], month[-1], year[-1]))
            
     return g
+
+
+
+def load_ERSST_data(path, start_date, end_date, lats, lons, anom):
+    """
+    Data loader for ERSST data - saved by months.
+    path contains files ersst.yyyy.mm.nc
+    """
+
+    from dateutil.relativedelta import relativedelta
+
+    date_current = start_date
+    glist = []
+    Ndays = 0
+
+    while date_current <= end_date:
+        g = DataField(data_folder = path)                
+        g.load(("ersst.%04d%02d.nc" % (date_current.year, date_current.month)), 'sst', dataset = 'NCEP', print_prog = False)
+        Ndays += g.time.shape[0]
+        glist.append(g)
+        date_current += relativedelta(months=1) 
+
+    data = np.zeros((Ndays, len(glist[0].lats), len(glist[0].lons)))
+    time = np.zeros((Ndays,))
+    n = 0
+    for g in glist:
+        Ndays_i = len(g.time)
+        data[n:Ndays_i + n, ...] = g.data
+        time[n:Ndays_i + n] = g.time
+        n += Ndays_i
+    g = DataField(data = data, lons = glist[0].lons, lats = glist[0].lats, time = time)
+    del glist
+
+    g.select_date(start_date, end_date)
+    g.select_lat_lon(lats, lons)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    day, month, year = g.extract_day_month_year()
+    print("[%s] ERSST data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+        % (str(datetime.now()), str(g.data.shape), day[0], month[0], 
+           year[0], day[-1], month[-1], year[-1]))
+           
+    return g
+
+

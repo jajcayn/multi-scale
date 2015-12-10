@@ -1,11 +1,11 @@
 import numpy as np
 from src.data_class import load_station_data, load_AAgeomag_data, load_bin_data, DataField, load_sunspot_data
-from datetime import date
+from datetime import date, timedelta
 from src.surrogates import SurrogateField
 from src import wavelet_analysis as wvlt
 from src import mutual_information as mi
 import matplotlib
-# matplotlib.use('Agg')
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 from multiprocessing import Pool
 
@@ -210,7 +210,7 @@ for LEVEL in LEVELS:
         # aa_surr.copy_field(aa)
         # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
 
-names = [['sunspot', 'AAindex'], ['sunspot', 'OuluCR'], ['OuluCR', 'AAindex']]
+names = [['sunspot', 'OuluCR'], ['OuluCR', 'AAindex']]
 
 for [idx1, idx2] in names:
         if idx1 == 'OuluCR':
