@@ -1,5 +1,5 @@
 import numpy as np
-from src.data_class import DataField
+from src.data_class import load_station_data, load_AAgeomag_data, load_bin_data, DataField, load_sunspot_data
 from datetime import date, timedelta
 from src.surrogates import SurrogateField, get_single_FT_surrogate, get_single_MF_surrogate
 from src import wavelet_analysis as wvlt
