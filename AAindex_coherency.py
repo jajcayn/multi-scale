@@ -19,6 +19,7 @@ STATION = True
 LEVELS = ['30hPa']
 GRID_POINTS = ['A']
 NUM_SURR = 1000
+WRKRS = 20
 
 
 def get_continuous_phase(ph):
@@ -334,7 +335,7 @@ for [idx1, idx2] in names:
         cmi2 = np.array(cmi2)
 
         # SURRS - coherence
-        pool = Pool(4)
+        pool = Pool(WRKRS)
         args = [(aa_surr, aa_seas, scales, temp.data) for i in range(NUM_SURR)]
         results = pool.map(_coherency_surrogates, args)
         pool.close()
@@ -342,24 +343,28 @@ for [idx1, idx2] in names:
 
         results = np.array(results)
 
-        coh_sig = np.zeros_like(coherence, dtype = np.bool)
-        wvlt_sig = np.zeros_like(coherence, dtype = np.bool)
+        coh_sig = np.zeros_like(coherence)
+        wvlt_sig = np.zeros_like(coherence)
 
         for time in range(results.shape[-1]):
             greater = np.greater(coherence[time], results[:, 0, time])
             if np.sum(greater) > 0.95*NUM_SURR:
-                coh_sig[time] = True
+                coh_sig[time] = 2
+            elif np.sum(greater) > 0.9*NUM_SURR:
+                coh_sig[time] = 1
             else:
-                coh_sig[time] = False
+                coh_sig[time] = 0
 
             greater = np.greater(wvlt_coherence[time], results[:, 1, time])
             if np.sum(greater) > 0.95*NUM_SURR:
-                wvlt_sig[time] = True
+                wvlt_sig[time] = 2
+            elif np.sum(greater) > 0.9*NUM_SURR:
+                wvlt_sig[time] = 1
             else:
-                wvlt_sig[time] = False
+                wvlt_sig[time] = 0
 
         # SURRS - cmi
-        pool = Pool(4)
+        pool = Pool(WRKRS)
         args = [(aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
         results2 = pool.map(_cmi_surrogates, args)
         pool.close()
@@ -367,21 +372,25 @@ for [idx1, idx2] in names:
 
         results2 = np.array(results2)
 
-        cmi1_sig = np.zeros_like(cmi1, dtype = np.bool)
-        cmi2_sig = np.zeros_like(cmi2, dtype = np.bool)
+        cmi1_sig = np.zeros_like(cmi1)
+        cmi2_sig = np.zeros_like(cmi2)
 
         for time in range(results2.shape[-1]):
             greater = np.greater(cmi1[time], results2[:, 0, time])
             if np.sum(greater) > 0.95*NUM_SURR:
-                cmi1_sig[time] = True
+                cmi1_sig[time] = 2
+            elif np.sum(greater) > 0.9*NUM_SURR:
+                cmi1_sig[time] = 1
             else:
-                cmi1_sig[time] = False
+                cmi1_sig[time] = 0
 
             greater = np.greater(cmi2[time], results2[:, 1, time])
             if np.sum(greater) > 0.95*NUM_SURR:
-                cmi2_sig[time] = True
+                cmi2_sig[time] = 2
+            elif np.sum(greater) > 0.9*NUM_SURR:
+                cmi2_sig[time] = 1
             else:
-                cmi2_sig[time] = False
+                cmi2_sig[time] = 0
 
 
         y1 = temp.get_date_from_ndx(0).year
@@ -415,8 +424,10 @@ for [idx1, idx2] in names:
         plt.plot(scales, results2[int(0.95*NUM_SURR), 0, :], color = "#DDCF0B", linewidth = 0.8)
         plt.fill_between(scales, np.mean(results2[:, 0, :], axis = 0), results2[int(0.95*NUM_SURR), 0, :], facecolor = "#DDCF0B", alpha = 0.5)
         for time in range(cmi1.shape[0]):
-            if cmi1_sig[time]:
+            if cmi1_sig[time] == 2:
                 plt.plot(scales[time], cmi1[time], 'o', markersize = 12, color = "#006E91")
+            elif cmi1_sig[time] == 1:
+                plt.plot(scales[time], cmi1[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("CMI [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
@@ -428,8 +439,10 @@ for [idx1, idx2] in names:
         plt.plot(scales, results2[int(0.95*NUM_SURR), 1, :], color = "#71545E", linewidth = 0.8)
         plt.fill_between(scales, np.mean(results2[:, 1, :], axis = 0), results2[int(0.95*NUM_SURR), 1, :], facecolor = "#71545E", alpha = 0.5)
         for time in range(cmi2.shape[0]):
-            if cmi2_sig[time]:
+            if cmi2_sig[time] == 2:
                 plt.plot(scales[time], cmi2[time], 'o', markersize = 12, color = "#251F21")
+            elif cmi2_sig[time] == 1:
+                plt.plot(scales[time], cmi2[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("CMI [nats]", size = 25)
         plt.xlim(SCALES_SPAN)
         plt.xticks(scales[6::24], scales[6::24]/12)
@@ -454,8 +467,10 @@ for [idx1, idx2] in names:
         plt.plot(scales, results[int(0.95*NUM_SURR), 0, :], color = "#DDCF0B", linewidth = 0.8)
         plt.fill_between(scales, np.mean(results[:, 0, :], axis = 0), results[int(0.95*NUM_SURR), 0, :], facecolor = "#DDCF0B", alpha = 0.5)
         for time in range(coherence.shape[0]):
-            if coh_sig[time]:
+            if coh_sig[time] == 2:
                 plt.plot(scales[time], coherence[time], 'o', markersize = 12, color = "#006E91")
+            elif coh_sig[time] == 1:
+                plt.plot(scales[time], coherence[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("MI [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
@@ -467,8 +482,10 @@ for [idx1, idx2] in names:
         plt.plot(scales, results[int(0.95*NUM_SURR), 1, :], color = "#71545E", linewidth = 0.8)
         plt.fill_between(scales, np.mean(results[:, 1, :], axis = 0), results[int(0.95*NUM_SURR), 1, :], facecolor = "#71545E", alpha = 0.5)
         for time in range(wvlt_coherence.shape[0]):
-            if wvlt_sig[time]:
+            if wvlt_sig[time] == 2:
                 plt.plot(scales[time], wvlt_coherence[time], 'o', markersize = 12, color = "#251F21")
+            elif wvlt_sig[time] == 1:
+                plt.plot(scales[time], wvlt_coherence[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("wavelet coherence", size = 25)
         plt.xlim(SCALES_SPAN)
         plt.xticks(scales[6::24], scales[6::24]/12)
