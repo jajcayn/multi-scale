@@ -211,7 +211,7 @@ for LEVEL in LEVELS:
         # aa_surr.copy_field(aa)
         # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
 
-names = [['sunspot', 'OuluCR'], ['OuluCR', 'AAindex']]
+names = [['AAindex', 'sunspot']]
 
 for [idx1, idx2] in names:
         if idx1 == 'OuluCR':
