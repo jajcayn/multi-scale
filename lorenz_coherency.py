@@ -274,7 +274,6 @@ for [idx1, idx2] in names:
             aa_seas = aa.get_seasonality(True)
             aa_surr.copy_field(aa)
             aa.return_seasonality(aa_seas[0], aa_seas[1], aa_seas[2])
-            aa.data = 
         elif idx2 == 'z':
             aa = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             aa.data = X[:, 2].copy()
