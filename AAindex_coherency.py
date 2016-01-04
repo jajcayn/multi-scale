@@ -76,6 +76,41 @@ def load_cosmic_data(fname, start_date, end_date, anom = True, daily = False, co
     return g, g_surr, seasonality
 
 
+def load_CR_climax_daily_data(fname, start_date, end_date, anom = False):
+    from dateutil.relativedelta import relativedelta
+
+    raw = np.loadtxt(fname)
+    time = []
+    date = start_date
+    delta = timedelta(days = 1)
+    for t in range(raw.shape[0]):
+        time.append(date.toordinal())
+
+        date += delta
+
+    print raw.shape
+    print len(time)
+    g = DataField(data = np.array(raw), time = np.array(time))
+    g.location = 'Climax, CO cosmic data'
+
+    g.select_date(start_date, end_date)
+
+    if anom:
+        g.anomalise()
+
+    if NUM_SURR != 0:
+        g_surr = SurrogateField()
+        seasonality = g.get_seasonality(True)
+        g_surr.copy_field(g)
+
+        g.return_seasonality(seasonality[0], seasonality[1], seasonality[2])
+    else:
+        g_surr, seasonality = None, None
+
+    return g, g_surr, seasonality
+
+
+
 def load_neutron_NESDIS_data(fname, start_date, end_date, anom = True):
 
 
@@ -211,35 +246,38 @@ for LEVEL in LEVELS:
         # aa_surr.copy_field(aa)
         # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
 
-names = [['AAindex', 'sunspot']]
+
+names = [['AAindex', 'sunspot'], ['sunspot', 'ClimaxCR'], ['ClimaxCR', 'AAindex']]
 
 for [idx1, idx2] in names:
-        if idx1 == 'OuluCR':
-            temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+        if idx1 == 'ClimaxCR':
+            # temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp, temp_surr, temp_seas = load_CR_climax_daily_data('../data/CR-climax-daily-1-1-94--30-11-06.txt', date(1994,1,1), date(2006,12,1), False)
         elif idx1 == 'sunspot':
-            temp = load_sunspot_data("../data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp = load_sunspot_data("../data/sunspot_daily.txt", date(1994,1,1), date(2006,12,1), anom = False, daily = DAILY)
             # temp.get_data_of_precise_length(length = 1024, end_date = date(2007, 1, 1), COPY = True)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality(True)
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], temp_seas[2])
         elif idx1 == 'AAindex':
-            temp = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp = load_AAgeomag_data("../data/aa_day.raw", date(1994,1,1), date(2006,12,1), anom = False, daily = DAILY)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality(True)
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], temp_seas[2])
 
-        if idx2 == 'OuluCR':
-            aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+        if idx2 == 'ClimaxCR':
+            # aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa, aa_surr, aa_seas = load_CR_climax_daily_data('../data/CR-climax-daily-1-1-94--30-11-06.txt', date(1994,1,1), date(2006,12,1), False)
         elif idx2 == 'sunspot':
-            aa = load_sunspot_data("../data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa = load_sunspot_data("../data/sunspot_daily.txt", date(1994,1,1), date(2006,12,1), anom = False, daily = DAILY)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality(True)
             aa_surr.copy_field(aa)
             aa.return_seasonality(aa_seas[0], aa_seas[1], aa_seas[2])
         elif idx2 == 'AAindex':
-            aa = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa = load_AAgeomag_data("../data/aa_day.raw", date(1994,1,1), date(2006,12,1), anom = False, daily = DAILY)
             # aa.get_data_of_precise_length(length = 1024, end_date = date(2007,1,1), COPY = True)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality(True)
@@ -496,6 +534,3 @@ for [idx1, idx2] in names:
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
         plt.savefig("coherence%s-%s--DAILY.png" % (idx1, idx2))
-
-
-
