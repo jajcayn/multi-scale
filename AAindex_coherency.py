@@ -81,12 +81,12 @@ def load_CR_climax_daily_data(fname, start_date, end_date, anom = False):
 
     raw = np.loadtxt(fname)
     time = []
-    date = date(1994, 1, 1)
+    datenow = date(1994, 1, 1)
     delta = timedelta(days = 1)
     for t in range(raw.shape[0]):
-        time.append(date.toordinal())
+        time.append(datenow.toordinal())
 
-        date += delta
+        datenow += delta
 
     print raw.shape
     print len(time)
