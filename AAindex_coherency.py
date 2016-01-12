@@ -12,7 +12,7 @@ from multiprocessing import Pool
 
 DAILY = True
 # SAMPLES = 444
-SCALES_SPAN = [182, 10*365] # in days
+SCALES_SPAN = [180, 10*365] # in days
 STATION = True
 # GRID_POINTS = [[50, 15], [50, 12.5], [52.5, 12.5], [52.5, 15]]
 # LEVELS = ['30hPa', '1000hPa']
@@ -304,7 +304,7 @@ for [idx1, idx2] in names:
         print aa.data.shape
 
         # from now only monthly -- for daily, wavelet needs polishing !!
-        scales = np.arange(SCALES_SPAN[0], SCALES_SPAN[-1] + 1, 1)
+        scales = np.arange(SCALES_SPAN[0], SCALES_SPAN[-1] + 1, 30)
 
         k0 = 6. # wavenumber of Morlet wavelet used in analysis
         fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
@@ -469,7 +469,7 @@ for [idx1, idx2] in names:
         plt.ylabel("CMI [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[6::24], scales[6::24]/12)
+        plt.xticks(scales[::11], scales[::11]/30)
         ax.tick_params(axis='both', which='major', labelsize=15)
         ax = plt.subplot(212)
         plt.plot(scales, cmi2, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
@@ -483,9 +483,9 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], cmi2[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("CMI [nats]", size = 25)
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[6::24], scales[6::24]/12)
+        plt.xticks(scales[::11], scales[::11]/30)
         ax.tick_params(axis='both', which='major', labelsize=15)
-        plt.xlabel("period [years]", size = 25)
+        plt.xlabel("period [months]", size = 25)
         ax.legend()
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
@@ -512,7 +512,7 @@ for [idx1, idx2] in names:
         plt.ylabel("MI [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[6::24], scales[6::24]/12)
+        plt.xticks(scales[::11], scales[::11]/30)
         ax.tick_params(axis='both', which='major', labelsize=15)
         ax = plt.subplot(212)
         plt.plot(scales, wvlt_coherence, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
@@ -526,9 +526,9 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], wvlt_coherence[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("wavelet coherence", size = 25)
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[6::24], scales[6::24]/12)
+        plt.xticks(scales[::11], scales[::11]/30)
         ax.tick_params(axis='both', which='major', labelsize=15)
-        plt.xlabel("period [years]", size = 25)
+        plt.xlabel("period [months]", size = 25)
         ax.legend()
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
