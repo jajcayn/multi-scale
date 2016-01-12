@@ -12,7 +12,7 @@ from multiprocessing import Pool
 
 DAILY = True
 # SAMPLES = 444
-SCALES_SPAN = [180, 10*365] # in days
+SCALES_SPAN = [180, 20*365] # in days
 STATION = True
 # GRID_POINTS = [[50, 15], [50, 12.5], [52.5, 12.5], [52.5, 15]]
 # LEVELS = ['30hPa', '1000hPa']
@@ -247,37 +247,37 @@ for LEVEL in LEVELS:
         # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
 
 
-names = [['AAindex', 'sunspot'], ['sunspot', 'ClimaxCR'], ['ClimaxCR', 'AAindex']]
+names = [['AAindex', 'sunspot'], ['sunspot', 'OuluCR'], ['OuluCR', 'AAindex']]
 
 for [idx1, idx2] in names:
-        if idx1 == 'ClimaxCR':
-            # temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
-            temp, temp_surr, temp_seas = load_CR_climax_daily_data('../data/CR-climax-daily-1-1-94--30-11-06.txt', date(1994,1,1), date(2006,11,30), False)
+        if idx1 == 'OuluCR':
+            temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            # temp, temp_surr, temp_seas = load_CR_climax_daily_data('../data/CR-climax-daily-1-1-94--30-11-06.txt', date(1994,1,1), date(2006,11,30), False)
         elif idx1 == 'sunspot':
-            temp = load_sunspot_data("../data/sunspot_daily.txt", date(1994,1,1), date(2006,11,30), anom = False, daily = DAILY)
+            temp = load_sunspot_data("../data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             # temp.get_data_of_precise_length(length = 1024, end_date = date(2007, 1, 1), COPY = True)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality(True)
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], temp_seas[2])
         elif idx1 == 'AAindex':
-            temp = load_AAgeomag_data("../data/aa_day.raw", date(1994,1,1), date(2006,11,30), anom = False, daily = DAILY)
+            temp = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality(True)
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], temp_seas[2])
 
-        if idx2 == 'ClimaxCR':
-            # aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
-            aa, aa_surr, aa_seas = load_CR_climax_daily_data('../data/CR-climax-daily-1-1-94--30-11-06.txt', date(1994,1,1), date(2006,11,30), False)
+        if idx2 == 'OuluCR':
+            aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            # aa, aa_surr, aa_seas = load_CR_climax_daily_data('../data/CR-climax-daily-1-1-94--30-11-06.txt', date(1994,1,1), date(2006,11,30), False)
         elif idx2 == 'sunspot':
-            aa = load_sunspot_data("../data/sunspot_daily.txt", date(1994,1,1), date(2006,11,30), anom = False, daily = DAILY)
+            aa = load_sunspot_data("../data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality(True)
             aa_surr.copy_field(aa)
             aa.return_seasonality(aa_seas[0], aa_seas[1], aa_seas[2])
         elif idx2 == 'AAindex':
-            aa = load_AAgeomag_data("../data/aa_day.raw", date(1994,1,1), date(2006,11,30), anom = False, daily = DAILY)
+            aa = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
             # aa.get_data_of_precise_length(length = 1024, end_date = date(2007,1,1), COPY = True)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality(True)
@@ -469,7 +469,7 @@ for [idx1, idx2] in names:
         plt.ylabel("CMI [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[::11], scales[::11]/30)
+        plt.xticks(scales[::20], scales[::20]/30)
         ax.tick_params(axis='both', which='major', labelsize=15)
         ax = plt.subplot(212)
         plt.plot(scales, cmi2, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
@@ -483,7 +483,7 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], cmi2[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("CMI [nats]", size = 25)
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[::11], scales[::11]/30)
+        plt.xticks(scales[::20], scales[::20]/30)
         ax.tick_params(axis='both', which='major', labelsize=15)
         plt.xlabel("period [months]", size = 25)
         ax.legend()
@@ -512,7 +512,7 @@ for [idx1, idx2] in names:
         plt.ylabel("MI [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[::11], scales[::11]/30)
+        plt.xticks(scales[::20], scales[::20]/30)
         ax.tick_params(axis='both', which='major', labelsize=15)
         ax = plt.subplot(212)
         plt.plot(scales, wvlt_coherence, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
@@ -526,7 +526,7 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], wvlt_coherence[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("wavelet coherence", size = 25)
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[::11], scales[::11]/30)
+        plt.xticks(scales[::20], scales[::20]/30)
         ax.tick_params(axis='both', which='major', labelsize=15)
         plt.xlabel("period [months]", size = 25)
         ax.legend()
