@@ -5,7 +5,7 @@ created on Mar 4, 2014
 """
 
 import numpy as np
-from src.data_class import DataField
+from data_class import DataField
 
 
 

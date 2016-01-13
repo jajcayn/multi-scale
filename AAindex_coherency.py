@@ -378,7 +378,8 @@ for [idx1, idx2] in names:
         pool = Pool(WRKRS)
         aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
         args = [(aa_surr, aa_seas, scales, temp.data) for i in range(NUM_SURR)]
-        results = pool.map(_coherency_surrogates, args)
+        _coherency_surrogates(args[0])
+        # results = pool.map(_coherency_surrogates, args)
         pool.close()
         pool.join()
 
