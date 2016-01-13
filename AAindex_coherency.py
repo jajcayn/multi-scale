@@ -192,7 +192,6 @@ def _cmi_surrogates(a):
     aa_surr.construct_surrogates_with_residuals()
     aa_surr.add_seasonality(aa_seas[0][:-1], aa_seas[1][:-1], aa_seas[2][:-1])
 
-
     cmi1 = []
     cmi2 = []
 
@@ -377,9 +376,9 @@ for [idx1, idx2] in names:
         # SURRS - coherence
         pool = Pool(WRKRS)
         aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
-        args = [(aa_surr, aa_seas, scales, temp.data) for i in range(NUM_SURR)]
-        _coherency_surrogates(args[0])
-        # results = pool.map(_coherency_surrogates, args)
+        args = [(aa_surr, aa_seas, scales, temp.data[:-1]) for i in range(NUM_SURR)]
+        # _coherency_surrogates(args[0])
+        results = pool.map(_coherency_surrogates, args)
         pool.close()
         pool.join()
 
@@ -407,7 +406,7 @@ for [idx1, idx2] in names:
 
         # SURRS - cmi
         pool = Pool(WRKRS)
-        args = [(aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
+        args = [(aa, aa_surr, aa_seas, temp.data[:-1], temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
         results2 = pool.map(_cmi_surrogates, args)
         pool.close()
         pool.join()
