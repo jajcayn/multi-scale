@@ -149,9 +149,10 @@ def load_neutron_NESDIS_data(fname, start_date, end_date, anom = True):
 def _coherency_surrogates(a):
     aa_surr, aa_seas, scales, temp = a
 
-    aa_surr.construct_fourier_surrogates_spatial()
+    # aa_surr.construct_fourier_surrogates_spatial()
+    aa_surr.construct_surrogates_with_residuals()
     # aa_surr.construct_surrogates_with_residuals()
-    aa_surr.add_seasonality(aa_seas[0], aa_seas[1], aa_seas[2])
+    aa_surr.add_seasonality(aa_seas[0][:-1], aa_seas[1][:-1], aa_seas[2][:-1])
 
     coherence = []
     wvlt_coherence = []
@@ -187,8 +188,9 @@ def _coherency_surrogates(a):
 
 def _cmi_surrogates(a):
     aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales = a
-    aa_surr.construct_fourier_surrogates_spatial()
-    aa_surr.add_seasonality(aa_seas[0], aa_seas[1], aa_seas[2])
+    # aa_surr.construct_fourier_surrogates_spatial()
+    aa_surr.construct_surrogates_with_residuals()
+    aa_surr.add_seasonality(aa_seas[0][:-1], aa_seas[1][:-1], aa_seas[2][:-1])
 
 
     cmi1 = []
@@ -374,6 +376,7 @@ for [idx1, idx2] in names:
 
         # SURRS - coherence
         pool = Pool(WRKRS)
+        aa_surr.prepare_AR_surrogates(pool = Pool, order_range = [1,1])
         args = [(aa_surr, aa_seas, scales, temp.data) for i in range(NUM_SURR)]
         results = pool.map(_coherency_surrogates, args)
         pool.close()
@@ -443,7 +446,7 @@ for [idx1, idx2] in names:
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
 
         import cPickle
-        with open("CMI-coh-%s-%s--DAILY.bin" % (idx1, idx2), "wb") as f:
+        with open("CMI-coh-%s-%s--DAILY-ARsurr.bin" % (idx1, idx2), "wb") as f:
             cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
                 'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig, 
                 'coherence' : coherence, 'wvlt_coherence' : wvlt_coherence, 'results2' : results2,
@@ -490,7 +493,7 @@ for [idx1, idx2] in names:
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("CMI%s-%s--DAILY.png" % (idx1, idx2))
+        plt.savefig("CMI%s-%s--DAILY-ARsurr.png" % (idx1, idx2))
         plt.close()
 
         plt.figure(figsize=(16,12))
@@ -533,4 +536,4 @@ for [idx1, idx2] in names:
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("coherence%s-%s--DAILY.png" % (idx1, idx2))
+        plt.savefig("coherence%s-%s--DAILY-ARsurr.png" % (idx1, idx2))
