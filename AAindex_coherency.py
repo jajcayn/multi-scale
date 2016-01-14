@@ -204,6 +204,9 @@ def _cmi_surrogates(a):
         wave_aa, _, _, _ = wvlt.continous_wavelet(aa_surr.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase_aa_surr = np.arctan2(np.imag(wave_aa), np.real(wave_aa))[0, 12:-12] # get phases from oscillatory modes
 
+        print phase_temp.shape
+        print phase_aa_surr.shape
+
         # cmi1
         tmp = []
         for tau in range(1,30):
