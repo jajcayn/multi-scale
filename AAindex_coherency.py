@@ -374,13 +374,13 @@ for [idx1, idx2] in names:
         cmi2 = np.array(cmi2)
 
         # SURRS - coherence
-        # pool = Pool(WRKRS)
-        # aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
+        pool = Pool(WRKRS)
+        aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
         # args = [(aa_surr, aa_seas, scales, temp.data[:-1]) for i in range(NUM_SURR)]
         # # _coherency_surrogates(args[0])
         # results = pool.map(_coherency_surrogates, args)
-        # pool.close()
-        # pool.join()
+        pool.close()
+        pool.join()
 
         # results = np.array(results)
 
