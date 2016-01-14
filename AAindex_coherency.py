@@ -195,13 +195,10 @@ def _cmi_surrogates(a):
     cmi1 = []
     cmi2 = []
 
-    print temp.data.shape
-    print aa_surr.surr_data.shape
-
     for sc in scales:
         period = sc # frequency of interest in months
         s0 = period / fourier_factor # get scale
-        wave_temp, _, _, _ = wvlt.continous_wavelet(temp.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        wave_temp, _, _, _ = wvlt.continous_wavelet(temp.data[:-1], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase_temp = np.arctan2(np.imag(wave_temp), np.real(wave_temp))[0, 12:-12] # get phases from oscillatory modes
 
         wave_aa, _, _, _ = wvlt.continous_wavelet(aa_surr.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
@@ -383,8 +380,8 @@ for [idx1, idx2] in names:
         pool = Pool(WRKRS)
         aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
         # args = [(aa_surr, aa_seas, scales, temp.data[:-1]) for i in range(NUM_SURR)]
-        # # _coherency_surrogates(args[0])
-        # results = pool.map(_coherency_surrogates, args)
+        # _coherency_surrogates(args[0])
+        results = pool.map(_coherency_surrogates, args)
         pool.close()
         pool.join()
 
@@ -412,7 +409,7 @@ for [idx1, idx2] in names:
 
         # SURRS - cmi
         pool = Pool(WRKRS)
-        args = [(aa, aa_surr, aa_seas, temp.data[:-1], temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
+        args = [(aa, aa_surr, aa_seas, temp.data, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
         # results2 = pool.map(_cmi_surrogates, args)
         print _cmi_surrogates(args[0])
         pool.close()
