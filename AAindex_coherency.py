@@ -409,7 +409,7 @@ for [idx1, idx2] in names:
 
         # SURRS - cmi
         pool = Pool(WRKRS)
-        args = [(aa, aa_surr, aa_seas, temp.data, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
+        args = [(aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
         results2 = pool.map(_cmi_surrogates, args)
         # print _cmi_surrogates(args[0])
         pool.close()
