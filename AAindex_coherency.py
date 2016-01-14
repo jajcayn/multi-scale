@@ -195,6 +195,9 @@ def _cmi_surrogates(a):
     cmi1 = []
     cmi2 = []
 
+    print temp.data.shape
+    print aa_surr.surr_data.shape
+
     for sc in scales:
         period = sc # frequency of interest in months
         s0 = period / fourier_factor # get scale
