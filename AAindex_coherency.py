@@ -374,40 +374,41 @@ for [idx1, idx2] in names:
         cmi2 = np.array(cmi2)
 
         # SURRS - coherence
-        pool = Pool(WRKRS)
-        aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
-        args = [(aa_surr, aa_seas, scales, temp.data[:-1]) for i in range(NUM_SURR)]
-        # _coherency_surrogates(args[0])
-        results = pool.map(_coherency_surrogates, args)
-        pool.close()
-        pool.join()
+        # pool = Pool(WRKRS)
+        # aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
+        # args = [(aa_surr, aa_seas, scales, temp.data[:-1]) for i in range(NUM_SURR)]
+        # # _coherency_surrogates(args[0])
+        # results = pool.map(_coherency_surrogates, args)
+        # pool.close()
+        # pool.join()
 
-        results = np.array(results)
+        # results = np.array(results)
 
-        coh_sig = np.zeros_like(coherence)
-        wvlt_sig = np.zeros_like(coherence)
+        # coh_sig = np.zeros_like(coherence)
+        # wvlt_sig = np.zeros_like(coherence)
 
-        for time in range(results.shape[-1]):
-            greater = np.greater(coherence[time], results[:, 0, time])
-            if np.sum(greater) > 0.95*NUM_SURR:
-                coh_sig[time] = 2
-            elif np.sum(greater) > 0.9*NUM_SURR:
-                coh_sig[time] = 1
-            else:
-                coh_sig[time] = 0
+        # for time in range(results.shape[-1]):
+        #     greater = np.greater(coherence[time], results[:, 0, time])
+        #     if np.sum(greater) > 0.95*NUM_SURR:
+        #         coh_sig[time] = 2
+        #     elif np.sum(greater) > 0.9*NUM_SURR:
+        #         coh_sig[time] = 1
+        #     else:
+        #         coh_sig[time] = 0
 
-            greater = np.greater(wvlt_coherence[time], results[:, 1, time])
-            if np.sum(greater) > 0.95*NUM_SURR:
-                wvlt_sig[time] = 2
-            elif np.sum(greater) > 0.9*NUM_SURR:
-                wvlt_sig[time] = 1
-            else:
-                wvlt_sig[time] = 0
+        #     greater = np.greater(wvlt_coherence[time], results[:, 1, time])
+        #     if np.sum(greater) > 0.95*NUM_SURR:
+        #         wvlt_sig[time] = 2
+        #     elif np.sum(greater) > 0.9*NUM_SURR:
+        #         wvlt_sig[time] = 1
+        #     else:
+        #         wvlt_sig[time] = 0
 
         # SURRS - cmi
         pool = Pool(WRKRS)
         args = [(aa, aa_surr, aa_seas, temp.data[:-1], temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
-        results2 = pool.map(_cmi_surrogates, args)
+        # results2 = pool.map(_cmi_surrogates, args)
+        print _cmi_surrogates(args[0])
         pool.close()
         pool.join()
 
