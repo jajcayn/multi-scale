@@ -12,7 +12,7 @@ from multiprocessing import Pool
 
 DAILY = True
 # SAMPLES = 444
-SCALES_SPAN = [180, 20*365] # in days
+SCALES_SPAN = [180, 20*365.25] # in days
 STATION = True
 # GRID_POINTS = [[50, 15], [50, 12.5], [52.5, 12.5], [52.5, 15]]
 # LEVELS = ['30hPa', '1000hPa']
@@ -149,10 +149,11 @@ def load_neutron_NESDIS_data(fname, start_date, end_date, anom = True):
 def _coherency_surrogates(a):
     aa_surr, aa_seas, scales, temp = a
 
-    # aa_surr.construct_fourier_surrogates_spatial()
-    aa_surr.construct_surrogates_with_residuals()
+    aa_surr.construct_fourier_surrogates_spatial()
+    aa_surr.amplitude_adjust_surrogates(aa_seas[0], aa_seas[1], aa_seas[2])
     # aa_surr.construct_surrogates_with_residuals()
-    aa_surr.add_seasonality(aa_seas[0][:-1], aa_seas[1][:-1], aa_seas[2][:-1])
+    # aa_surr.construct_surrogates_with_residuals()
+    # aa_surr.add_seasonality(aa_seas[0][:-1], aa_seas[1][:-1], aa_seas[2][:-1])
 
     coherence = []
     wvlt_coherence = []
@@ -188,9 +189,10 @@ def _coherency_surrogates(a):
 
 def _cmi_surrogates(a):
     aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales = a
-    # aa_surr.construct_fourier_surrogates_spatial()
-    aa_surr.construct_surrogates_with_residuals()
-    aa_surr.add_seasonality(aa_seas[0][:-1], aa_seas[1][:-1], aa_seas[2][:-1])
+    aa_surr.construct_fourier_surrogates_spatial()
+    aa_surr.amplitude_adjust_surrogates(aa_seas[0], aa_seas[1], aa_seas[2])
+    # aa_surr.construct_surrogates_with_residuals()
+    # aa_surr.add_seasonality(aa_seas[0][:-1], aa_seas[1][:-1], aa_seas[2][:-1])
 
     cmi1 = []
     cmi2 = []
@@ -198,7 +200,7 @@ def _cmi_surrogates(a):
     for sc in scales:
         period = sc # frequency of interest in months
         s0 = period / fourier_factor # get scale
-        wave_temp, _, _, _ = wvlt.continous_wavelet(temp.data[:-1], 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+        wave_temp, _, _, _ = wvlt.continous_wavelet(temp.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
         phase_temp = np.arctan2(np.imag(wave_temp), np.real(wave_temp))[0, 12:-12] # get phases from oscillatory modes
 
         wave_aa, _, _, _ = wvlt.continous_wavelet(aa_surr.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
@@ -251,7 +253,7 @@ for LEVEL in LEVELS:
         # aa.return_seasonality(aa_seas[0], aa_seas[1], None)
 
 
-names = [['AAindex', 'sunspot'], ['sunspot', 'OuluCR'], ['OuluCR', 'AAindex']]
+names = [['sunspot', 'AAindex'], ['sunspot', 'OuluCR'], ['OuluCR', 'AAindex']]
 
 for [idx1, idx2] in names:
         if idx1 == 'OuluCR':
@@ -379,7 +381,7 @@ for [idx1, idx2] in names:
         # SURRS - coherence
         pool = Pool(WRKRS)
         aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
-        args = [(aa_surr, aa_seas, scales, temp.data[:-1]) for i in range(NUM_SURR)]
+        args = [(aa_surr, aa_seas, scales, temp.data) for i in range(NUM_SURR)]
         # _coherency_surrogates(args[0])
         results = pool.map(_coherency_surrogates, args)
         pool.close()
@@ -450,7 +452,7 @@ for [idx1, idx2] in names:
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
 
         import cPickle
-        with open("CMI-coh-%s-%s--DAILY-ARsurr.bin" % (idx1, idx2), "wb") as f:
+        with open("CMI-coh-%s-%s--DAILY-FT-AA.bin" % (idx1, idx2), "wb") as f:
             cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
                 'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig, 
                 'coherence' : coherence, 'wvlt_coherence' : wvlt_coherence, 'results2' : results2,
@@ -497,7 +499,7 @@ for [idx1, idx2] in names:
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("CMI%s-%s--DAILY-ARsurr.png" % (idx1, idx2))
+        plt.savefig("CMI%s-%s--DAILY-FT-AA.png" % (idx1, idx2))
         plt.close()
 
         plt.figure(figsize=(16,12))
@@ -540,4 +542,4 @@ for [idx1, idx2] in names:
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("coherence%s-%s--DAILY-ARsurr.png" % (idx1, idx2))
+        plt.savefig("coherence%s-%s--DAILY-FT-AA.png" % (idx1, idx2))

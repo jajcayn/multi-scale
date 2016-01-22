@@ -20,3 +20,4 @@ mfdfa.py
 *_test.py
 *.zip
 *.ipynb
+notebooks/*
