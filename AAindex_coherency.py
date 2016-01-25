@@ -334,7 +334,7 @@ for [idx1, idx2] in names:
 
             # mutual information coherence
             # coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
-            corr = np.corrcoef(phase_aa, phase_temp])[0, 1]
+            corr = np.corrcoef([phase_aa, phase_temp])[0, 1]
             coherence.append(-0.5 * np.log(1 - np.power(corr, 2)))
 
             # cmi1
