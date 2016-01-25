@@ -169,7 +169,9 @@ def _coherency_surrogates(a):
 
 
         # mutual information coherence
-        coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
+        # coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
+        corr = np.corrcoef([phase_aa, phase_temp])[0, 1]
+        coherence.append(-0.5 * np.log(1 - np.power(corr, 2)))
 
         # wavelet coherence
         w1 = np.complex(0, 0)
@@ -331,7 +333,9 @@ for [idx1, idx2] in names:
 
 
             # mutual information coherence
-            coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
+            # coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
+            corr = np.corrcoef(phase_aa, phase_temp])[0, 1]
+            coherence.append(-0.5 * np.log(1 - np.power(corr, 2)))
 
             # cmi1
             # plt.figure()
@@ -452,7 +456,7 @@ for [idx1, idx2] in names:
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
 
         import cPickle
-        with open("CMI-coh-%s-%s--DAILY-FT-AA.bin" % (idx1, idx2), "wb") as f:
+        with open("CMI-cohGauss-%s-%s--DAILY-FT-AA.bin" % (idx1, idx2), "wb") as f:
             cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
                 'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig, 
                 'coherence' : coherence, 'wvlt_coherence' : wvlt_coherence, 'results2' : results2,
@@ -518,7 +522,7 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], coherence[time], 'o', markersize = 12, color = "#006E91")
             elif coh_sig[time] == 1:
                 plt.plot(scales[time], coherence[time], 'o', markersize = 8, color = "#710C0C")
-        plt.ylabel("MI [nats]", size = 25)
+        plt.ylabel("MI Gauss [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
         plt.xticks(scales[::20], scales[::20]/30)
@@ -542,4 +546,4 @@ for [idx1, idx2] in names:
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("coherence%s-%s--DAILY-FT-AA.png" % (idx1, idx2))
+        plt.savefig("coherenceGAUSS%s-%s--DAILY-FT-AA.png" % (idx1, idx2))
