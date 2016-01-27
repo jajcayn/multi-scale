@@ -1070,7 +1070,85 @@ class DataField:
             data = cPickle.load(f)
 
         self.__dict__ = data
-        
+
+
+
+    def _get_oscillatory_modes(self, a):
+        """
+        Helper function for wavelet.
+        """
+
+        import wavelet_analysis as wvlt
+
+        i, j, s0, data, flag = a
+        wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
+        phase = np.arctan2(np.imag(wave), np.real(wave))
+        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+        ret = [phase, amplitude]
+        if flag:
+            ret.append(wave)
+
+        return i, j, ret
+
+
+
+    def wavelet(self, period, pool = None, save_wave = False):
+        """
+        Permforms wavelet transformation on data.
+        Period is central wavelet period in years.
+        """
+
+        k0 = 6.
+        delta = self.time[1] - self.time[0]
+        if delta == 1:
+            # daily data
+            y = 365.25
+        elif abs(delta - 30) < 3.0:
+            # monthly data
+            y = 12
+        else:
+            raise Exception('Unknown temporal sampling in the field.')
+
+        fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
+        per = period * y # frequency of interest
+        s0 = per / fourier_factor # get scale
+
+        if pool is None:
+            map_func = map
+        elif pool is not None:
+            map_func = pool.map
+
+        if self.data.ndim > 1:
+            num_lats = self.lats.shape[0]
+            num_lons = self.lons.shape[0]
+        else:
+            num_lats = 1
+            num_lons = 1
+            self.data = self.data[:, np.newaxis, np.newaxis]
+
+        self.phase = np.zeros_like(self.data)
+        self.amplitude = np.zeros_like(self.data)
+        if save_wave:
+            self.wave = np.zeros_like(self.data, dtype = np.complex64)
+
+        job_args = [ (i, j, s0, self.data[:, i, j], save_wave) for i in range(num_lats) for j in range(num_lons) ]
+        job_result = map_func(self._get_oscillatory_modes, job_args)
+        del job_args
+
+        for i, j, res in job_result:
+            self.phase[:, i, j] = res[0]
+            self.amplitude[:, i, j] = res[1]
+            if save_wave:
+                self.wave[:, i, j] = res[2]
+
+        del job_result
+
+        self.data = np.squeeze(self.data)
+        self.phase = np.squeeze(self.phase)
+        self.amplitude = np.squeeze(self.amplitude)
+        if save_wave:
+            self.wave = np.squeeze(self.wave)
+
         
         
         
