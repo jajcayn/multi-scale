@@ -12,7 +12,7 @@ from multiprocessing import Pool
 
 DAILY = True
 # SAMPLES = 444
-SCALES_SPAN = [180, 20*365.25] # in days
+SCALES_SPAN = [0.5, 20] # in years
 STATION = True
 # GRID_POINTS = [[50, 15], [50, 12.5], [52.5, 12.5], [52.5, 15]]
 # LEVELS = ['30hPa', '1000hPa']
@@ -159,27 +159,24 @@ def _coherency_surrogates(a):
     wvlt_coherence = []
 
     for sc in scales:
-        period = sc # frequency of interest in months
-        s0 = period / fourier_factor # get scale
-        wave_temp, _, _, _ = wvlt.continous_wavelet(temp, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-        phase_temp = np.arctan2(np.imag(wave_temp), np.real(wave_temp))[0, 12:-12] # get phases from oscillatory modes
+        temp.wavelet(sc, save_wave = True)
+        phase_temp = temp.phase.copy()
+        wave_temp = temp.wave.copy()
 
-        wave_aa, _, _, _ = wvlt.continous_wavelet(aa_surr.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-        phase_aa = np.arctan2(np.imag(wave_aa), np.real(wave_aa))[0, 12:-12] # get phases from oscillatory modes
-
+        phase_aa, _, wave_aa = temp.wavelet(sc, ts = aa_surr.surr_data, save_wave = True)
 
         # mutual information coherence
-        # coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
-        corr = np.corrcoef([phase_aa, phase_temp])[0, 1]
-        coherence.append(-0.5 * np.log(1 - np.power(corr, 2)))
+        coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
+        # corr = np.corrcoef([phase_aa, phase_temp])[0, 1]
+        # coherence.append(-0.5 * np.log(1 - np.power(corr, 2)))
 
         # wavelet coherence
         w1 = np.complex(0, 0)
         w2 = w1; w3 = w1
         for i in range(12,aa.time.shape[0] - 12):
-            w1 += wave_aa[0, i] * np.conjugate(wave_temp[0, i])
-            w2 += wave_aa[0, i] * np.conjugate(wave_aa[0, i])
-            w3 += wave_temp[0, i] * np.conjugate(wave_temp[0, i])
+            w1 += wave_aa[i] * np.conjugate(wave_temp[i])
+            w2 += wave_aa[i] * np.conjugate(wave_aa[i])
+            w3 += wave_temp[i] * np.conjugate(wave_temp[i])
         w1 /= np.sqrt(np.abs(w2) * np.abs(w3))
         wvlt_coherence.append(np.abs(w1))
 
@@ -200,26 +197,23 @@ def _cmi_surrogates(a):
     cmi2 = []
 
     for sc in scales:
-        period = sc # frequency of interest in months
-        s0 = period / fourier_factor # get scale
-        wave_temp, _, _, _ = wvlt.continous_wavelet(temp.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-        phase_temp = np.arctan2(np.imag(wave_temp), np.real(wave_temp))[0, 12:-12] # get phases from oscillatory modes
+        temp.wavelet(sc)
+        phase_temp = temp.phase.copy()
 
-        wave_aa, _, _, _ = wvlt.continous_wavelet(aa_surr.surr_data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-        phase_aa_surr = np.arctan2(np.imag(wave_aa), np.real(wave_aa))[0, 12:-12] # get phases from oscillatory modes
+        phase_aa_surr = temp.wavelet(sc, ts = aa_surr.surr_data)[0]
 
         # cmi1
         tmp = []
         for tau in range(1,30):
             x, y, z = mi.get_time_series_condition([phase_temp, phase_aa_surr], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
-            tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
+            tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 8, log2 = False))
         cmi1.append(np.mean(np.array(tmp)))
 
         # cmi2
         tmp = []
         for tau in range(1,30):
             x, y, z = mi.get_time_series_condition([phase_aa_surr, phase_temp], tau = tau, dim_of_condition = 1, eta = 1, phase_diff = True)
-            tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
+            tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 8, log2 = False))
         cmi2.append(np.mean(np.array(tmp)))
 
     cmi1 = np.array(cmi1)
@@ -256,33 +250,36 @@ names = [['sunspot', 'AAindex'], ['sunspot', 'OuluCR'], ['OuluCR', 'AAindex']]
 
 for [idx1, idx2] in names:
         if idx1 == 'OuluCR':
-            temp, temp_surr, temp_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp, temp_surr, temp_seas = load_cosmic_data("../climate-data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 2, 8), anom = False, daily = DAILY)
             # temp, temp_surr, temp_seas = load_CR_climax_daily_data('../data/CR-climax-daily-1-1-94--30-11-06.txt', date(1994,1,1), date(2006,11,30), False)
+            # temp.get_data_of_precise_length('16k', start_date = date(1964, 1, 1), COPY = True)
         elif idx1 == 'sunspot':
-            temp = load_sunspot_data("../data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp = load_sunspot_data("../climate-data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 2, 8), anom = False, daily = DAILY)
             # temp.get_data_of_precise_length(length = 1024, end_date = date(2007, 1, 1), COPY = True)
+            # temp.get_data_of_precise_length('16k', start_date = date(1964, 1, 1), COPY = True)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality(True)
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], temp_seas[2])
         elif idx1 == 'AAindex':
-            temp = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            temp = load_AAgeomag_data("../climate-data/aa_day.raw", date(1964, 4, 1), date(2009, 2, 8), anom = False, daily = DAILY)
+            # temp.get_data_of_precise_length('16k', start_date = date(1964, 1, 1), COPY = True)
             temp_surr = SurrogateField()
             temp_seas = temp.get_seasonality(True)
             temp_surr.copy_field(temp)
             temp.return_seasonality(temp_seas[0], temp_seas[1], temp_seas[2])
 
         if idx2 == 'OuluCR':
-            aa, aa_surr, aa_seas = load_cosmic_data("../data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa, aa_surr, aa_seas = load_cosmic_data("../climate-data/oulu_cosmic_daily.dat", date(1964, 4, 1), date(2009, 2, 8), anom = False, daily = DAILY)
             # aa, aa_surr, aa_seas = load_CR_climax_daily_data('../data/CR-climax-daily-1-1-94--30-11-06.txt', date(1994,1,1), date(2006,11,30), False)
         elif idx2 == 'sunspot':
-            aa = load_sunspot_data("../data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa = load_sunspot_data("../climate-data/sunspot_daily.txt", date(1964, 4, 1), date(2009, 2, 8), anom = False, daily = DAILY)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality(True)
             aa_surr.copy_field(aa)
             aa.return_seasonality(aa_seas[0], aa_seas[1], aa_seas[2])
         elif idx2 == 'AAindex':
-            aa = load_AAgeomag_data("../data/aa_day.raw", date(1964, 4, 1), date(2009, 1, 1), anom = False, daily = DAILY)
+            aa = load_AAgeomag_data("../climate-data/aa_day.raw", date(1964, 4, 1), date(2009, 2, 8), anom = False, daily = DAILY)
             # aa.get_data_of_precise_length(length = 1024, end_date = date(2007,1,1), COPY = True)
             aa_surr = SurrogateField()
             aa_seas = aa.get_seasonality(True)
@@ -309,10 +306,7 @@ for [idx1, idx2] in names:
         print aa.data.shape
 
         # from now only monthly -- for daily, wavelet needs polishing !!
-        scales = np.arange(SCALES_SPAN[0], SCALES_SPAN[-1] + 1, 30)
-
-        k0 = 6. # wavenumber of Morlet wavelet used in analysis
-        fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
+        scales = np.arange(SCALES_SPAN[0], SCALES_SPAN[-1]+0.01, 1/12.)
 
         coherence = []
         wvlt_coherence = []
@@ -320,26 +314,25 @@ for [idx1, idx2] in names:
         cmi2 = []
 
         for sc in scales:
-            period = sc # frequency of interest in months
-            s0 = period / fourier_factor # get scale
-            wave_temp, _, _, _ = wvlt.continous_wavelet(temp.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-            phase_temp = np.arctan2(np.imag(wave_temp), np.real(wave_temp))[0, 12:-12] # get phases from oscillatory modes
+            temp.wavelet(sc, save_wave = True)
+            phase_temp = temp.phase.copy()
+            wave_temp = temp.wave.copy()
 
-            wave_aa, _, _, _ = wvlt.continous_wavelet(aa.data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-            phase_aa = np.arctan2(np.imag(wave_aa), np.real(wave_aa))[0, 12:-12] # get phases from oscillatory modes
-
+            aa.wavelet(sc, save_wave = True)
+            phase_aa = aa.phase.copy() # get phases from oscillatory modes
+            wave_aa = aa.wave.copy()
 
             # mutual information coherence
-            # coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
-            corr = np.corrcoef([phase_aa, phase_temp])[0, 1]
-            coherence.append(-0.5 * np.log(1 - np.power(corr, 2)))
+            coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
+            # corr = np.corrcoef([phase_aa, phase_temp])[0, 1]
+            # coherence.append(-0.5 * np.log(1 - np.power(corr, 2)))
 
             # cmi1
             # plt.figure()
             tmp = []
             for tau in range(1,30):
                 x, y, z = mi.get_time_series_condition([phase_temp, phase_aa], tau = tau, dim_of_condition = 1, eta = 0, phase_diff = True)
-                tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
+                tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 8, log2 = False))
             cmi1.append(np.mean(np.array(tmp)))
             # plt.plot(tmp, label = "1->2")
 
@@ -347,7 +340,7 @@ for [idx1, idx2] in names:
             tmp = []
             for tau in range(1,30):
                 x, y, z = mi.get_time_series_condition([phase_aa, phase_temp], tau = tau, dim_of_condition = 1, eta = 0, phase_diff = True)
-                tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 4, log2 = False))
+                tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 8, log2 = False))
             cmi2.append(np.mean(np.array(tmp)))
             # plt.plot(tmp, label = "2->1")
             # plt.legend()
@@ -358,9 +351,9 @@ for [idx1, idx2] in names:
             w1 = np.complex(0, 0)
             w2 = w1; w3 = w1
             for i in range(12,aa.time.shape[0] - 12):
-                w1 += wave_aa[0, i] * np.conjugate(wave_temp[0, i])
-                w2 += wave_aa[0, i] * np.conjugate(wave_aa[0, i])
-                w3 += wave_temp[0, i] * np.conjugate(wave_temp[0, i])
+                w1 += wave_aa[i] * np.conjugate(wave_temp[i])
+                w2 += wave_aa[i] * np.conjugate(wave_aa[i])
+                w3 += wave_temp[i] * np.conjugate(wave_temp[i])
             w1 /= np.sqrt(np.abs(w2) * np.abs(w3))
             wvlt_coherence.append(np.abs(w1))
 
@@ -379,10 +372,10 @@ for [idx1, idx2] in names:
         cmi1 = np.array(cmi1)
         cmi2 = np.array(cmi2)
 
-        # SURRS - coherence
+        # # SURRS - coherence
         pool = Pool(WRKRS)
-        aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
-        args = [(aa_surr, aa_seas, scales, temp.data) for i in range(NUM_SURR)]
+        # aa_surr.prepare_AR_surrogates(pool = pool, order_range = [1,1])
+        args = [(aa_surr, aa_seas, scales, temp) for i in range(NUM_SURR)]
         # _coherency_surrogates(args[0])
         results = pool.map(_coherency_surrogates, args)
         pool.close()
@@ -413,6 +406,7 @@ for [idx1, idx2] in names:
         # SURRS - cmi
         pool = Pool(WRKRS)
         args = [(aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
+        # _cmi_surrogates(args[0])
         results2 = pool.map(_cmi_surrogates, args)
         # print _cmi_surrogates(args[0])
         pool.close()
@@ -453,7 +447,7 @@ for [idx1, idx2] in names:
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
 
         import cPickle
-        with open("CMI-cohGauss-%s-%s--DAILY-FT-AA.bin" % (idx1, idx2), "wb") as f:
+        with open("CMI-coh-%s-%s--DAILY-FT-AA.bin" % (idx1, idx2), "wb") as f:
             cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
                 'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig, 
                 'coherence' : coherence, 'wvlt_coherence' : wvlt_coherence, 'results2' : results2,
@@ -519,7 +513,7 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], coherence[time], 'o', markersize = 12, color = "#006E91")
             elif coh_sig[time] == 1:
                 plt.plot(scales[time], coherence[time], 'o', markersize = 8, color = "#710C0C")
-        plt.ylabel("MI Gauss [nats]", size = 25)
+        plt.ylabel("MI [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
         plt.xticks(scales[::20], scales[::20]/30)
@@ -543,4 +537,4 @@ for [idx1, idx2] in names:
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("coherenceGAUSS%s-%s--DAILY-FT-AA.png" % (idx1, idx2))
+        plt.savefig("coherence%s-%s--DAILY-FT-AA.png" % (idx1, idx2))

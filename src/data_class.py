@@ -494,10 +494,10 @@ class DataField:
                 
                 
                 
-    def get_data_of_precise_length(self, length = '16k', start_date = None, end_date = None, COPY = False):
+    def get_data_of_precise_length(self, length = '16k', start_date = None, end_date = None, copy = False):
         """
         Selects the data such that the length of the time series is exactly length.
-        If COPY is True, it will replace the data and time, if False it will return them.
+        If copy is True, it will replace the data and time, if False it will return them.
         If end_date is defined, it is exclusive.
         """
         
@@ -531,7 +531,7 @@ class DataField:
         else:
             raise Exception('You messed start / end date selection! Pick only one!')
             
-        if COPY:
+        if copy:
             self.data = data_temp.copy()
             self.time = time_temp.copy()
             return idx_tuple
@@ -1092,10 +1092,11 @@ class DataField:
 
 
 
-    def wavelet(self, period, pool = None, save_wave = False):
+    def wavelet(self, period, ts = None, pool = None, save_wave = False):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years.
+        if ts is None, use self.data as input time series.
         """
 
         k0 = 6.
@@ -1113,43 +1114,47 @@ class DataField:
         per = period * y # frequency of interest
         s0 = per / fourier_factor # get scale
 
-        if pool is None:
-            map_func = map
-        elif pool is not None:
-            map_func = pool.map
+        if ts is None:
+            if pool is None:
+                map_func = map
+            elif pool is not None:
+                map_func = pool.map
 
-        if self.data.ndim > 1:
-            num_lats = self.lats.shape[0]
-            num_lons = self.lons.shape[0]
-        else:
-            num_lats = 1
-            num_lons = 1
-            self.data = self.data[:, np.newaxis, np.newaxis]
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+            else:
+                num_lats = 1
+                num_lons = 1
+                self.data = self.data[:, np.newaxis, np.newaxis]
 
-        self.phase = np.zeros_like(self.data)
-        self.amplitude = np.zeros_like(self.data)
-        if save_wave:
-            self.wave = np.zeros_like(self.data, dtype = np.complex64)
-
-        job_args = [ (i, j, s0, self.data[:, i, j], save_wave) for i in range(num_lats) for j in range(num_lons) ]
-        job_result = map_func(self._get_oscillatory_modes, job_args)
-        del job_args
-
-        for i, j, res in job_result:
-            self.phase[:, i, j] = res[0]
-            self.amplitude[:, i, j] = res[1]
+            self.phase = np.zeros_like(self.data)
+            self.amplitude = np.zeros_like(self.data)
             if save_wave:
-                self.wave[:, i, j] = res[2]
+                self.wave = np.zeros_like(self.data, dtype = np.complex64)
 
-        del job_result
+            job_args = [ (i, j, s0, self.data[:, i, j], save_wave) for i in range(num_lats) for j in range(num_lons) ]
+            job_result = map_func(self._get_oscillatory_modes, job_args)
+            del job_args
+            for i, j, res in job_result:
+                self.phase[:, i, j] = res[0]
+                self.amplitude[:, i, j] = res[1]
+                if save_wave:
+                    self.wave[:, i, j] = res[2]
 
-        self.data = np.squeeze(self.data)
-        self.phase = np.squeeze(self.phase)
-        self.amplitude = np.squeeze(self.amplitude)
-        if save_wave:
-            self.wave = np.squeeze(self.wave)
+            del job_result
 
+            self.data = np.squeeze(self.data)
+            self.phase = np.squeeze(self.phase)
+            self.amplitude = np.squeeze(self.amplitude)
+            if save_wave:
+                self.wave = np.squeeze(self.wave)
         
+        else:
+            res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave])[-1]
+            return [i[0, :] for i in res]
+
+
         
         
 def load_station_data(filename, start_date, end_date, anom, to_monthly = False, dataset = 'ECA-station'):
