@@ -12,7 +12,8 @@ from multiprocessing import Pool
 
 DAILY = True
 # SAMPLES = 444
-SCALES_SPAN = [0.5, 20] # in years
+# SCALES_SPAN = [0.5, 20] # in years
+SCALES_SPAN = [5,200] # days
 STATION = True
 # GRID_POINTS = [[50, 15], [50, 12.5], [52.5, 12.5], [52.5, 15]]
 # LEVELS = ['30hPa', '1000hPa']
@@ -159,11 +160,11 @@ def _coherency_surrogates(a):
     wvlt_coherence = []
 
     for sc in scales:
-        temp.wavelet(sc, save_wave = True)
+        temp.wavelet(sc, period_unit = 'd', save_wave = True)
         phase_temp = temp.phase.copy()
         wave_temp = temp.wave.copy()
 
-        phase_aa, _, wave_aa = temp.wavelet(sc, ts = aa_surr.surr_data, save_wave = True)
+        phase_aa, _, wave_aa = temp.wavelet(sc, period_unit = 'd', ts = aa_surr.surr_data, save_wave = True)
 
         # mutual information coherence
         coherence.append(mi.mutual_information(phase_aa, phase_temp, algorithm = 'EQQ2', bins = 8, log2 = False))
@@ -197,10 +198,10 @@ def _cmi_surrogates(a):
     cmi2 = []
 
     for sc in scales:
-        temp.wavelet(sc)
+        temp.wavelet(sc, period_unit = 'd')
         phase_temp = temp.phase.copy()
 
-        phase_aa_surr = temp.wavelet(sc, ts = aa_surr.surr_data)[0]
+        phase_aa_surr = temp.wavelet(sc, period_unit = 'd', ts = aa_surr.surr_data)[0]
 
         # cmi1
         tmp = []
@@ -306,7 +307,7 @@ for [idx1, idx2] in names:
         print aa.data.shape
 
         # from now only monthly -- for daily, wavelet needs polishing !!
-        scales = np.arange(SCALES_SPAN[0], SCALES_SPAN[-1]+0.01, 1/12.)
+        scales = np.arange(SCALES_SPAN[0], SCALES_SPAN[-1]+1, 1)
 
         coherence = []
         wvlt_coherence = []
@@ -314,11 +315,11 @@ for [idx1, idx2] in names:
         cmi2 = []
 
         for sc in scales:
-            temp.wavelet(sc, save_wave = True)
+            temp.wavelet(sc, period_unit = 'd', save_wave = True)
             phase_temp = temp.phase.copy()
             wave_temp = temp.wave.copy()
 
-            aa.wavelet(sc, save_wave = True)
+            aa.wavelet(sc, period_unit = 'd', save_wave = True)
             phase_aa = aa.phase.copy() # get phases from oscillatory modes
             wave_aa = aa.wave.copy()
 
@@ -447,7 +448,7 @@ for [idx1, idx2] in names:
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
 
         import cPickle
-        with open("CMI-coh-%s-%s--DAILY-FT-AA.bin" % (idx1, idx2), "wb") as f:
+        with open("CMI-coh-%s-%s--DAILY-FT-AA-fastscales.bin" % (idx1, idx2), "wb") as f:
             cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
                 'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig, 
                 'coherence' : coherence, 'wvlt_coherence' : wvlt_coherence, 'results2' : results2,
@@ -470,10 +471,10 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], cmi1[time], 'o', markersize = 12, color = "#006E91")
             elif cmi1_sig[time] == 1:
                 plt.plot(scales[time], cmi1[time], 'o', markersize = 8, color = "#710C0C")
-        plt.ylabel("CMI [nats]", size = 25)
+        plt.ylabel("CMI EQQ 8 bins [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[::20], scales[::20]/30)
+        plt.xticks(scales[5::10], scales[5::10])
         ax.tick_params(axis='both', which='major', labelsize=15)
         ax = plt.subplot(212)
         plt.plot(scales, cmi2, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
@@ -485,16 +486,16 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], cmi2[time], 'o', markersize = 12, color = "#251F21")
             elif cmi2_sig[time] == 1:
                 plt.plot(scales[time], cmi2[time], 'o', markersize = 8, color = "#710C0C")
-        plt.ylabel("CMI [nats]", size = 25)
+        plt.ylabel("CMI EQQ 8 bins [nats]", size = 25)
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[::20], scales[::20]/30)
+        plt.xticks(scales[5::10], scales[5::10])
         ax.tick_params(axis='both', which='major', labelsize=15)
-        plt.xlabel("period [months]", size = 25)
+        plt.xlabel("period [days]", size = 25)
         ax.legend()
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("CMI%s-%s--DAILY-FT-AA.png" % (idx1, idx2))
+        plt.savefig("CMI%s-%s--DAILY-FT-AA-fastscales.png" % (idx1, idx2))
         plt.close()
 
         plt.figure(figsize=(16,12))
@@ -513,10 +514,10 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], coherence[time], 'o', markersize = 12, color = "#006E91")
             elif coh_sig[time] == 1:
                 plt.plot(scales[time], coherence[time], 'o', markersize = 8, color = "#710C0C")
-        plt.ylabel("MI [nats]", size = 25)
+        plt.ylabel("MI EQQ 8 bins [nats]", size = 25)
         ax.legend()
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[::20], scales[::20]/30)
+        plt.xticks(scales[5::10], scales[5::10])
         ax.tick_params(axis='both', which='major', labelsize=15)
         ax = plt.subplot(212)
         plt.plot(scales, wvlt_coherence, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
@@ -530,11 +531,11 @@ for [idx1, idx2] in names:
                 plt.plot(scales[time], wvlt_coherence[time], 'o', markersize = 8, color = "#710C0C")
         plt.ylabel("wavelet coherence", size = 25)
         plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[::20], scales[::20]/30)
+        plt.xticks(scales[5::10], scales[5::10])
         ax.tick_params(axis='both', which='major', labelsize=15)
-        plt.xlabel("period [months]", size = 25)
+        plt.xlabel("period [days]", size = 25)
         ax.legend()
         # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
         # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
         # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("coherence%s-%s--DAILY-FT-AA.png" % (idx1, idx2))
+        plt.savefig("coherence%s-%s--DAILY-FT-AA-fastscales.png" % (idx1, idx2))
