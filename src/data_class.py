@@ -1092,10 +1092,10 @@ class DataField:
 
 
 
-    def wavelet(self, period, ts = None, pool = None, save_wave = False):
+    def wavelet(self, period, period_unit = 'y', ts = None, pool = None, save_wave = False):
         """
         Permforms wavelet transformation on data.
-        Period is central wavelet period in years.
+        Period is central wavelet period in years, or days.
         if ts is None, use self.data as input time series.
         """
 
@@ -1103,10 +1103,16 @@ class DataField:
         delta = self.time[1] - self.time[0]
         if delta == 1:
             # daily data
-            y = 365.25
+            if period_unit == 'y':
+                y = 365.25
+            elif period_unit == 'd':
+                y = 1.
         elif abs(delta - 30) < 3.0:
             # monthly data
-            y = 12
+            if period_unit == 'y':
+                y = 12.
+            else:
+                raise Exception("For monthly data doesn't make sense to enter wavelet period in days.")
         else:
             raise Exception('Unknown temporal sampling in the field.')
 
