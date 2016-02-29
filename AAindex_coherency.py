@@ -20,7 +20,7 @@ STATION = True
 LEVELS = ['30hPa']
 GRID_POINTS = ['A']
 NUM_SURR = 1000
-WRKRS = 20
+WRKRS = 5
 
 
 def get_continuous_phase(ph):
@@ -328,25 +328,25 @@ for [idx1, idx2] in names:
             # corr = np.corrcoef([phase_aa, phase_temp])[0, 1]
             # coherence.append(-0.5 * np.log(1 - np.power(corr, 2)))
 
-            # cmi1
-            # plt.figure()
-            tmp = []
-            for tau in range(1,30):
-                x, y, z = mi.get_time_series_condition([phase_temp, phase_aa], tau = tau, dim_of_condition = 1, eta = 0, phase_diff = True)
-                tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 8, log2 = False))
-            cmi1.append(np.mean(np.array(tmp)))
-            # plt.plot(tmp, label = "1->2")
+            # # cmi1
+            # # plt.figure()
+            # tmp = []
+            # for tau in range(1,30):
+            #     x, y, z = mi.get_time_series_condition([phase_temp, phase_aa], tau = tau, dim_of_condition = 1, eta = 0, phase_diff = True)
+            #     tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 8, log2 = False))
+            # cmi1.append(np.mean(np.array(tmp)))
+            # # plt.plot(tmp, label = "1->2")
 
-            # cmi2
-            tmp = []
-            for tau in range(1,30):
-                x, y, z = mi.get_time_series_condition([phase_aa, phase_temp], tau = tau, dim_of_condition = 1, eta = 0, phase_diff = True)
-                tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 8, log2 = False))
-            cmi2.append(np.mean(np.array(tmp)))
-            # plt.plot(tmp, label = "2->1")
-            # plt.legend()
-            # plt.savefig("CMItesting%dmon.png" % sc)
-            # plt.close()
+            # # cmi2
+            # tmp = []
+            # for tau in range(1,30):
+            #     x, y, z = mi.get_time_series_condition([phase_aa, phase_temp], tau = tau, dim_of_condition = 1, eta = 0, phase_diff = True)
+            #     tmp.append(mi.cond_mutual_information(x, y, z, algorithm = 'EQQ2', bins = 8, log2 = False))
+            # cmi2.append(np.mean(np.array(tmp)))
+            # # plt.plot(tmp, label = "2->1")
+            # # plt.legend()
+            # # plt.savefig("CMItesting%dmon.png" % sc)
+            # # plt.close()
 
             # wavelet coherence
             w1 = np.complex(0, 0)
@@ -405,35 +405,35 @@ for [idx1, idx2] in names:
                 wvlt_sig[time] = 0
 
         # SURRS - cmi
-        pool = Pool(WRKRS)
-        args = [(aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
-        # _cmi_surrogates(args[0])
-        results2 = pool.map(_cmi_surrogates, args)
-        # print _cmi_surrogates(args[0])
-        pool.close()
-        pool.join()
+        # pool = Pool(WRKRS)
+        # args = [(aa, aa_surr, aa_seas, temp, temp_surr, temp_seas, scales) for i in range(NUM_SURR)]
+        # # _cmi_surrogates(args[0])
+        # results2 = pool.map(_cmi_surrogates, args)
+        # # print _cmi_surrogates(args[0])
+        # pool.close()
+        # pool.join()
 
-        results2 = np.array(results2)
+        # results2 = np.array(results2)
 
-        cmi1_sig = np.zeros_like(cmi1)
-        cmi2_sig = np.zeros_like(cmi2)
+        # cmi1_sig = np.zeros_like(cmi1)
+        # cmi2_sig = np.zeros_like(cmi2)
 
-        for time in range(results2.shape[-1]):
-            greater = np.greater(cmi1[time], results2[:, 0, time])
-            if np.sum(greater) > 0.95*NUM_SURR:
-                cmi1_sig[time] = 2
-            elif np.sum(greater) > 0.9*NUM_SURR:
-                cmi1_sig[time] = 1
-            else:
-                cmi1_sig[time] = 0
+        # for time in range(results2.shape[-1]):
+        #     greater = np.greater(cmi1[time], results2[:, 0, time])
+        #     if np.sum(greater) > 0.95*NUM_SURR:
+        #         cmi1_sig[time] = 2
+        #     elif np.sum(greater) > 0.9*NUM_SURR:
+        #         cmi1_sig[time] = 1
+        #     else:
+        #         cmi1_sig[time] = 0
 
-            greater = np.greater(cmi2[time], results2[:, 1, time])
-            if np.sum(greater) > 0.95*NUM_SURR:
-                cmi2_sig[time] = 2
-            elif np.sum(greater) > 0.9*NUM_SURR:
-                cmi2_sig[time] = 1
-            else:
-                cmi2_sig[time] = 0
+        #     greater = np.greater(cmi2[time], results2[:, 1, time])
+        #     if np.sum(greater) > 0.95*NUM_SURR:
+        #         cmi2_sig[time] = 2
+        #     elif np.sum(greater) > 0.9*NUM_SURR:
+        #         cmi2_sig[time] = 1
+        #     else:
+        #         cmi2_sig[time] = 0
 
 
         y1 = temp.get_date_from_ndx(0).year
@@ -447,56 +447,56 @@ for [idx1, idx2] in names:
         # np.savetxt(fname[:-4] + "_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
         # np.savetxt("station_PRG_vs_Oulu_cosmic.txt", result, fmt = '%.4f')
 
-        import cPickle
-        with open("CMI-coh-%s-%s--DAILY-FT-AA-fastscales.bin" % (idx1, idx2), "wb") as f:
-            cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
-                'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig, 
-                'coherence' : coherence, 'wvlt_coherence' : wvlt_coherence, 'results2' : results2,
-                'coh_sig' : coh_sig, 'wvlt_sig' : wvlt_sig}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+        # import cPickle
+        # with open("CMI-coh-%s-%s--DAILY-FT-AA-fastscales.bin" % (idx1, idx2), "wb") as f:
+        #     cPickle.dump({'cmi1' : cmi1, 'cmi2' : cmi2, 'results' : results, 
+        #         'cmi1_sig' : cmi1_sig, 'cmi2_sig' : cmi2_sig, 
+        #         'coherence' : coherence, 'wvlt_coherence' : wvlt_coherence, 'results2' : results2,
+        #         'coh_sig' : coh_sig, 'wvlt_sig' : wvlt_sig}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 
-        plt.figure(figsize=(16,12))
-        ax = plt.subplot(211)
-        # plt.title("COHERENCE cosmic rays Oulu vs. %s SAT %.1fN x %.1fE -- %d - %d" % (LEVEL, GRID_POINT[0], GRID_POINT[1], y1, y2), size = 30)
-        plt.title("CMI %s vs %s -- %d - %d" % (idx1, idx2, y1, y2), size = 30)
-        # plt.title("COHERENCE cosmic rays %s vs. AA index -- %d - %d" % (aa.location[:-12], y1, y2), size = 30)
-        plt.plot(scales, cmi1, color = "#006E91", linewidth = 2.2, label = "%s -> %s" % (idx1, idx2))
-        # surr mean
-        plt.plot(scales, np.mean(results2[:, 0, :], axis = 0), color = "#DDCF0B", linewidth = 1.5)
-        results2 = np.sort(results2, axis = 0)
-        plt.plot(scales, results2[int(0.95*NUM_SURR), 0, :], color = "#DDCF0B", linewidth = 0.8)
-        plt.fill_between(scales, np.mean(results2[:, 0, :], axis = 0), results2[int(0.95*NUM_SURR), 0, :], facecolor = "#DDCF0B", alpha = 0.5)
-        for time in range(cmi1.shape[0]):
-            if cmi1_sig[time] == 2:
-                plt.plot(scales[time], cmi1[time], 'o', markersize = 12, color = "#006E91")
-            elif cmi1_sig[time] == 1:
-                plt.plot(scales[time], cmi1[time], 'o', markersize = 8, color = "#710C0C")
-        plt.ylabel("CMI EQQ 8 bins [nats]", size = 25)
-        ax.legend()
-        plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[5::10], scales[5::10])
-        ax.tick_params(axis='both', which='major', labelsize=15)
-        ax = plt.subplot(212)
-        plt.plot(scales, cmi2, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
-        plt.plot(scales, np.mean(results2[:, 1, :], axis = 0),color = "#71545E", linewidth = 1.5)
-        plt.plot(scales, results2[int(0.95*NUM_SURR), 1, :], color = "#71545E", linewidth = 0.8)
-        plt.fill_between(scales, np.mean(results2[:, 1, :], axis = 0), results2[int(0.95*NUM_SURR), 1, :], facecolor = "#71545E", alpha = 0.5)
-        for time in range(cmi2.shape[0]):
-            if cmi2_sig[time] == 2:
-                plt.plot(scales[time], cmi2[time], 'o', markersize = 12, color = "#251F21")
-            elif cmi2_sig[time] == 1:
-                plt.plot(scales[time], cmi2[time], 'o', markersize = 8, color = "#710C0C")
-        plt.ylabel("CMI EQQ 8 bins [nats]", size = 25)
-        plt.xlim(SCALES_SPAN)
-        plt.xticks(scales[5::10], scales[5::10])
-        ax.tick_params(axis='both', which='major', labelsize=15)
-        plt.xlabel("period [days]", size = 25)
-        ax.legend()
-        # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
-        # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
-        # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
-        plt.savefig("CMI%s-%s--DAILY-FT-AA-fastscales.png" % (idx1, idx2))
-        plt.close()
+        # plt.figure(figsize=(16,12))
+        # ax = plt.subplot(211)
+        # # plt.title("COHERENCE cosmic rays Oulu vs. %s SAT %.1fN x %.1fE -- %d - %d" % (LEVEL, GRID_POINT[0], GRID_POINT[1], y1, y2), size = 30)
+        # plt.title("CMI %s vs %s -- %d - %d" % (idx1, idx2, y1, y2), size = 30)
+        # # plt.title("COHERENCE cosmic rays %s vs. AA index -- %d - %d" % (aa.location[:-12], y1, y2), size = 30)
+        # plt.plot(scales, cmi1, color = "#006E91", linewidth = 2.2, label = "%s -> %s" % (idx1, idx2))
+        # # surr mean
+        # plt.plot(scales, np.mean(results2[:, 0, :], axis = 0), color = "#DDCF0B", linewidth = 1.5)
+        # results2 = np.sort(results2, axis = 0)
+        # plt.plot(scales, results2[int(0.95*NUM_SURR), 0, :], color = "#DDCF0B", linewidth = 0.8)
+        # plt.fill_between(scales, np.mean(results2[:, 0, :], axis = 0), results2[int(0.95*NUM_SURR), 0, :], facecolor = "#DDCF0B", alpha = 0.5)
+        # for time in range(cmi1.shape[0]):
+        #     if cmi1_sig[time] == 2:
+        #         plt.plot(scales[time], cmi1[time], 'o', markersize = 12, color = "#006E91")
+        #     elif cmi1_sig[time] == 1:
+        #         plt.plot(scales[time], cmi1[time], 'o', markersize = 8, color = "#710C0C")
+        # plt.ylabel("CMI EQQ 8 bins [nats]", size = 25)
+        # ax.legend()
+        # plt.xlim(SCALES_SPAN)
+        # plt.xticks(scales[5::10], scales[5::10])
+        # ax.tick_params(axis='both', which='major', labelsize=15)
+        # ax = plt.subplot(212)
+        # plt.plot(scales, cmi2, color = "#251F21", linewidth = 2.2, label = "%s -> %s" % (idx2, idx1))
+        # plt.plot(scales, np.mean(results2[:, 1, :], axis = 0),color = "#71545E", linewidth = 1.5)
+        # plt.plot(scales, results2[int(0.95*NUM_SURR), 1, :], color = "#71545E", linewidth = 0.8)
+        # plt.fill_between(scales, np.mean(results2[:, 1, :], axis = 0), results2[int(0.95*NUM_SURR), 1, :], facecolor = "#71545E", alpha = 0.5)
+        # for time in range(cmi2.shape[0]):
+        #     if cmi2_sig[time] == 2:
+        #         plt.plot(scales[time], cmi2[time], 'o', markersize = 12, color = "#251F21")
+        #     elif cmi2_sig[time] == 1:
+        #         plt.plot(scales[time], cmi2[time], 'o', markersize = 8, color = "#710C0C")
+        # plt.ylabel("CMI EQQ 8 bins [nats]", size = 25)
+        # plt.xlim(SCALES_SPAN)
+        # plt.xticks(scales[5::10], scales[5::10])
+        # ax.tick_params(axis='both', which='major', labelsize=15)
+        # plt.xlabel("period [days]", size = 25)
+        # ax.legend()
+        # # plt.savefig(fname[:-4] + "_vs_Oulu_cosmic.png")
+        # # plt.savefig("AAindex_vs_Oulu_cosmic-surrs_from_cosmic_data.png")
+        # # plt.savefig("AAindex_vs_%s_cosmic-surrs-from-cosmic-data.png" % aa.location[:-12])
+        # plt.savefig("CMI%s-%s--DAILY-FT-AA-fastscales.png" % (idx1, idx2))
+        # plt.close()
 
         plt.figure(figsize=(16,12))
         ax = plt.subplot(211)
