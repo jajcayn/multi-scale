@@ -63,6 +63,15 @@ def get_single_AR_surrogate(ts, order_range = [1,1], seed = None):
 
 
 
+def amplitude_adjust_single_surrogate(ts, surr, mean = 0, var = 1, trend = None):
+    """
+    Returns amplitude adjusted surrogate.
+    """
+
+    return _create_amplitude_adjusted_surrogates([None, None, None, ts, surr, mean, var, trend])[-1]
+
+
+
 def _prepare_AR_surrogates(a):
     from var_model import VARModel
     i, j, lev, order_range, crit, ts = a
