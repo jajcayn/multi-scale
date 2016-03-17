@@ -11,14 +11,7 @@ import numpy as np
 from scipy import linalg
 import math
 
-# pyximport to import var_model_acc.pyx - Nikola Jajcay 
-import os
-if os.name == 'nt': # if Winodws, use MinGW gcc compiler and include numpy imports
-    mingw_setup_args = {'options' : {'build_ext' : {'compiler' : 'mingw32'}}, 'include_dirs' : np.get_include()}
-    import pyximport; pyximport.install(setup_args = mingw_setup_args)
-else:
-    import pyximport; pyximport.install()
-    
+import pyximport; pyximport.install()
 import var_model_acc
 
 
