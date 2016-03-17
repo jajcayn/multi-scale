@@ -55,12 +55,15 @@ class VARModel:
         return len(self.w)
     
     
-    def simulate_with_residuals(self, residuals, ndisc = 100):
+    def simulate_with_residuals(self, residuals, ndisc = 100, seed = None):
         """Simulate a time series using this model using the supplied residuals
            in residuals (ndarray).  This function is NOT deterministic and employs
            a spin-up phase to init the model state using random noise."""
 
-        np.random.seed()
+        if seed is None:
+            np.random.seed()
+        else:
+            np.random.seed(seed)
            
         A = self.A
         w = self.w

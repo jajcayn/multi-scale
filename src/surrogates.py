@@ -9,12 +9,16 @@ from data_class import DataField
 
 
 
-def get_single_FT_surrogate(ts):
+def get_single_FT_surrogate(ts, seed = None):
     """
     Returns single 1D Fourier transform surrogate.
+    Seed / integer : when None, random seed, else fixed seed (e.g. for multivariate FT surrogates).
     """
 
-    np.random.seed()
+    if seed is None:
+        np.random.seed()
+    else:
+        np.random.seed(seed)
     xf = np.fft.rfft(ts, axis = 0)
     angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
     # set the slowest frequency to zero, i.e. not to be randomised
@@ -26,29 +30,31 @@ def get_single_FT_surrogate(ts):
 
 
 
-def get_single_MF_surrogate(ts, randomise_from_scale = 2):
+def get_single_MF_surrogate(ts, randomise_from_scale = 2, seed = None):
     """
     Returns single 1D multifractal surrogate.
+    Seed / integer : when None, random seed, else fixed seed (e.g. for multivariate MF surrogates).
     """
 
-    return _compute_MF_surrogates([None, None, None, ts, randomise_from_scale])[-1]
+    return _compute_MF_surrogates([None, None, None, ts, randomise_from_scale, seed])[-1]
 
 
 
-def get_single_AR_surrogate(ts, order_range = [1,1]):
+def get_single_AR_surrogate(ts, order_range = [1,1], seed = None):
     """
     Returns single 1D autoregressive surrogate of some order.
     Order could be found numerically by setting order_range, or
     entered manually by selecting min and max order range to the
     desired order - e.g. [1,1].
     If the order was supposed to estimate, it is also returned.
+    Seed / integer : when None, random seed, else fixed seed (e.g. for multivariate AR surrogates).
     """
 
     _, _, _, order, res = _prepare_AR_surrogates([None, None, None, order_range, 'sbc', ts])
     num_ts = ts.shape[0] - order.order()
     res = res[:num_ts, 0]
 
-    surr = _compute_AR_surrogates([None, None, None, res, order, num_ts])[-1]
+    surr = _compute_AR_surrogates([None, None, None, res, order, num_ts, seed])[-1]
 
     if np.diff(order_range) == 0:
         return surr
@@ -72,13 +78,13 @@ def _prepare_AR_surrogates(a):
     
     
 def _compute_AR_surrogates(a):
-    i, j, lev, res, model, num_tm_s = a
+    i, j, lev, res, model, num_tm_s, seed = a
     r = np.zeros((num_tm_s, 1), dtype = np.float64)       
     if not np.all(np.isnan(res)):
         ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
         r[ndx, 0] = res
 
-        ar_surr = model.simulate_with_residuals(r)[:, 0]
+        ar_surr = model.simulate_with_residuals(r, seed)[:, 0]
     else:
         ar_surr = np.nan
         
@@ -104,9 +110,13 @@ def _compute_FT_surrogates(a):
 
 def _compute_MF_surrogates(a):
     import pywt
-    np.random.seed()
     
-    i, l, lev, ts, randomise_from_scale = a
+    i, l, lev, ts, randomise_from_scale, seed = a
+
+    if seed is None:
+        np.random.seed()
+    else:
+        np.random.seed(seed)
     
     if not np.all(np.isnan(ts)):
         n = int(np.log2(ts.shape[0])) # time series length should be 2^n
@@ -427,7 +437,7 @@ class SurrogateField(DataField):
             
             self.surr_data = np.zeros_like(self.data)
 
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], randomise_from_scale) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, lev, self.data[:, lev, i, j], randomise_from_scale, None) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_compute_MF_surrogates, job_data)
             
             for i, j, lev, surr in job_results:
@@ -523,7 +533,7 @@ class SurrogateField(DataField):
                 num_levels = 1
             num_tm_s = self.time.shape[0] - self.max_ord
             
-            job_data = [ (i, j, lev, self.residuals[:, lev, i, j], self.model_grid[lev, i, j], num_tm_s) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, j, lev, self.residuals[:, lev, i, j], self.model_grid[lev, i, j], num_tm_s, None) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
             job_results = map_func(_compute_AR_surrogates, job_data)
             
             self.surr_data = np.zeros((num_tm_s, num_levels, num_lats, num_lons))
