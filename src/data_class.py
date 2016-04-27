@@ -81,7 +81,7 @@ class DataField:
         Loads geophysical data from netCDF file for reanalysis or from text file for station data.
         Now supports following datasets: (dataset - keyword passed to function)
             ECA&D E-OBS gridded dataset reanalysis - 'ECA-reanalysis'
-            ECMWF ERA-40 gridded reanalysis - 'ERA-40'
+            ECMWF gridded reanalysis - 'ERA'
             NCEP/NCAR Reanalysis 1 - 'NCEP'
         """
 
@@ -111,7 +111,7 @@ class DataField:
             
             d.close()     
                     
-        if dataset == 'ERA-40':
+        elif dataset == 'ERA':
             d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
 
@@ -133,7 +133,7 @@ class DataField:
             
             d.close()
             
-        if dataset == 'NCEP':
+        elif dataset == 'NCEP':
             d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
             
@@ -165,6 +165,9 @@ class DataField:
                     print("The data contains NaNs! All methods are compatible with NaNs, just to let you know!")
             
             d.close()
+
+        else:
+            raise Exception("Unknown or unsupported dataset!")
 
 
 
@@ -1478,6 +1481,48 @@ def load_sunspot_data(filename, start_date, end_date, anom, daily = False):
     
     print("[%s] Sunspot number data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
         % (str(datetime.now()), str(g.data.shape), month[0], 
+           year[0], month[-1], year[-1]))
+           
+    return g
+
+
+
+def load_enso_index(fname, nino_type, start_date, end_date, anom = False):
+    """
+    Data loader for various ENSO indices.
+    nino_type: 
+    """
+
+    from dateutil.relativedelta import relativedelta
+
+    g = DataField()
+
+    enso_raw = np.loadtxt(fname, skiprows = 1)
+    y = int(enso_raw[0,0])
+    start_date_ts = date(y, 1, 1)
+    enso_raw = enso_raw[:, 1:]
+    enso_raw = enso_raw.reshape(np.prod(enso_raw.shape))
+
+    g.data = enso_raw.copy()
+    time = np.zeros_like(enso_raw, dtype = np.int32)
+    delta = relativedelta(months = +1)
+    d = start_date_ts
+    for i in range(time.shape[0]):
+        time[i] = d.toordinal()
+        d += delta
+
+    g.time = time.copy()
+    g.location = ('NINO%s SSTs' % nino_type)
+
+    print("** loaded")
+    g.select_date(start_date, end_date)
+    if anom:
+        print("** anomalising")
+        g.anomalise()
+    _, month, year = g.extract_day_month_year()
+
+    print("[%s] Nino%s data loaded with shape %s. Date range is %d/%d - %d/%d inclusive." 
+        % (str(datetime.now()), nino_type, str(g.data.shape), month[0], 
            year[0], month[-1], year[-1]))
            
     return g
