@@ -353,7 +353,12 @@ class DataField:
                 lat_ndx = np.arange(len(self.lats))
                 
             if lons is not None:
-                lon_ndx = np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= lons[1]))[0]
+                if lons[0] < lons[1]:
+                    lon_ndx = np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= lons[1]))[0]
+                elif lons[0] > lons[1]:
+                    l1 = list(np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= 360))[0])
+                    l2 = list(np.nonzero(np.logical_and(self.lons >= 0, self.lons <= lons[1]))[0])
+                    lon_ndx = np.array(l1 + l2)
             else:
                 lon_ndx = np.arange(len(self.lons))
             
