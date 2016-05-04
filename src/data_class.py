@@ -878,19 +878,19 @@ class DataField:
         """
         Estimate the PCA (EOF) components of geo-data.
         Shoud be used on single-level data.
+        Returns eofs as (n_comps x lats x lons), pcs as (n_comps x time) and var as (n_comps)
         """
 
         if self.data.ndim == 3:
             from scipy.linalg import svd
 
-            # reshape field so the first axis is combined spatial and second is temporal
+            # reshape field so the first axis is temporal and second is combined spatial
             # if nans, filter-out
             if self.nans:
                 d = self.filter_out_NaNs()[0]
             else:
                 d = self.data.copy()
                 d = self.flatten_field(f = d)
-            d = d.transpose()
 
             # remove mean of each time series
             pca_mean = np.mean(d, axis = 0)
@@ -898,20 +898,19 @@ class DataField:
             d -= self.pca_mean  
 
             U, s, V = svd(d, False, True, True)
-            U *= s
             exp_var = (s ** 2) / self.time.shape[0]
             exp_var /= np.sum(exp_var)
-            eofs = U[:, :n_comps]
-            pcs = V[:n_comps, :]
+            eofs = V[:n_comps]
+            pcs = U[:, :n_comps]
             var = exp_var[:n_comps]
+            pcs *= s[:n_comps]
 
-            eofs = eofs.transpose()
             if self.nans:
                 eofs = self.return_NaNs_to_data(field = eofs)
             else:
                 eofs = self.reshape_flat_field(f = eofs)
 
-            return eofs, pcs, var
+            return eofs, pcs.T, var
 
         else:
             raise Exception("PCA analysis cannot be used on multi-level data or only temporal (e.g. station) data!")
@@ -933,10 +932,9 @@ class DataField:
 
         pca_mean = pca_mean if pca_mean is not None else self.pca_mean
 
-        recons = np.dot(e, pcs)
-        recons += pca_mean
+        recons = np.dot(e, pcs).T
+        recons += pca_mean.T
 
-        recons = recons.transpose()
         if self.nans:
             recons = self.return_NaNs_to_data(field = recons)
         else:
