@@ -874,7 +874,7 @@ class DataField:
 
 
 
-    def pca_components(self, n_comps):
+    def pca_components(self, n_comps, field = None):
         """
         Estimate the PCA (EOF) components of geo-data.
         Shoud be used on single-level data.
@@ -887,15 +887,19 @@ class DataField:
             # reshape field so the first axis is temporal and second is combined spatial
             # if nans, filter-out
             if self.nans:
-                d = self.filter_out_NaNs()[0]
+                d = self.filter_out_NaNs(field)[0]
             else:
-                d = self.data.copy()
+                if field is None:
+                    d = self.data.copy()
+                else:
+                    d = field.copy()
                 d = self.flatten_field(f = d)
 
             # remove mean of each time series
             pca_mean = np.mean(d, axis = 0)
-            self.pca_mean = pca_mean
-            d -= self.pca_mean  
+            if field is None:
+                self.pca_mean = pca_mean
+            d -= pca_mean  
 
             U, s, V = svd(d, False, True, True)
             exp_var = (s ** 2) / self.time.shape[0]
@@ -910,7 +914,10 @@ class DataField:
             else:
                 eofs = self.reshape_flat_field(f = eofs)
 
-            return eofs, pcs.T, var
+            if field is not None:
+                return eofs, pcs.T, var, pca_mean
+            elif field is None:
+                return eofs, pcs.T, var
 
         else:
             raise Exception("PCA analysis cannot be used on multi-level data or only temporal (e.g. station) data!")
@@ -1559,7 +1566,7 @@ def load_bin_data(filename, start_date, end_date, anom):
 
 
 
-def load_ERSST_data(path, start_date, end_date, lats, lons, anom):
+def load_ERSST_data(path, start_date, end_date, lats = None, lons = None, anom = False):
     """
     Data loader for ERSST data - saved by months.
     path contains files ersst.yyyy.mm.nc
@@ -1571,9 +1578,9 @@ def load_ERSST_data(path, start_date, end_date, lats, lons, anom):
     glist = []
     Ndays = 0
 
-    while date_current <= end_date:
-        g = DataField(data_folder = path)                
-        g.load(("ersst.%04d%02d.nc" % (date_current.year, date_current.month)), 'sst', dataset = 'NCEP', print_prog = False)
+    while date_current < end_date:
+        g = DataField(data_folder = path)        
+        g.load(("ersst.v4.%04d%02d.nc" % (date_current.year, date_current.month)), 'sst', dataset = 'NCEP', print_prog = False)
         Ndays += g.time.shape[0]
         glist.append(g)
         date_current += relativedelta(months=1) 
