@@ -418,7 +418,7 @@ class DataField:
         Returns a grid with scaling weights based on cosine of latitude.
         """
         
-        if self.cos_weights != None:
+        if np.all(self.cos_weights) is not None:
             return self.cos_weights
 
         cos_weights = np.zeros(self.get_spatial_dims())
