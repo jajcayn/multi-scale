@@ -59,7 +59,31 @@ def _partial_least_squares(x, y, ux, sx, vx, optimal, intercept = True):
     return bpls, r
 
 
+def cross_correlation(a, b, max_lag):
+    """
+    Cross correlation with lag.
+    """
 
+    a = (a - np.mean(a)) / (np.std(a, ddof = 1) * (len(a) - 1))
+    b = (b - np.mean(b)) / np.std(b, ddof = 1)
+    cor = np.correlate(a, b, 'full')
+
+    return cor[len(cor)//2 - max_lag : len(cor)//2 + max_lag+1]
+
+
+def kdensity_estimate(a, kernel = 'gaussian', bandwidth = 1.0):
+    """
+    Estimates kernel density. Uses sklearn.
+    kernels: 'gaussian', 'tophat', 'epanechnikov', 'exponential', 'linear', 'cosine'
+    """
+
+    from sklearn.neighbors import KernelDensity
+    a = a[:, None]
+    x = np.linspace(a.min(), a.max(), 100)[:, None]
+    kde = KernelDensity(kernel = kernel, bandwidth = bandwidth).fit(a)
+    logkde = kde.score_samples(x)
+
+    return x, np.exp(logkde)
 
 
 class EmpiricalModel(DataField):
@@ -295,17 +319,15 @@ class EmpiricalModel(DataField):
                             q = np.tril(np.outer(pcs[t, :].T, pcs[t, :]), -1)
                             quad_pred[t, :] = q[np.nonzero(q)]
                     if harmonic_pred in ['all', 'first']:
-                        try:
+                        if quad:
                             x = np.c_[quad_pred, x, x*np.outer(xsin,np.ones(x.shape[1])), x*np.outer(xcos,np.ones(x.shape[1])), 
                                 xsin, xcos]
-                        except NameError:
+                        else:
                             x = np.c_[x, x*np.outer(xsin,np.ones(x.shape[1])), x*np.outer(xcos,np.ones(x.shape[1])), 
                                 xsin, xcos]
                     else:
-                        try:
+                        if quad:
                             x = np.c_[quad_pred, x]
-                        except NameError:
-                            pass
                 else:
                     if harmonic_pred == ['all']:
                         x = np.c_[x, x*np.outer(xsin,np.ones(x.shape[1])), x*np.outer(xcos,np.ones(x.shape[1])), 
@@ -328,28 +350,109 @@ class EmpiricalModel(DataField):
                 d, _ = np.linalg.eig(fit_mat[level][:pcs.shape[1], :pcs.shape[1]])
                 print("...maximum eigenvalue: %.4f" % (max(np.real(d))))
 
+        self.residuals = residuals
+        self.fit_mat = fit_mat
+
         if self.verbose:
             print("training done.")
 
 
 
-    def integrate_model(self, n_realizations, int_length = None, noise_type = 'white', sigma = 1., n_workers = 3):
+    def integrate_model(self, n_realizations, int_length = None, noise_type = ['white'], sigma = 1., n_workers = 3, diagnostics = True):
         """
         Integrate trained model.
+        noise_type:
+        -- white - classic white noise, spatial correlation by cov. matrix of last level residuals
+        ---- ['white']
+        -- cond - find n_samples closest to the current space in subset of n_pcs and use their cov. matrix
+        ---- ['cond', n_samples, n_pcs]
+        -- seasonal - seasonal dependence of the residuals, fit n_harm harmonics of annual cycle, could also be used with cond.
+        ---- ['seasonal', n_harmonics, True/False]
+        -- 'extended' - uses extended cov. matrix with lags with n_snippet max-lag, could also be used with seasonal
+        ---- ['extended', n_snippet, n_pcs, True/False]
         """
 
-        pass
+        if self.verbose:
+            print("preparing to integrate model...")
+        # standartise PCs
+        pcs = self.input_pcs / np.std(self.input_pcs[0, :], ddof = 1)
+        pcs = pcs.T # time x dim
+
+        pcmax = np.amax(pcs, axis = 0)
+        pcmin = np.amin(pcs, axis = 0)
+        varpc = np.var(pcs, axis = 0, ddof = 1)
+        
+        self.int_length = pcs.shape[0] if int_length is None else int_length
+
+        if self.harmonic_pred in ['all', 'first']:
+            if self.verbose:
+                print("...using harmonic predictors (with annual frequency)...")
+            self.xsin = np.sin(2*np.pi*np.arange(pcs.shape[1]) / 12.)
+            self.xcos = np.cos(2*np.pi*np.arange(pcs.shape[1]) / 12.)
+
+        if noise_type[0] not in ['white', 'cond', 'seasonal', 'extended']:
+            raise Exception("Unknown noise type to be used as forcing. Use 'white', 'cond', 'seasonal' or 'extended'.")
+        
+        if noise_type[0] == 'white':
+            Q = np.cov(self.residuals[max(residuals.keys())], rowvar = 0)
+            self.rr = np.linalg.cholesky(Q).T
+
+        if diagnostics:
+            if self.verbose:
+                print("...running diagnostics for the data...")
+            # ACF, kernel density, integral corr. timescale for data
+            max_lag = 50
+            lag_cors = np.zeros((2*max_lag + 1, pcs.shape[1]))
+            kernel_densities = np.zeros((100, pcs.shape[1], 2))
+            for k in range(pcs.shape[1]):
+                lag_cors[:, k] = cross_correlation(pcs[:, k], pcs[:, k], max_lag = max_lag)
+                kernel_densities[:, k, 0], kernel_densities[:, k, 1] = kdensity_estimate(pcs[:, k], kernel = 'epanechnikov')
+            integral_corr_timescale = np.sum(np.abs(lag_cors), axis = 0)
+
+            # init for integrations
+            lag_cors_int = np.zeros([n_realizations] + list(lag_cors.shape))
+            kernel_densities_int = np.zeros([n_realizations] + list(kernel_densities.shape))
+            stat_moments_int = np.zeros((4, n_realizations, pcs.shape[1])) # mean, variance, skewness, kurtosis
+
+        self.diagpc = np.diag(np.std(pcs, axis = 0, ddof = 1))
+        self.maxpc = np.amax(np.abs(pcs))
+        self.diagres = {}
+        self.maxres = {}
+        for l in self.residuals.keys():
+            self.diagres[l] = np.diag(np.std(self.residuals[l], axis = 0, ddof = 1))
+            self.maxres[l] = np.amax(np.abs(self.residuals[l]))
+
+        if n_workers > 1:
+            from multiprocessing import Pool
+            pool = Pool(n_workers)
+            map_func = pool.map
+            if self.verbose:
+                print("...starting integration of %d realizations using %d workers..." % (n_realizations, n_workers))
+        else:
+            map_func = map
+            if self.verbose:
+                print("...starting integration of %d realizations using single thread..." % n_realizations)
+
+        args = []
 
 
+    def _process_integration(self, rnd):
+
+        num_exploding = 0
+        repeats = 20
+        xx = {}
+        for l,r in zip(self.fit_mat.keys(), rnd):
+            xx[l] = np.zeros((repeats, self.input_pcs.shape[0]))
+            xx[l][0, :] = r
+
+            x[l] = np.zeros((self.int_length, self.input_pcs.shape[0]))
+            x[l][0, :] = xx[l][0, :]
+
+        step0 = 0
+        step = 1
+        for n in range(repeats*np.ceil(self.int_length/repeats)):
+            for k in range(2, repeats):
+                # zz = 
+                pass
 
         
-
-
-
-
-
-
-
-
-
-
