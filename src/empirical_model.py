@@ -83,7 +83,7 @@ def kdensity_estimate(a, kernel = 'gaussian', bandwidth = 1.0):
     kde = KernelDensity(kernel = kernel, bandwidth = bandwidth).fit(a)
     logkde = kde.score_samples(x)
 
-    return x, np.exp(logkde)
+    return np.squeeze(x), np.exp(logkde)
 
 
 class EmpiricalModel(DataField):
@@ -213,6 +213,8 @@ class EmpiricalModel(DataField):
 
         if self.verbose:
             print("preparing input to the model...")
+
+        self.no_input_ts = no_input_ts
 
         if anom:
             if self.verbose:
@@ -346,8 +348,16 @@ class EmpiricalModel(DataField):
                     print("...%d/%d finished fitting..." % (k+1, pcs.shape[1]))
 
             if self.verbose:
-                # finish check for negative definiteness
-                d, _ = np.linalg.eig(fit_mat[level][:pcs.shape[1], :pcs.shape[1]])
+                # check for negative definiteness
+                negdef = {}
+                for l, e, pos in zip(fit_mat.keys()[::-1], range(len(fit_mat.keys())), range(len(fit_mat.keys())-1, -1, -1)):
+                    negdef[l] = fit_mat[l][pos*self.no_input_ts : (pos+1)*self.no_input_ts]
+                    for a in range(pos-1,-1,-1):
+                        negdef[l] = np.c_[negdef[l], fit_mat[l][a*self.no_input_ts : (a+1)*self.no_input_ts]]
+                    for a in range(e):
+                        negdef[l] = np.c_[negdef[l], np.eye(self.no_input_ts)]
+                grand_negdef = np.concatenate([negdef[a] for a in negdef.keys()], axis = 0)
+                d, _ = np.linalg.eig(grand_negdef)
                 print("...maximum eigenvalue: %.4f" % (max(np.real(d))))
 
         self.residuals = residuals
@@ -380,39 +390,47 @@ class EmpiricalModel(DataField):
 
         pcmax = np.amax(pcs, axis = 0)
         pcmin = np.amin(pcs, axis = 0)
-        varpc = np.var(pcs, axis = 0, ddof = 1)
+        self.varpc = np.var(pcs, axis = 0, ddof = 1)
         
         self.int_length = pcs.shape[0] if int_length is None else int_length
+
+        self.diagnostics = diagnostics
 
         if self.harmonic_pred in ['all', 'first']:
             if self.verbose:
                 print("...using harmonic predictors (with annual frequency)...")
-            self.xsin = np.sin(2*np.pi*np.arange(pcs.shape[1]) / 12.)
-            self.xcos = np.cos(2*np.pi*np.arange(pcs.shape[1]) / 12.)
+            self.xsin = np.sin(2*np.pi*np.arange(self.no_input_ts) / 12.)
+            self.xcos = np.cos(2*np.pi*np.arange(self.no_input_ts) / 12.)
 
+        if self.verbose:
+            print("...preparing noise forcing...")
+
+        self.sigma = sigma
         if noise_type[0] not in ['white', 'cond', 'seasonal', 'extended']:
             raise Exception("Unknown noise type to be used as forcing. Use 'white', 'cond', 'seasonal' or 'extended'.")
         
         if noise_type[0] == 'white':
-            Q = np.cov(self.residuals[max(residuals.keys())], rowvar = 0)
+            Q = np.cov(self.residuals[max(self.residuals.keys())], rowvar = 0)
             self.rr = np.linalg.cholesky(Q).T
 
         if diagnostics:
+            import scipy.stats as sts
+            
             if self.verbose:
                 print("...running diagnostics for the data...")
             # ACF, kernel density, integral corr. timescale for data
-            max_lag = 50
-            lag_cors = np.zeros((2*max_lag + 1, pcs.shape[1]))
-            kernel_densities = np.zeros((100, pcs.shape[1], 2))
-            for k in range(pcs.shape[1]):
-                lag_cors[:, k] = cross_correlation(pcs[:, k], pcs[:, k], max_lag = max_lag)
+            self.max_lag = 50
+            lag_cors = np.zeros((2*self.max_lag + 1, self.no_input_ts))
+            kernel_densities = np.zeros((100, self.no_input_ts, 2))
+            for k in range(self.no_input_ts):
+                lag_cors[:, k] = cross_correlation(pcs[:, k], pcs[:, k], max_lag = self.max_lag)
                 kernel_densities[:, k, 0], kernel_densities[:, k, 1] = kdensity_estimate(pcs[:, k], kernel = 'epanechnikov')
             integral_corr_timescale = np.sum(np.abs(lag_cors), axis = 0)
 
             # init for integrations
             lag_cors_int = np.zeros([n_realizations] + list(lag_cors.shape))
             kernel_densities_int = np.zeros([n_realizations] + list(kernel_densities.shape))
-            stat_moments_int = np.zeros((4, n_realizations, pcs.shape[1])) # mean, variance, skewness, kurtosis
+            stat_moments_int = np.zeros((4, n_realizations, self.no_input_ts)) # mean, variance, skewness, kurtosis
 
         self.diagpc = np.diag(np.std(pcs, axis = 0, ddof = 1))
         self.maxpc = np.amax(np.abs(pcs))
@@ -425,7 +443,7 @@ class EmpiricalModel(DataField):
         if n_workers > 1:
             from multiprocessing import Pool
             pool = Pool(n_workers)
-            map_func = pool.map
+            map_func = pool.map # add async and progress bar
             if self.verbose:
                 print("...starting integration of %d realizations using %d workers..." % (n_realizations, n_workers))
         else:
@@ -433,26 +451,129 @@ class EmpiricalModel(DataField):
             if self.verbose:
                 print("...starting integration of %d realizations using single thread..." % n_realizations)
 
-        args = []
+        rnds = []
+        for n in range(n_realizations):
+            r = {}
+            for l in self.fit_mat.keys():
+                if l == 0:
+                    r[l] = np.dot(np.random.normal(0, sigma, (self.no_input_ts,)), self.diagpc)
+                else:
+                    r[l] = np.dot(np.random.normal(0, sigma, (self.no_input_ts,)), self.diagres[l-1])
+            rnds.append(r)
+        args = [[rnd, noise_type] for rnd in rnds]
+        results = map_func(self._process_integration, args)
+
+        del args
+        if n_workers > 1:
+            pool.close()
+
+        print len(results)
 
 
-    def _process_integration(self, rnd):
 
+    def _process_integration(self, a):
+
+        rnd, noise = a
         num_exploding = 0
         repeats = 20
         xx = {}
-        for l,r in zip(self.fit_mat.keys(), rnd):
-            xx[l] = np.zeros((repeats, self.input_pcs.shape[0]))
-            xx[l][0, :] = r
+        x = {}
+        for l in self.fit_mat.keys():
+            xx[l] = np.zeros((repeats, self.no_input_ts))
+            xx[l][0, :] = rnd[l]
 
-            x[l] = np.zeros((self.int_length, self.input_pcs.shape[0]))
+            x[l] = np.zeros((self.int_length, self.no_input_ts))
             x[l][0, :] = xx[l][0, :]
 
         step0 = 0
         step = 1
-        for n in range(repeats*np.ceil(self.int_length/repeats)):
-            for k in range(2, repeats):
-                # zz = 
-                pass
+        zz = {}
+        for n in range(repeats*int(np.ceil(self.int_length/repeats))):
+            for k in range(1, repeats):
+                # prepare predictors
+                for l in self.fit_mat.keys():
+                    zz[l] = xx[0][k-1, :]
+                    for lr in range(l):
+                        zz[l] = np.r_[zz[l], xx[lr+1][k-1, :]]
+                for l in self.fit_mat.keys():
+                    if l == 0:
+                        if self.quad:
+                            q = np.tril(np.outer(zz[l].T, zz[l]), -1)
+                            quad_pred = q[np.nonzero(q)]
+                        if self.harmonic_pred in ['all', 'first']:
+                            if self.quad:
+                                zz[l] = np.r_[quad_pred, zz[l], zz[l]*self.xsin[step], zz[l]*self.xcos[step], 
+                                    self.xsin[step], self.xcos[step], 1]
+                            else:
+                                zz[l] = np.r_[zz[l], zz[l]*self.xsin[step], zz[l]*self.xcos[step], 
+                                    self.xsin[step], self.xcos[step], 1]
+                        else:
+                            if self.quad:
+                                zz[l] = np.r_[quad_pred, zz[l], 1]
+                            else:
+                                zz[l] = np.r_[zz[l], 1]
+                    else:
+                        if self.harmonic_pred == ['all']:
+                            zz[l] = np.r_[zz[l], zz[l]*self.xsin[step], zz[l]*self.xcos[step], 
+                                    self.xsin[step], self.xcos[step], 1]
+                        else:
+                            zz[l] = np.r_[zz[l], 1]
+
+                # integration step
+                for l in sorted(self.fit_mat, reverse = True):
+                    if (l == self.no_levels-1):
+                        forcing = np.dot(self.rr, np.random.normal(0,self.sigma,(self.rr.shape[0],)).T)
+                    else:
+                        forcing = xx[l+1][k, :]
+                    print l, xx[l][k-1, :].shape, zz[l].shape, self.fit_mat[l].shape, forcing.shape
+                    xx[l][k, :] = xx[l][k-1, :] + np.dot(zz[l], self.fit_mat[l]) + forcing
+
+                step += 1
+
+            # check if integration blows
+            if (np.amax(np.abs(xx[0])) <= 2*self.maxpc) and not np.any(np.isnan(xx[0])):
+                for l in self.fit_mat.keys():
+                    ## CORRECT THIS!!!
+                    x[l][step-repeats : step, :] = xx[l][1:, :]
+                    # set first to last
+                    xx[l][0,:] = xx[l][-1, :]
+            else:
+                for l in self.fit_mat.keys():
+                    if l == 0:
+                        xx[l][0, :] = np.dot(np.random.normal(0, self.sigma, (self.no_input_ts,)), self.diagpc)
+                    else:
+                        xx[l][0, :] = np.dot(np.random.normal(0, self.sigma, (self.no_input_ts,)), self.diagres[l-1])
+                if step != step0:
+                    num_exploding += 1
+                    step0 = step
+                step -= repeats + 1
+
+        x = x[0].copy()
+
+        # center
+        x -= np.mean(x, axis = 0)
+
+        # preserve total energy level
+        x *= np.sqrt(np.sum(self.varpc)/np.sum(np.var(x, axis = 0, ddof = 1)))
+
+        if self.diagnostics:
+            xm = np.mean(x, axis = 0)
+            xv = np.var(x, axis = 0, ddof = 1)
+            xs = sts.skew(x, axis = 0)
+            xk = sts.kurtosis(x, axis = 0)
+
+            lc = np.zeros((2*self.max_lag + 1, self.no_input_ts))
+            kden = np.zeros((100, self.no_input_ts, 2))
+            for k in range(self.no_input_ts):
+                lc[:, k] = cross_correlation(x[:, k], x[:, k], max_lag = self.max_lag)
+                kden[:, k, 0], kden[:, k, 1] = kdensity_estimate(x[:, k], kernel = 'epanechnikov')
+            ict = np.sum(np.abs(lc), axis = 0)
+
+            return [x, num_exploding, xm, xv, xs, xk, lc, kden, ict]
+
+        else:
+            return [x, num_exploding]
+
+
 
         
