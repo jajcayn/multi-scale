@@ -1,5 +1,6 @@
 from data_class import DataField
 import numpy as np
+import scipy.stats as sts
 
 
 def _partial_least_squares(x, y, ux, sx, vx, optimal, intercept = True):
@@ -293,7 +294,7 @@ class EmpiricalModel(DataField):
                 if quad and level == 0:
                     fit_mat_size += (pcs.shape[1] * (pcs.shape[1] - 1)) / 2 # quad
             elif level > 0:
-                if harmonic_pred == ['all']:
+                if harmonic_pred == 'all':
                     fit_mat_size += (level+1)*2*pcs.shape[1] + 2
 
             # response variables -- y (dx/dt)
@@ -331,7 +332,7 @@ class EmpiricalModel(DataField):
                         if quad:
                             x = np.c_[quad_pred, x]
                 else:
-                    if harmonic_pred == ['all']:
+                    if harmonic_pred == 'all':
                         x = np.c_[x, x*np.outer(xsin,np.ones(x.shape[1])), x*np.outer(xcos,np.ones(x.shape[1])), 
                                 xsin, xcos]
 
@@ -399,8 +400,8 @@ class EmpiricalModel(DataField):
         if self.harmonic_pred in ['all', 'first']:
             if self.verbose:
                 print("...using harmonic predictors (with annual frequency)...")
-            self.xsin = np.sin(2*np.pi*np.arange(self.no_input_ts) / 12.)
-            self.xcos = np.cos(2*np.pi*np.arange(self.no_input_ts) / 12.)
+            self.xsin = np.sin(2*np.pi*np.arange(self.int_length) / 12.)
+            self.xcos = np.cos(2*np.pi*np.arange(self.int_length) / 12.)
 
         if self.verbose:
             print("...preparing noise forcing...")
@@ -414,8 +415,6 @@ class EmpiricalModel(DataField):
             self.rr = np.linalg.cholesky(Q).T
 
         if diagnostics:
-            import scipy.stats as sts
-            
             if self.verbose:
                 print("...running diagnostics for the data...")
             # ACF, kernel density, integral corr. timescale for data
@@ -449,7 +448,7 @@ class EmpiricalModel(DataField):
         else:
             map_func = map
             if self.verbose:
-                print("...starting integration of %d realizations using single thread..." % n_realizations)
+                print("...starting integration of %d realizations single threaded..." % n_realizations)
 
         rnds = []
         for n in range(n_realizations):
@@ -467,7 +466,9 @@ class EmpiricalModel(DataField):
         if n_workers > 1:
             pool.close()
 
-        print len(results)
+        self.results = results
+
+        print results[0][0].shape, results[0][1]
 
 
 
@@ -487,9 +488,14 @@ class EmpiricalModel(DataField):
 
         step0 = 0
         step = 1
+        blow_counter = 0
         zz = {}
         for n in range(repeats*int(np.ceil(self.int_length/repeats))):
             for k in range(1, repeats):
+                if blow_counter >= 10:
+                    raise Exception("Model blowed up 10 times.")
+                if step >= self.int_length:
+                    break
                 # prepare predictors
                 for l in self.fit_mat.keys():
                     zz[l] = xx[0][k-1, :]
@@ -513,7 +519,7 @@ class EmpiricalModel(DataField):
                             else:
                                 zz[l] = np.r_[zz[l], 1]
                     else:
-                        if self.harmonic_pred == ['all']:
+                        if self.harmonic_pred == 'all':
                             zz[l] = np.r_[zz[l], zz[l]*self.xsin[step], zz[l]*self.xcos[step], 
                                     self.xsin[step], self.xcos[step], 1]
                         else:
@@ -525,16 +531,14 @@ class EmpiricalModel(DataField):
                         forcing = np.dot(self.rr, np.random.normal(0,self.sigma,(self.rr.shape[0],)).T)
                     else:
                         forcing = xx[l+1][k, :]
-                    print l, xx[l][k-1, :].shape, zz[l].shape, self.fit_mat[l].shape, forcing.shape
                     xx[l][k, :] = xx[l][k-1, :] + np.dot(zz[l], self.fit_mat[l]) + forcing
 
                 step += 1
 
             # check if integration blows
-            if (np.amax(np.abs(xx[0])) <= 2*self.maxpc) and not np.any(np.isnan(xx[0])):
+            if np.amax(np.abs(xx[0])) <= 2*self.maxpc and not np.any(np.isnan(xx[0])):
                 for l in self.fit_mat.keys():
-                    ## CORRECT THIS!!!
-                    x[l][step-repeats : step, :] = xx[l][1:, :]
+                    x[l][step-repeats + 1 : step, :] = xx[l][1:, :]
                     # set first to last
                     xx[l][0,:] = xx[l][-1, :]
             else:
@@ -547,6 +551,7 @@ class EmpiricalModel(DataField):
                     num_exploding += 1
                     step0 = step
                 step -= repeats + 1
+                blow_counter += 1
 
         x = x[0].copy()
 
