@@ -951,62 +951,98 @@ class DataField:
 
 
         
-    def anomalise(self):
+    def anomalise(self, base_period = None):
         """
-        Removes the seasonal/yearly cycle from the data
+        Removes the seasonal/yearly cycle from the data.
+        If base_period is None, the seasonal cycle is relative to whole period,
+        else base_period = (date, date) for climatology within period. Both dates are inclusive.
         """
         
         delta = self.time[1] - self.time[0]
+        
+        if base_period is None:
+            ndx = np.arange(self.time.shape[0])
+        else:
+            ndx = np.logical_and(self.time >= base_period[0].toordinal(), self.time <= base_period[1].toordinal())
+        d = self.data.copy()
+        t = self.time.copy()
+        self.time = self.time[ndx]
+
         if delta == 1:
             # daily data
-            day, mon, _ = self.extract_day_month_year()
+            day_avg, mon_avg, _ = self.extract_day_month_year()
+            self.time = t.copy()
+            day_data, mon_data, _ = self.extract_day_month_year()
             for mi in range(1,13):
-                mon_mask = (mon == mi)
+                mon_mask_avg = (mon_avg == mi)
+                mon_mask_data = (mon_data == mi)
                 for di in range(1,32):
-                    sel = np.logical_and(mon_mask, day == di)
-                    if np.sum(sel) == 0:
+                    sel_avg = np.logical_and(mon_mask_avg, day_avg == di)
+                    sel_data = np.logical_and(mon_mask_data, day_data == di)
+                    if np.sum(sel_avg) == 0:
                         continue
-                    avg = np.nanmean(self.data[sel, ...], axis = 0)
-                    self.data[sel, ...] -= avg
+                    d = d[ndx, ...]
+                    avg = np.nanmean(d[sel_avg, ...], axis = 0)
+                    self.data[sel_data, ...] -= avg
         elif abs(delta - 30) < 3.0:
             # monthly data
-            _, mon, _ = self.extract_day_month_year()
+            _, mon_avg, _ = self.extract_day_month_year()
+            self.time = t.copy()
+            _, mon_data, _ = self.extract_day_month_year()
             for mi in range(1,13):
-                sel = (mon == mi)
-                if np.sum(sel) == 0:
+                sel_avg = (mon_avg == mi)
+                sel_data = (mon_data == mi)
+                if np.sum(sel_avg) == 0:
                     continue
-                avg = np.nanmean(self.data[sel, ...], axis = 0)
-                self.data[sel, ...] -= avg
+                d = d[ndx, ...]
+                avg = np.nanmean(d[sel_avg, ...], axis = 0)
+                self.data[sel_data, ...] -= avg
         else:
             raise Exception('Unknown temporal sampling in the field.')
             
             
             
-    def get_seasonality(self, DETREND = False):
+    def get_seasonality(self, DETREND = False, base_period = None):
         """
         Removes the seasonality in both mean and std (detrending is optional) and 
         returns the seasonal mean and std arrays.
+        If base_period is None, the seasonal cycle is relative to whole period,
+        else base_period = (date, date) for climatology within period. Both dates are inclusive.
         """
         
         delta = self.time[1] - self.time[0]
+
+        if base_period is None:
+            ndx = np.arange(self.time.shape[0])
+        else:
+            ndx = np.logical_and(self.time >= base_period[0].toordinal(), self.time <= base_period[1].toordinal())
+        d = self.data.copy()
+        t = self.time.copy()
+        self.time = self.time[ndx]
+
         if delta == 1:
             # daily data
             seasonal_mean = np.zeros_like(self.data)
             seasonal_var = np.zeros_like(self.data)
-            day, mon, _ = self.extract_day_month_year()
+            day_avg, mon_avg, _ = self.extract_day_month_year()
+            self.time = t.copy()
+            day_data, mon_data, _ = self.extract_day_month_year()
             for mi in range(1,13):
-                mon_mask = (mon == mi)
+                mon_mask_avg = (mon_avg == mi)
+                mon_mask_data = (mon_data == mi)
                 for di in range(1,32):
-                    sel = np.logical_and(mon_mask, day == di)
-                    if np.sum(sel) == 0:
+                    sel_avg = np.logical_and(mon_mask_avg, day_avg == di)
+                    sel_data = np.logical_and(mon_mask_data, day_data == di)
+                    if np.sum(sel_avg) == 0:
                         continue
-                    seasonal_mean[sel, ...] = np.nanmean(self.data[sel, ...], axis = 0)
-                    self.data[sel, ...] -= seasonal_mean[sel, ...]
-                    seasonal_var[sel, ...] = np.nanstd(self.data[sel, ...], axis = 0, ddof = 1)
-                    if np.any(seasonal_var[sel, ...] == 0.0):
+                    d = d[ndx, ...]
+                    seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
+                    self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
+                    seasonal_var[sel_data, ...] = np.nanstd(d[sel_data, ...], axis = 0, ddof = 1)
+                    if np.any(seasonal_var[sel_data, ...] == 0.0):
                         print('**WARNING: some zero standard deviations found for date %d.%d' % (di, mi))
                         seasonal_var[seasonal_var == 0.0] = 1.0
-                    self.data[sel, ...] /= seasonal_var[sel, ...]
+                    self.data[sel_data, ...] /= seasonal_var[sel_data, ...]
             if DETREND:
                 data_copy = self.data.copy()
                 self.data, _ = nandetrend(self.data, axis = 0)
@@ -1017,13 +1053,19 @@ class DataField:
             # monthly data
             seasonal_mean = np.zeros_like(self.data)
             seasonal_var = np.zeros_like(self.data)
-            _, mon, _ = self.extract_day_month_year()
+            _, mon_avg, _ = self.extract_day_month_year()
+            self.time = t.copy()
+            _, mon_data, _ = self.extract_day_month_year()
             for mi in range(1,13):
-                sel = (mon == mi)
-                seasonal_mean[sel, ...] = np.nanmean(self.data[sel, ...], axis = 0)
-                self.data[sel, ...] -= seasonal_mean[sel, ...]
-                seasonal_var[sel, ...] = np.nanstd(self.data[sel, ...], axis = 0, ddof = 1)
-                self.data[sel, ...] /= seasonal_var[sel, ...]
+                sel_avg = (mon_avg == mi)
+                sel_data = (mon_data == mi)
+                if np.sum(sel_avg) == 0:
+                    continue
+                d = d[ndx, ...]
+                seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
+                self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
+                seasonal_var[sel_data, ...] = np.nanstd(d[sel_avg, ...], axis = 0, ddof = 1)
+                self.data[sel_data, ...] /= seasonal_var[sel_data, ...]
             if DETREND:
                 data_copy = self.data.copy()
                 self.data, _ = nandetrend(self.data, axis = 0)
