@@ -959,6 +959,7 @@ class DataField:
         """
         
         delta = self.time[1] - self.time[0]
+        seasonal_mean = np.zeros_like(self.data)
         
         if base_period is None:
             ndx = np.arange(self.time.shape[0])
@@ -982,8 +983,8 @@ class DataField:
                     if np.sum(sel_avg) == 0:
                         continue
                     d = d[ndx, ...]
-                    avg = np.nanmean(d[sel_avg, ...], axis = 0)
-                    self.data[sel_data, ...] -= avg
+                    seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
+                    self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
         elif abs(delta - 30) < 3.0:
             # monthly data
             _, mon_avg, _ = self.extract_day_month_year()
@@ -995,10 +996,12 @@ class DataField:
                 if np.sum(sel_avg) == 0:
                     continue
                 d = d[ndx, ...]
-                avg = np.nanmean(d[sel_avg, ...], axis = 0)
-                self.data[sel_data, ...] -= avg
+                seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
+                self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
         else:
             raise Exception('Unknown temporal sampling in the field.')
+
+        return seasonal_mean
             
             
             
@@ -1011,6 +1014,8 @@ class DataField:
         """
         
         delta = self.time[1] - self.time[0]
+        seasonal_mean = np.zeros_like(self.data)
+        seasonal_var = np.zeros_like(self.data)
 
         if base_period is None:
             ndx = np.arange(self.time.shape[0])
@@ -1022,8 +1027,6 @@ class DataField:
 
         if delta == 1:
             # daily data
-            seasonal_mean = np.zeros_like(self.data)
-            seasonal_var = np.zeros_like(self.data)
             day_avg, mon_avg, _ = self.extract_day_month_year()
             self.time = t.copy()
             day_data, mon_data, _ = self.extract_day_month_year()
@@ -1051,8 +1054,6 @@ class DataField:
                 trend = None
         elif abs(delta - 30) < 3.0:
             # monthly data
-            seasonal_mean = np.zeros_like(self.data)
-            seasonal_var = np.zeros_like(self.data)
             _, mon_avg, _ = self.extract_day_month_year()
             self.time = t.copy()
             _, mon_data, _ = self.extract_day_month_year()

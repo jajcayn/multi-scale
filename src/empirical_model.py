@@ -216,11 +216,12 @@ class EmpiricalModel(DataField):
             print("preparing input to the model...")
 
         self.no_input_ts = no_input_ts
+        self.input_anom = anom
 
         if anom:
             if self.verbose:
                 print("...anomalising...")
-            self.anomalise()
+            self.clim_mean = self.anomalise()
 
         if cos_weights:
             if self.verbose:
@@ -248,6 +249,7 @@ class EmpiricalModel(DataField):
             print("done.")
 
 
+
     def train_model(self, harmonic_pred = 'first', quad = False):
         """
         Train the model.
@@ -260,7 +262,7 @@ class EmpiricalModel(DataField):
 
         if self.verbose:
             print("now training %d-level model..." % self.no_levels)
-        # standartise PCs
+        # standardise PCs
         pcs = self.input_pcs / np.std(self.input_pcs[0, :], ddof = 1)
 
         if harmonic_pred not in ['first', 'none', 'all']:
@@ -273,9 +275,8 @@ class EmpiricalModel(DataField):
             xcos = np.cos(2*np.pi*np.arange(pcs.shape[1]) / 12.)
             
 
-        if quad:
-            if self.verbose:
-                print("...training quadratic model...")
+        if quad and self.verbose:
+            print("...training quadratic model...")
 
         pcs = pcs.T # time x dim
 
@@ -385,7 +386,7 @@ class EmpiricalModel(DataField):
 
         if self.verbose:
             print("preparing to integrate model...")
-        # standartise PCs
+        # standardise PCs
         pcs = self.input_pcs / np.std(self.input_pcs[0, :], ddof = 1)
         pcs = pcs.T # time x dim
 
@@ -430,6 +431,7 @@ class EmpiricalModel(DataField):
             lag_cors_int = np.zeros([n_realizations] + list(lag_cors.shape))
             kernel_densities_int = np.zeros([n_realizations] + list(kernel_densities.shape))
             stat_moments_int = np.zeros((4, n_realizations, self.no_input_ts)) # mean, variance, skewness, kurtosis
+            int_corr_scale_int = np.zeros((n_realizations, self.no_input_ts))
 
         self.diagpc = np.diag(np.std(pcs, axis = 0, ddof = 1))
         self.maxpc = np.amax(np.abs(pcs))
@@ -459,22 +461,50 @@ class EmpiricalModel(DataField):
                 else:
                     r[l] = np.dot(np.random.normal(0, sigma, (self.no_input_ts,)), self.diagres[l-1])
             rnds.append(r)
-        args = [[rnd, noise_type] for rnd in rnds]
+        args = [[i, rnd, noise_type] for i, rnd in zip(range(n_realizations), rnds)]
         results = map_func(self._process_integration, args)
 
         del args
         if n_workers > 1:
             pool.close()
+        
+        if self.verbose:
+            print("...integration done, now saving results...")
 
-        self.results = results
+        self.integration_results = np.zeros((n_realizations, self.no_input_ts, self.int_length))
+        self.num_exploding = np.zeros((n_realizations,))
 
-        print results[0][0].shape, results[0][1]
+        if self.diagnostics:
+            # x, num_exploding, xm, xv, xs, xk, lc, kden, ict
+            for i, x, num_expl, xm, xv, xs, xk, lc, kden, ict in results:
+                self.integration_results[i, ...] = x.T
+                self.num_exploding[i] = num_expl
+                stat_moments_int[0, i, :] = xm
+                stat_moments_int[1, i, :] = xv
+                stat_moments_int[2, i, :] = xs
+                stat_moments_int[3, i, :] = xk
+                lag_cors_int[i, ...] = lc
+                kernel_densities_int[i, ...] = kden
+                int_corr_scale_int[i, ...] = ict
+        else:
+            for i, x, num_expl in results:
+                self.integration_results[i, ...] = x.T
+                self.num_exploding[i] = num_expl
+
+        if self.verbose:
+            print("...results saved to structure.")
+        
+        if self.diagnostics:
+            if self.verbose:
+                print("plotting diagnostics...")
+            
+            # plot all diagnostic stuff
 
 
 
     def _process_integration(self, a):
 
-        rnd, noise = a
+        i, rnd, noise = a
         num_exploding = 0
         repeats = 20
         xx = {}
@@ -574,11 +604,32 @@ class EmpiricalModel(DataField):
                 kden[:, k, 0], kden[:, k, 1] = kdensity_estimate(x[:, k], kernel = 'epanechnikov')
             ict = np.sum(np.abs(lc), axis = 0)
 
-            return [x, num_exploding, xm, xv, xs, xk, lc, kden, ict]
+            return i, x, num_exploding, xm, xv, xs, xk, lc, kden, ict
 
         else:
-            return [x, num_exploding]
+            return i, x, num_exploding
 
 
 
-        
+    def reconstruct_simulated_field(self):
+        """
+        Reconstructs 3D geofield from simulated PCs.
+        """
+
+        for n in range(self.integration_results.shape[0]):
+            # "destandardise" PCs
+            pcs = self.integration_results[n, ...] * np.std(self.input_pcs[0, :], ddof = 1)
+            # invert PCA analysis with modelled PCs
+            reconstruction = self.invert_pca(self.input_eofs, pcs)
+            # if anomalised, return seasonal climatology
+            if self.input_anom:
+                for lat in range(self.lats.shape[0]):
+                    for lon in range(self.lons.shape[0]):
+                        # works only with monthly data
+                        for mon in range(12):
+                            reconstruction[mon::12, lat, lon] += self.clim_mean[mon, lat, lon]
+            # add low freq variability if removed
+            if self.low_freq is not None:
+                pass
+
+
