@@ -623,11 +623,9 @@ class EmpiricalModel(DataField):
             reconstruction = self.invert_pca(self.input_eofs, pcs)
             # if anomalised, return seasonal climatology
             if self.input_anom:
-                for lat in range(self.lats.shape[0]):
-                    for lon in range(self.lons.shape[0]):
-                        # works only with monthly data
-                        for mon in range(12):
-                            reconstruction[mon::12, lat, lon] += self.clim_mean[mon, lat, lon]
+                # works only with monthly data
+                for mon in range(12):
+                    reconstruction[mon::12, ...] += self.clim_mean[mon, ...]
             # add low freq variability if removed
             if self.low_freq is not None:
                 pass
