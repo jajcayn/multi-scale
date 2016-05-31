@@ -450,7 +450,7 @@ class EmpiricalModel(DataField):
         else:
             map_func = map
             if self.verbose:
-                print("...starting integration of %d realizations single threaded..." % n_realizations)
+                print("...running integration of %d realizations single threaded..." % n_realizations)
 
         rnds = []
         for n in range(n_realizations):
@@ -498,7 +498,53 @@ class EmpiricalModel(DataField):
             if self.verbose:
                 print("plotting diagnostics...")
             
+            import matplotlib.pyplot as plt
             # plot all diagnostic stuff
+            ## mean, variance, skewness, kurtosis, integral corr. time scale
+            tits = ['MEAN', 'VARIANCE', 'SKEWNESS', 'KURTOSIS', 'INTEGRAL CORRELATION TIME SCALE']
+            plot = [np.mean(pcs, axis = 0), np.var(pcs, axis = 0, ddof = 1), sts.skew(pcs, axis = 0), sts.kurtosis(pcs, axis = 0), integral_corr_timescale]
+            xplot = np.arange(1, pcs.shape[1]+1)
+            for i, tit, p in zip(range(5), tits, plot):
+                plt.figure()
+                plt.title(tit, size = 20)
+                plt.plot(xplot, p, linewidth = 3, color = '#3E3436')
+                if i < 4:
+                    plt.plot(xplot, np.percentile(stat_moments_int[i, :, :], q = 2.5, axis = 0), '--', linewidth = 2.5, color = '#EA3E36')
+                    plt.plot(xplot, np.percentile(stat_moments_int[i, :, :], q = 97.5, axis = 0), '--', linewidth = 2.5, color = '#EA3E36')
+                else:
+                    plt.plot(xplot, np.percentile(int_corr_scale_int, q = 2.5, axis = 0), '--', linewidth = 2.5, color = '#EA3E36')
+                    plt.plot(xplot, np.percentile(int_corr_scale_int, q = 97.5, axis = 0), '--', linewidth = 2.5, color = '#EA3E36')
+                plt.xlabel("# PC", size = 15)
+                plt.xlim([xplot[0], xplot[-1]])
+                plt.show()
+                plt.close()
+
+            ## lagged correlations, PDF - plot first 9 PCs (or less if input number of pcs is < 9)
+            tits = ['AUTOCORRELATION', 'PDF']
+            plot = [[lag_cors, lag_cors_int], [kernel_densities, kernel_densities_int]]
+            xlabs = ['LAG', '']
+            for i, tit, p, xlab in zip(range(2), tits, plot, xlabs):
+                plt.figure()
+                plt.suptitle(tit, size = 25)
+                no_plts = 9 if self.no_input_ts > 9 else self.no_input_ts
+                for sub in range(0,no_plts):
+                    plt.subplot(3, 3, sub+1)
+                    if i == 0:
+                        xplt = np.arange(0, self.max_lag+1)
+                        plt.plot(xplt, p[0][p[0].shape[0]//2:, sub], linewidth = 3, color = '#3E3436')
+                        plt.plot(xplt, np.percentile(p[1][:, p[0].shape[0]//2:, sub], q = 2.5, axis = 0), '--', linewidth = 2.5, color = '#EA3E36')
+                        plt.plot(xplt, np.percentile(p[1][:, p[0].shape[0]//2:, sub], q = 97.5, axis = 0), '--', linewidth = 2.5, color = '#EA3E36')
+                        plt.xlim([xplt[0], xplt[-1]])
+                    else:
+                        plt.plot(p[0][:, sub, 0], p[0][:, sub, 1], linewidth = 3, color = '#3E3436')
+                        plt.plot(p[1][0, :, sub, 0], np.percentile(p[1][:, :, sub, 1], q = 2.5, axis = 0), '--', linewidth = 2.5, color = '#EA3E36')
+                        plt.plot(p[1][0, :, sub, 0], np.percentile(p[1][:, :, sub, 1], q = 97.5, axis = 0), '--', linewidth = 2.5, color = '#EA3E36')
+                        plt.xlim([p[0][0, sub, 0], p[0][-1, sub, 0]])
+                    plt.xlabel(xlab, size = 15)
+                    plt.title("PC %d" % (int(sub)+1), size = 20)
+                plt.tight_layout()
+                plt.show()
+                plt.close()
 
 
 
@@ -616,11 +662,18 @@ class EmpiricalModel(DataField):
         Reconstructs 3D geofield from simulated PCs.
         """
 
+        self.reconstructions = []
+
+        if self.verbose:
+            print("reconstructing 3D geo fields...")
+
         for n in range(self.integration_results.shape[0]):
+            if self.verbose:
+                print("...processing field %d/%d" % (n+1, self.integration_results.shape[0]))
             # "destandardise" PCs
             pcs = self.integration_results[n, ...] * np.std(self.input_pcs[0, :], ddof = 1)
             # invert PCA analysis with modelled PCs
-            reconstruction = self.invert_pca(self.input_eofs, pcs)
+            reconstruction = self.invert_pca(self.input_eofs, pcs) # time x lats x lons
             # if anomalised, return seasonal climatology
             if self.input_anom:
                 # works only with monthly data
@@ -628,6 +681,63 @@ class EmpiricalModel(DataField):
                     reconstruction[mon::12, ...] += self.clim_mean[mon, ...]
             # add low freq variability if removed
             if self.low_freq is not None:
-                pass
+                # get the low freq field already with pca mean added
+                low_freq_field = self.invert_pca(self.low_freq[0], self.low_freq[1], pca_mean = self.low_freq[3])
+                if low_freq_field.shape[0] >= reconstruction.shape[0]:
+                    # if integration - modelled field - is shorter than or equal to low_freq_field length
+                    reconstruction += low_freq_field[:reconstruction.shape[0], ...]
+                else:
+                    # if integration is longer
+                    factor = reconstruction.shape[0] // low_freq_field.shape[0]
+                    low_freq_field = np.repeat(low_freq_field, repeats = factor, axis = 0)
+                    low_freq_field = np.append(low_freq_field, low_freq_field[:reconstruction.shape[0]-low_freq_field.shape[0]], axis = 0)
+                    reconstruction += low_freq_field
+
+            self.reconstructions.append(reconstruction)
+
+        self.reconstructions = np.array(self.reconstructions)
+        
+        if self.verbose:
+            print("...reconstruction done.")
 
 
+
+    def save(self, fname, save_all = False, mat = False):
+        """
+        Saves the field or just the result to file.
+        if save_all is False, saves just the result (self.reconstructions) with lats and lons, if True, saves whole class
+        if mat is True, saves to matlab ".mat" file
+        """
+
+        if self.verbose:
+            print("saving to file: %s" % fname)
+
+        if save_all:
+            to_save = self.__dict__
+            if mat:
+                # scipy.io cannot save None type to mat file
+                to_save = {}
+                for i in self.__dict__:
+                    if self.__dict__[i] is not None:
+                        to_save[i] = self.__dict__[i]
+        else:
+            to_save = {'reconstructions' : self.reconstructions, 'lats' : self.lats, 'lons' : self.lons}
+
+        if not mat:
+            # save to bin - cPickle
+            import cPickle
+
+            if fname[-4:] == ".bin":
+                fname += ".bin"
+
+            with open(fname, "wb") as f:
+                cPickle.dump(to_save, f, protocol = cPickle.HIGHEST_PROTOCOL)
+
+        else:
+            # save to mat
+            import scipy.io as sio
+
+            sio.savemat(fname, mdict = to_save, appendmat = True)
+
+        if self.verbose:
+            print("saved.")
