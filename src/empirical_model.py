@@ -215,7 +215,7 @@ class EmpiricalModel(DataField):
         if self.verbose:
             print("preparing input to the model...")
 
-        self.no_input_ts = no_input_ts
+        self.no_input_ts = no_input_ts if sel is None else len(sel)
         self.input_anom = anom
 
         if anom:
@@ -370,18 +370,15 @@ class EmpiricalModel(DataField):
 
 
 
-    def integrate_model(self, n_realizations, int_length = None, noise_type = ['white'], sigma = 1., n_workers = 3, diagnostics = True):
+    def integrate_model(self, n_realizations, int_length = None, noise_type = 'white', sigma = 1., n_workers = 3, diagnostics = True):
         """
         Integrate trained model.
         noise_type:
         -- white - classic white noise, spatial correlation by cov. matrix of last level residuals
-        ---- ['white']
         -- cond - find n_samples closest to the current space in subset of n_pcs and use their cov. matrix
-        ---- ['cond', n_samples, n_pcs]
         -- seasonal - seasonal dependence of the residuals, fit n_harm harmonics of annual cycle, could also be used with cond.
-        ---- ['seasonal', n_harmonics, True/False]
-        -- 'extended' - uses extended cov. matrix with lags with n_snippet max-lag, could also be used with seasonal
-        ---- ['extended', n_snippet, n_pcs, True/False]
+        -- extended - uses extended cov. matrix with lags with n_snippet max-lag, could also be used with seasonal
+        except 'white', one can choose more settings like ['seasonal', 'cond']
         """
 
         if self.verbose:
@@ -408,12 +405,38 @@ class EmpiricalModel(DataField):
             print("...preparing noise forcing...")
 
         self.sigma = sigma
-        if noise_type[0] not in ['white', 'cond', 'seasonal', 'extended']:
+        if noise_type not in ['white', 'cond', 'seasonal', 'extended']:
             raise Exception("Unknown noise type to be used as forcing. Use 'white', 'cond', 'seasonal' or 'extended'.")
         
-        if noise_type[0] == 'white':
-            Q = np.cov(self.residuals[max(self.residuals.keys())], rowvar = 0)
+        self.last_level_res = self.residuals[max(self.residuals.keys())]
+        self.noise_type = noise_type
+        if noise_type == 'white':
+            if self.verbose:
+                print("...using spatially correlated white noise...")
+            Q = np.cov(self.last_level_res, rowvar = 0)
             self.rr = np.linalg.cholesky(Q).T
+
+        if 'seasonal' in noise_type:
+            n_harmonics = 5
+            if self.verbose:
+                print("..fitting %d harmonics to estimate seasonal modulation of last level's residual..." % n_harmonics)
+            rr_last = np.reshape(self.last_level_res, (12, self.last_level_res.shape[0]//12, self.last_level_res.shape[1]), order = 'F')
+            rr_last_std = np.nanstd(rr_last, axis = 1, ddof = 1)
+            predictors = np.zeros((12, 2*n_harmonics + 1))
+            for nh in range(n_harmonics):
+                predictors[:, 2*nh] = np.cos(2*np.pi*(nh+1)*np.arange(12) / 12)
+                predictors[:, 2*nh+1] = np.sin(2*np.pi*(nh+1)*np.arange(12) / 12)
+            predictors[:, -1] = np.ones((12,))
+            bamp = np.zeros((predictors.shape[1], self.no_input_ts))
+            for k in range(bamp.shape[1]):
+                bamp[:, k] = np.linalg.lstsq(predictors, rr_last_std[:, k])[0]
+            rr_last_std_ts = np.dot(predictors, bamp)
+            self.rr_last_std_ts = np.repeat(rr_last_std_ts, repeats = self.last_level_res.shape[0]//12, axis = 0)
+            self.last_level_res /= self.rr_last_std_ts
+
+            Q = np.cov(self.last_level_res, rowvar = 0)
+            self.rr = np.linalg.cholesky(Q).T
+
 
         if diagnostics:
             if self.verbose:
@@ -440,6 +463,8 @@ class EmpiricalModel(DataField):
         for l in self.residuals.keys():
             self.diagres[l] = np.diag(np.std(self.residuals[l], axis = 0, ddof = 1))
             self.maxres[l] = np.amax(np.abs(self.residuals[l]))
+
+        self.pcs = pcs
 
         if n_workers > 1:
             # from multiprocessing import Pool
@@ -472,6 +497,9 @@ class EmpiricalModel(DataField):
         self.integration_results = np.zeros((n_realizations, self.no_input_ts, self.int_length))
         self.num_exploding = np.zeros((n_realizations,))
 
+        if n_workers > 1:
+            results = results.get()
+
         if self.diagnostics:
             # x, num_exploding, xm, xv, xs, xk, lc, kden, ict
             for i, x, num_expl, xm, xv, xs, xk, lc, kden, ict in results:
@@ -485,7 +513,7 @@ class EmpiricalModel(DataField):
                 kernel_densities_int[i, ...] = kden
                 int_corr_scale_int[i, ...] = ict
         else:
-            for i, x, num_expl in results.get():
+            for i, x, num_expl in results:
                 self.integration_results[i, ...] = x.T
                 self.num_exploding[i] = num_expl
 
@@ -544,7 +572,7 @@ class EmpiricalModel(DataField):
                         plt.xlim([p[0][0, sub, 0], p[0][-1, sub, 0]])
                     plt.xlabel(xlab, size = 15)
                     plt.title("PC %d" % (int(sub)+1), size = 20)
-                # plt.tight_layout()
+                plt.tight_layout()
                 plt.show()
                 plt.close()
 
@@ -603,10 +631,16 @@ class EmpiricalModel(DataField):
                         else:
                             zz[l] = np.r_[zz[l], 1]
 
+                if 'cond' in self.noise_type:
+                    n_PCs = 1
+                    n_samples = 100
+                    np.power(self.pcs[:, :n_PCs] - xx[k-1, :n_PCs], 2) ### finish!!
                 # integration step
                 for l in sorted(self.fit_mat, reverse = True):
                     if (l == self.no_levels-1):
                         forcing = np.dot(self.rr, np.random.normal(0,self.sigma,(self.rr.shape[0],)).T)
+                        if 'seasonal' in self.noise_type:
+                            forcing *= self.rr_last_std_ts[step%self.rr_last_std_ts.shape[0], :]
                     else:
                         forcing = xx[l+1][k, :]
                     xx[l][k, :] = xx[l][k-1, :] + np.dot(zz[l], self.fit_mat[l]) + forcing
