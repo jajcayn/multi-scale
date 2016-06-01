@@ -442,11 +442,12 @@ class EmpiricalModel(DataField):
             self.maxres[l] = np.amax(np.abs(self.residuals[l]))
 
         if n_workers > 1:
-            from multiprocessing import Pool
-            pool = Pool(n_workers)
-            map_func = pool.map # add async and progress bar
+            # from multiprocessing import Pool
+            from pathos.multiprocessing import ProcessingPool
+            pool = ProcessingPool(n_workers)
+            map_func = pool.amap
             if self.verbose:
-                print("...starting integration of %d realizations using %d workers..." % (n_realizations, n_workers))
+                print("...running integration of %d realizations using %d workers..." % (n_realizations, n_workers))
         else:
             map_func = map
             if self.verbose:
@@ -467,9 +468,6 @@ class EmpiricalModel(DataField):
         del args
         if n_workers > 1:
             pool.close()
-        
-        if self.verbose:
-            print("...integration done, now saving results...")
 
         self.integration_results = np.zeros((n_realizations, self.no_input_ts, self.int_length))
         self.num_exploding = np.zeros((n_realizations,))
@@ -487,12 +485,16 @@ class EmpiricalModel(DataField):
                 kernel_densities_int[i, ...] = kden
                 int_corr_scale_int[i, ...] = ict
         else:
-            for i, x, num_expl in results:
+            for i, x, num_expl in results.get():
                 self.integration_results[i, ...] = x.T
                 self.num_exploding[i] = num_expl
 
         if self.verbose:
+            print("...integration done, now saving results...")
+
+        if self.verbose:
             print("...results saved to structure.")
+            print("there was %d expolding integration chunks in %d realizations." % (np.sum(self.num_exploding), n_realizations))
         
         if self.diagnostics:
             if self.verbose:
@@ -542,7 +544,7 @@ class EmpiricalModel(DataField):
                         plt.xlim([p[0][0, sub, 0], p[0][-1, sub, 0]])
                     plt.xlabel(xlab, size = 15)
                     plt.title("PC %d" % (int(sub)+1), size = 20)
-                plt.tight_layout()
+                # plt.tight_layout()
                 plt.show()
                 plt.close()
 
