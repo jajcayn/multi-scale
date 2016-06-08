@@ -977,12 +977,12 @@ class DataField:
             for mi in range(1,13):
                 mon_mask_avg = (mon_avg == mi)
                 mon_mask_data = (mon_data == mi)
+                d = d[ndx, ...]
                 for di in range(1,32):
                     sel_avg = np.logical_and(mon_mask_avg, day_avg == di)
                     sel_data = np.logical_and(mon_mask_data, day_data == di)
                     if np.sum(sel_avg) == 0:
                         continue
-                    d = d[ndx, ...]
                     seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
                     self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
         elif abs(delta - 30) < 3.0:
@@ -990,12 +990,12 @@ class DataField:
             _, mon_avg, _ = self.extract_day_month_year()
             self.time = t.copy()
             _, mon_data, _ = self.extract_day_month_year()
+            d = d[ndx, ...]
             for mi in range(1,13):
                 sel_avg = (mon_avg == mi)
                 sel_data = (mon_data == mi)
                 if np.sum(sel_avg) == 0:
                     continue
-                d = d[ndx, ...]
                 seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
                 self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
         else:
@@ -1030,6 +1030,7 @@ class DataField:
             day_avg, mon_avg, _ = self.extract_day_month_year()
             self.time = t.copy()
             day_data, mon_data, _ = self.extract_day_month_year()
+            d = d[ndx, ...]
             for mi in range(1,13):
                 mon_mask_avg = (mon_avg == mi)
                 mon_mask_data = (mon_data == mi)
@@ -1038,7 +1039,6 @@ class DataField:
                     sel_data = np.logical_and(mon_mask_data, day_data == di)
                     if np.sum(sel_avg) == 0:
                         continue
-                    d = d[ndx, ...]
                     seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
                     self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
                     seasonal_var[sel_data, ...] = np.nanstd(d[sel_data, ...], axis = 0, ddof = 1)
@@ -1057,12 +1057,12 @@ class DataField:
             _, mon_avg, _ = self.extract_day_month_year()
             self.time = t.copy()
             _, mon_data, _ = self.extract_day_month_year()
+            d = d[ndx, ...]
             for mi in range(1,13):
                 sel_avg = (mon_avg == mi)
                 sel_data = (mon_data == mi)
                 if np.sum(sel_avg) == 0:
                     continue
-                d = d[ndx, ...]
                 seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
                 self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
                 seasonal_var[sel_data, ...] = np.nanstd(d[sel_avg, ...], axis = 0, ddof = 1)
@@ -1163,12 +1163,20 @@ class DataField:
                 y = 365.25
             elif period_unit == 'd':
                 y = 1.
+            elif period_unit == 'm':
+                raise Exception("For daily data is hard to enter wavelet period in months...")
+            else:
+                raise Exception("Unknown type.")
         elif abs(delta - 30) < 3.0:
             # monthly data
             if period_unit == 'y':
                 y = 12.
-            else:
+            elif period_unit == 'm':
+                y = 1.
+            elif period_unit == 'd':
                 raise Exception("For monthly data doesn't make sense to enter wavelet period in days.")
+            else:
+                raise Exception("Unknown type.")
         else:
             raise Exception('Unknown temporal sampling in the field.')
 
