@@ -291,6 +291,33 @@ class DataField:
             self.missing = self.missing[missing_ndx] # slice missing if exists
             
         return ndx
+
+
+
+    def create_time_array(self, date_from, sampling = 'm'):
+        """
+        Creates time array for already saved data in 'self.data'.
+        From date_from to date_from + data length. date_from is inclusive.
+        Sampling 'm' for monthly, 'd' for daily or 'x h' where x = {1, 6, 12} for sub-daily.
+        """
+
+        from dateutil.relativedelta import relativedelta
+
+        if sampling == 'm':
+            timedelta = relativedelta(months = +1)
+        elif sampling == 'd':
+            timedelta = relativedelta(days = +1)
+        elif sampling in ['1h', '6h', '12h']:
+            hourly_data = int(sampling[:-1])
+            timedelta = relativedelta(hours = +hourly_data)
+        else:
+            raise Exception("Unknown sampling.")
+
+        d_now = date_from
+        self.time = np.zeros((self.data.shape[0],))
+        for t in range(self.data.shape[0]):
+            self.time[t] = d_now.toordinal()
+            d_now += timedelta
         
     
     
