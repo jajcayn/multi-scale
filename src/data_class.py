@@ -1032,7 +1032,7 @@ class DataField:
             
             
             
-    def get_seasonality(self, DETREND = False, base_period = None):
+    def get_seasonality(self, detrend = False, base_period = None):
         """
         Removes the seasonality in both mean and std (detrending is optional) and 
         returns the seasonal mean and std arrays.
@@ -1073,7 +1073,7 @@ class DataField:
                         print('**WARNING: some zero standard deviations found for date %d.%d' % (di, mi))
                         seasonal_var[seasonal_var == 0.0] = 1.0
                     self.data[sel_data, ...] /= seasonal_var[sel_data, ...]
-            if DETREND:
+            if detrend:
                 data_copy = self.data.copy()
                 self.data, _ = nandetrend(self.data, axis = 0)
                 trend = data_copy - self.data
@@ -1094,7 +1094,7 @@ class DataField:
                 self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
                 seasonal_var[sel_data, ...] = np.nanstd(d[sel_avg, ...], axis = 0, ddof = 1)
                 self.data[sel_data, ...] /= seasonal_var[sel_data, ...]
-            if DETREND:
+            if detrend:
                 data_copy = self.data.copy()
                 self.data, _ = nandetrend(self.data, axis = 0)
                 trend = data_copy - self.data
