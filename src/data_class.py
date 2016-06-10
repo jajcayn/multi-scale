@@ -115,7 +115,12 @@ class DataField:
             d = Dataset(self.data_folder + filename, 'r')
             v = d.variables[variable_name]
 
-            self.data = v[:]
+            data = v[:]
+            if isinstance(data, np.ma.masked_array):             
+                self.data = data.data.copy() # get only data, not mask
+                self.data[data.mask] = np.nan # filled masked values with NaNs
+            else:
+                self.data = data
             self.lons = d.variables['longitude'][:]
             self.lats = d.variables['latitude'][:]
             self.time = d.variables['time'][:] # hours since 1900-01-01 00:00
