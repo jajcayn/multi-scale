@@ -71,6 +71,7 @@ class DataField:
         self.time = time
         self.location = None # for station data
         self.missing = None # for station data where could be some missing values
+        self.var_name = None
         self.nans = False
         self.cos_weights = None
         
@@ -98,6 +99,7 @@ class DataField:
             self.lats = d.variables['latitude'][:]
             self.time = d.variables['time'][:] # days since 1950-01-01 00:00
             self.time += date.toordinal(date(1950, 1, 1))
+            self.var_name = variable_name
             if np.any(np.isnan(self.data)):
                 self.nans = True
             if print_prog:
@@ -125,6 +127,7 @@ class DataField:
             self.lats = d.variables['latitude'][:]
             self.time = d.variables['time'][:] # hours since 1900-01-01 00:00
             self.time = self.time / 24.0 + date.toordinal(date(1900, 1, 1))
+            self.var_name = variable_name
             if np.any(np.isnan(self.data)):
                 self.nans = True
             if print_prog:
@@ -158,6 +161,7 @@ class DataField:
                 self.time = self.time / 24.0 + date.toordinal(date_since)
             elif "days" in d.variables['time'].units:
                 self.time += date.toordinal(date_since)
+            self.var_name = variable_name
             if np.any(np.isnan(self.data)):
                 self.nans = True
             if print_prog:
