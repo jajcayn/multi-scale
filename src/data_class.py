@@ -152,6 +152,8 @@ class DataField:
             else:
                 self.data = data
             self.lons = d.variables['lon'][:]
+            if np.any(self.lons < 0):
+                self._shift_lons_to_360()
             self.lats = d.variables['lat'][:]
             if 'level' in d.variables.keys():
                 self.level = d.variables['level'][:]
@@ -161,6 +163,55 @@ class DataField:
                 self.time = self.time / 24.0 + date.toordinal(date_since)
             elif "days" in d.variables['time'].units:
                 self.time += date.toordinal(date_since)
+            elif "months" in d.variables['time'].units:
+                from dateutil.relativedelta import relativedelta
+                for t in range(self.time.shape[0]):
+                    self.time[t] = date.toordinal(date_since + relativedelta(months = +int(self.time[t])))
+            self.var_name = variable_name
+            if np.any(np.isnan(self.data)):
+                self.nans = True
+            if print_prog:
+                print("Data saved to structure. Shape of the data is %s" % (str(self.data.shape)))
+                print("Lats x lons saved to structure. Shape is %s x %s" % (str(self.lats.shape[0]), str(self.lons.shape[0])))
+                print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
+                print("The first data value is from %s and the last is from %s" % (str(self.get_date_from_ndx(0)), str(self.get_date_from_ndx(-1))))
+                print("Default temporal sampling in the data is %.2f day(s)" % (np.nanmean(np.diff(self.time))))
+                if np.any(np.isnan(self.data)):
+                    print("The data contains NaNs! All methods are compatible with NaNs, just to let you know!")
+            
+            d.close()
+
+        elif dataset == 'arbitrary':
+            d = Dataset(self.data_folder + filename, 'r')
+            v = d.variables[variable_name]
+
+            data = v[:] # masked array - only land data, not ocean/sea
+            if isinstance(data, np.ma.masked_array):             
+                self.data = data.data.copy() # get only data, not mask
+                self.data[data.mask] = np.nan # filled masked values with NaNs
+            else:
+                self.data = data
+
+            for key in d.variables.keys():
+                if key == variable_name:
+                    continue
+                if 'lat' in str(d.variables[key]):
+                    self.lats = d.variables[key][:]
+                if 'lon' in str(d.variables[key]):
+                    self.lons = d.variables[key][:]
+                    if np.any(self.lons < 0):
+                        self._shift_lons_to_360()
+                if 'since' in d.variables[key].units:
+                    self.time = d.variables[key][:]
+                    date_since = self._parse_time_units(d.variables[key].units)
+                    if "hours" in d.variables[key].units:
+                        self.time = self.time / 24.0 + date.toordinal(date_since)
+                    elif "days" in d.variables[key].units:
+                        self.time += date.toordinal(date_since)
+                    elif "months" in d.variables[key].units:
+                        from dateutil.relativedelta import relativedelta
+                        for t in range(self.time.shape[0]):
+                            self.time[t] = date.toordinal(date_since + relativedelta(months = +int(self.time[t])))
             self.var_name = variable_name
             if np.any(np.isnan(self.data)):
                 self.nans = True
@@ -177,6 +228,18 @@ class DataField:
 
         else:
             raise Exception("Unknown or unsupported dataset!")
+
+
+
+    def _shift_lons_to_360(self):
+        """
+        Shifts lons to 0-360 degree east.
+        """
+
+        self.lons[self.lons < 0] += 360
+        ndx = np.argsort(self.lons)
+        self.lons = self.lons[ndx]
+        self.data = self.data[..., ndx]
 
 
 
@@ -312,8 +375,12 @@ class DataField:
 
         from dateutil.relativedelta import relativedelta
 
-        if sampling == 'm':
-            timedelta = relativedelta(months = +1)
+        if 'm' in sampling:
+            if 'm' != sampling:
+                n_months = int(sampling[:-1])
+                timedelta = relativedelta(months = +n_months)
+            elif 'm' == sampling:
+                timedelta = relativedelta(months = +1)
         elif sampling == 'd':
             timedelta = relativedelta(days = +1)
         elif sampling in ['1h', '6h', '12h']:
@@ -845,7 +912,7 @@ class DataField:
             cnt = 0
             nangrid0 = np.isnan(self.data[0, ...])
             for t in range(1, self.time.shape[0]):
-                if np.all(nangrid0) == np.all(np.isnan(self.data[t, ...])):
+                if np.all(nangrid0 == np.isnan(self.data[t, ...])):
                     cnt += 1
 
             if self.time.shape[0] - cnt == 1:
