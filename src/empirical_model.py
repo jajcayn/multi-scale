@@ -105,6 +105,7 @@ class EmpiricalModel(DataField):
         self.input_pcs = None
         self.input_eofs = None
         self.verbose = verbose
+        self.combined = False
 
 
 
@@ -245,9 +246,38 @@ class EmpiricalModel(DataField):
             self.input_eofs = eofs[sel, ...]
             if self.verbose:
                 print("...and they explain %.2f%% of variability..." % (np.sum(var[sel])*100.))
+
+        # standardise PCs
+        self.input_pcs /= np.std(self.input_pcs[0, :], ddof = 1)
+
         if self.verbose:
             print("done.")
 
+
+
+    def combined_model(self, field):
+        """
+        Adds other field or prepared model to existing one, allowing to model multiple variables. 
+        Field is instance of EmpiricalModel with already created input_pcs.
+        """
+
+        try:
+            shp = field.input_pcs.shape
+            if self.verbose:
+                print("Adding other %d input pcs of length %d to current one variable model..." % (shp[0], shp[1]))
+            if shp[1] != self.input_pcs.shape[1]:
+                raise Exception("Combined model must have all variables of the same time series length!")
+        except:
+            pass
+
+        self.combined = True
+        self.comb_std_pc1 = np.std(field.input_pcs[0, :], ddof = 1)
+        pcs_comb = field.input_pcs / self.comb_std_pc1
+
+        self.copy_orig_input_pcs = self.input_pcs.copy()
+        self.input_pcs = np.concatenate((self.input_pcs, pcs_comb), axis = 0)
+        if self.verbose:
+            print("... input pcs from other field added. Now we are training model on %d PCs..." % (self.input_pcs.shape[0]))
 
 
     def train_model(self, harmonic_pred = 'first', quad = False):
@@ -262,8 +292,8 @@ class EmpiricalModel(DataField):
 
         if self.verbose:
             print("now training %d-level model..." % self.no_levels)
-        # standardise PCs
-        pcs = self.input_pcs / np.std(self.input_pcs[0, :], ddof = 1)
+
+        pcs = self.input_pcs.copy()
 
         if harmonic_pred not in ['first', 'none', 'all']:
             raise Exception("Unknown keyword for harmonic predictor, please use: 'first', 'all' or 'none'.")
@@ -353,11 +383,11 @@ class EmpiricalModel(DataField):
                 # check for negative definiteness
                 negdef = {}
                 for l, e, pos in zip(fit_mat.keys()[::-1], range(len(fit_mat.keys())), range(len(fit_mat.keys())-1, -1, -1)):
-                    negdef[l] = fit_mat[l][pos*self.no_input_ts : (pos+1)*self.no_input_ts]
+                    negdef[l] = fit_mat[l][pos*pcs.shape[1] : (pos+1)*pcs.shape[1]]
                     for a in range(pos-1,-1,-1):
-                        negdef[l] = np.c_[negdef[l], fit_mat[l][a*self.no_input_ts : (a+1)*self.no_input_ts]]
+                        negdef[l] = np.c_[negdef[l], fit_mat[l][a*pcs.shape[1] : (a+1)*pcs.shape[1]]]
                     for a in range(e):
-                        negdef[l] = np.c_[negdef[l], np.eye(self.no_input_ts)]
+                        negdef[l] = np.c_[negdef[l], np.eye(pcs.shape[1])]
                 grand_negdef = np.concatenate([negdef[a] for a in negdef.keys()], axis = 0)
                 d, _ = np.linalg.eig(grand_negdef)
                 print("...maximum eigenvalue: %.4f" % (max(np.real(d))))
@@ -377,14 +407,13 @@ class EmpiricalModel(DataField):
         -- white - classic white noise, spatial correlation by cov. matrix of last level residuals
         -- cond - find n_samples closest to the current space in subset of n_pcs and use their cov. matrix
         -- seasonal - seasonal dependence of the residuals, fit n_harm harmonics of annual cycle, could also be used with cond.
-        -- extended - uses extended cov. matrix with lags with n_snippet max-lag, could also be used with seasonal
         except 'white', one can choose more settings like ['seasonal', 'cond']
         """
 
         if self.verbose:
             print("preparing to integrate model...")
-        # standardise PCs
-        pcs = self.input_pcs / np.std(self.input_pcs[0, :], ddof = 1)
+
+        pcs = self.input_pcs.copy()
         pcs = pcs.T # time x dim
 
         pcmax = np.amax(pcs, axis = 0)
@@ -405,8 +434,8 @@ class EmpiricalModel(DataField):
             print("...preparing noise forcing...")
 
         self.sigma = sigma
-        if noise_type not in ['white', 'cond', 'seasonal', 'extended']:
-            raise Exception("Unknown noise type to be used as forcing. Use 'white', 'cond', 'seasonal' or 'extended'.")
+        if noise_type not in ['white', 'cond', 'seasonal']:
+            raise Exception("Unknown noise type to be used as forcing. Use 'white', 'cond', or 'seasonal'.")
         
         self.last_level_res = self.residuals[max(self.residuals.keys())]
         self.noise_type = noise_type
@@ -427,7 +456,7 @@ class EmpiricalModel(DataField):
                 predictors[:, 2*nh] = np.cos(2*np.pi*(nh+1)*np.arange(12) / 12)
                 predictors[:, 2*nh+1] = np.sin(2*np.pi*(nh+1)*np.arange(12) / 12)
             predictors[:, -1] = np.ones((12,))
-            bamp = np.zeros((predictors.shape[1], self.no_input_ts))
+            bamp = np.zeros((predictors.shape[1], pcs.shape[1]))
             for k in range(bamp.shape[1]):
                 bamp[:, k] = np.linalg.lstsq(predictors, rr_last_std[:, k])[0]
             rr_last_std_ts = np.dot(predictors, bamp)
@@ -443,9 +472,9 @@ class EmpiricalModel(DataField):
                 print("...running diagnostics for the data...")
             # ACF, kernel density, integral corr. timescale for data
             self.max_lag = 50
-            lag_cors = np.zeros((2*self.max_lag + 1, self.no_input_ts))
-            kernel_densities = np.zeros((100, self.no_input_ts, 2))
-            for k in range(self.no_input_ts):
+            lag_cors = np.zeros((2*self.max_lag + 1, pcs.shape[1]))
+            kernel_densities = np.zeros((100, pcs.shape[1], 2))
+            for k in range(pcs.shape[1]):
                 lag_cors[:, k] = cross_correlation(pcs[:, k], pcs[:, k], max_lag = self.max_lag)
                 kernel_densities[:, k, 0], kernel_densities[:, k, 1] = kdensity_estimate(pcs[:, k], kernel = 'epanechnikov')
             integral_corr_timescale = np.sum(np.abs(lag_cors), axis = 0)
@@ -453,8 +482,8 @@ class EmpiricalModel(DataField):
             # init for integrations
             lag_cors_int = np.zeros([n_realizations] + list(lag_cors.shape))
             kernel_densities_int = np.zeros([n_realizations] + list(kernel_densities.shape))
-            stat_moments_int = np.zeros((4, n_realizations, self.no_input_ts)) # mean, variance, skewness, kurtosis
-            int_corr_scale_int = np.zeros((n_realizations, self.no_input_ts))
+            stat_moments_int = np.zeros((4, n_realizations, pcs.shape[1])) # mean, variance, skewness, kurtosis
+            int_corr_scale_int = np.zeros((n_realizations, pcs.shape[1]))
 
         self.diagpc = np.diag(np.std(pcs, axis = 0, ddof = 1))
         self.maxpc = np.amax(np.abs(pcs))
@@ -483,9 +512,9 @@ class EmpiricalModel(DataField):
             r = {}
             for l in self.fit_mat.keys():
                 if l == 0:
-                    r[l] = np.dot(np.random.normal(0, sigma, (self.no_input_ts,)), self.diagpc)
+                    r[l] = np.dot(np.random.normal(0, sigma, (pcs.shape[1],)), self.diagpc)
                 else:
-                    r[l] = np.dot(np.random.normal(0, sigma, (self.no_input_ts,)), self.diagres[l-1])
+                    r[l] = np.dot(np.random.normal(0, sigma, (pcs.shape[1],)), self.diagres[l-1])
             rnds.append(r)
         args = [[i, rnd, noise_type] for i, rnd in zip(range(n_realizations), rnds)]
         results = map_func(self._process_integration, args)
@@ -494,7 +523,7 @@ class EmpiricalModel(DataField):
         if n_workers > 1:
             pool.close()
 
-        self.integration_results = np.zeros((n_realizations, self.no_input_ts, self.int_length))
+        self.integration_results = np.zeros((n_realizations, pcs.shape[1], self.int_length))
         self.num_exploding = np.zeros((n_realizations,))
 
         if n_workers > 1:
@@ -586,10 +615,10 @@ class EmpiricalModel(DataField):
         xx = {}
         x = {}
         for l in self.fit_mat.keys():
-            xx[l] = np.zeros((repeats, self.no_input_ts))
+            xx[l] = np.zeros((repeats, self.input_pcs.shape[0]))
             xx[l][0, :] = rnd[l]
 
-            x[l] = np.zeros((self.int_length, self.no_input_ts))
+            x[l] = np.zeros((self.int_length, self.input_pcs.shape[0]))
             x[l][0, :] = xx[l][0, :]
 
         step0 = 0
@@ -634,7 +663,18 @@ class EmpiricalModel(DataField):
                 if 'cond' in self.noise_type:
                     n_PCs = 1
                     n_samples = 100
-                    np.power(self.pcs[:, :n_PCs] - xx[k-1, :n_PCs], 2) ### finish!!
+                    if not self.combined:
+                        ndx = np.argsort(np.sum(np.power(self.pcs[:, :n_PCs] - xx[k-1, :n_PCs], 2), axis = 1))
+                        Q = np.cov(self.last_level_res[ndx[:n_samples], :], rowvar = 0)
+                        self.rr = np.linalg.cholesky(Q).T
+                    elif self.combined:
+                        ndx1 = np.argsort(np.sum(np.power(self.pcs[:, :n_PCs] - xx[k-1, :n_PCs], 2), axis = 1))
+                        ndx2 = np.argsort(np.sum(np.power(self.pcs[:, self.no_input_ts:self.no_input_ts+n_PCs] - xx[k-1, self.no_input_ts:self.no_input_ts+n_PCs], 2), axis = 1))
+                        res1 = self.last_level_res[ndx1[:n_samples], :]
+                        res2 = self.last_level_res[ndx2[:n_samples], :]
+                        Q = np.cov(np.concatenate((res1, res2), axis = 0), rowvar = 0)
+                        self.rr = np.linalg.cholesky(Q).T
+                
                 # integration step
                 for l in sorted(self.fit_mat, reverse = True):
                     if (l == self.no_levels-1):
@@ -656,9 +696,9 @@ class EmpiricalModel(DataField):
             else:
                 for l in self.fit_mat.keys():
                     if l == 0:
-                        xx[l][0, :] = np.dot(np.random.normal(0, self.sigma, (self.no_input_ts,)), self.diagpc)
+                        xx[l][0, :] = np.dot(np.random.normal(0, self.sigma, (self.input_pcs.shape[0],)), self.diagpc)
                     else:
-                        xx[l][0, :] = np.dot(np.random.normal(0, self.sigma, (self.no_input_ts,)), self.diagres[l-1])
+                        xx[l][0, :] = np.dot(np.random.normal(0, self.sigma, (self.input_pcs.shape[0],)), self.diagres[l-1])
                 if step != step0:
                     num_exploding += 1
                     step0 = step
@@ -679,9 +719,9 @@ class EmpiricalModel(DataField):
             xs = sts.skew(x, axis = 0)
             xk = sts.kurtosis(x, axis = 0)
 
-            lc = np.zeros((2*self.max_lag + 1, self.no_input_ts))
-            kden = np.zeros((100, self.no_input_ts, 2))
-            for k in range(self.no_input_ts):
+            lc = np.zeros((2*self.max_lag + 1, self.input_pcs.shape[0]))
+            kden = np.zeros((100, self.input_pcs.shape[0], 2))
+            for k in range(self.input_pcs.shape[0]):
                 lc[:, k] = cross_correlation(x[:, k], x[:, k], max_lag = self.max_lag)
                 kden[:, k, 0], kden[:, k, 1] = kdensity_estimate(x[:, k], kernel = 'epanechnikov')
             ict = np.sum(np.abs(lc), axis = 0)
@@ -702,6 +742,13 @@ class EmpiricalModel(DataField):
 
         if self.verbose:
             print("reconstructing 3D geo fields...")
+
+        if self.combined:
+            combined_pcs = self.integration_results[:, self.no_input_ts:, :].copy()
+            # "destandardise" combined PCs
+            self.reconstruction_comb_pcs = combined_pcs * self.comb_std_pc1
+            # cut only "our" PCs
+            self.integration_results = self.integration_results[:, :self.no_input_ts, :]
 
         for n in range(self.integration_results.shape[0]):
             if self.verbose:
