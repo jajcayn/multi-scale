@@ -448,7 +448,7 @@ class EmpiricalModel(DataField):
         if 'seasonal' in noise_type:
             n_harmonics = 5
             if self.verbose:
-                print("..fitting %d harmonics to estimate seasonal modulation of last level's residual..." % n_harmonics)
+                print("...fitting %d harmonics to estimate seasonal modulation of last level's residual..." % n_harmonics)
             rr_last = np.reshape(self.last_level_res, (12, self.last_level_res.shape[0]//12, self.last_level_res.shape[1]), order = 'F')
             rr_last_std = np.nanstd(rr_last, axis = 1, ddof = 1)
             predictors = np.zeros((12, 2*n_harmonics + 1))
@@ -733,9 +733,11 @@ class EmpiricalModel(DataField):
 
 
 
-    def reconstruct_simulated_field(self):
+    def reconstruct_simulated_field(self, lats = None, lons = None, mean = False):
         """
         Reconstructs 3D geofield from simulated PCs.
+        If lats and/or lons is given, will save only a cut from 3D data.
+        If mean is True, will save only one time series as spatial mean (e.g. indices).
         """
 
         self.reconstructions = []
@@ -750,9 +752,12 @@ class EmpiricalModel(DataField):
             # cut only "our" PCs
             self.integration_results = self.integration_results[:, :self.no_input_ts, :]
 
+        if (lats is not None) or (lons is not None):
+            lat_ndx, lon_ndx = self.select_lat_lon(lats, lons, apply_to_data = False)
+
         for n in range(self.integration_results.shape[0]):
-            if self.verbose:
-                print("...processing field %d/%d" % (n+1, self.integration_results.shape[0]))
+            if self.verbose and (n+1)%5 == 0:
+                print("...processing field %d/%d..." % (n+1, self.integration_results.shape[0]))
             # "destandardise" PCs
             pcs = self.integration_results[n, ...] * np.std(self.input_pcs[0, :], ddof = 1)
             # invert PCA analysis with modelled PCs
@@ -775,6 +780,12 @@ class EmpiricalModel(DataField):
                     low_freq_field = np.repeat(low_freq_field, repeats = factor, axis = 0)
                     low_freq_field = np.append(low_freq_field, low_freq_field[:reconstruction.shape[0]-low_freq_field.shape[0]], axis = 0)
                     reconstruction += low_freq_field
+
+            if (lats is not None) or (lons is not None):
+                reconstruction = reconstruction[:, lat_ndx, :]
+                reconstruction = reconstruction[:, :, lon_ndx]
+                if mean:
+                    reconstruction = np.nanmean(reconstruction, axis = (1,2))
 
             self.reconstructions.append(reconstruction)
 
