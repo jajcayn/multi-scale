@@ -280,11 +280,13 @@ class EmpiricalModel(DataField):
             print("... input pcs from other field added. Now we are training model on %d PCs..." % (self.input_pcs.shape[0]))
 
 
-    def train_model(self, harmonic_pred = 'first', quad = False):
+    def train_model(self, harmonic_pred = 'first', quad = False, delay_model = False):
         """
         Train the model.
         harmonic_pred could have values 'first', 'all', 'none'
         if quad, train quadratic model, else linear
+        if delay_model, the linear part of the model will be consider DDE with sigmoid type of response,
+        inspired by DDE model of ENSO (Ghil) - delayed feedback.
         """
 
         self.harmonic_pred = harmonic_pred
@@ -733,17 +735,23 @@ class EmpiricalModel(DataField):
 
 
 
-    def reconstruct_simulated_field(self, lats = None, lons = None, mean = False):
+    def reconstruct_simulated_field(self, lats = None, lons = None, mean = False, save_by_one = None):
         """
         Reconstructs 3D geofield from simulated PCs.
         If lats and/or lons is given, will save only a cut from 3D data.
         If mean is True, will save only one time series as spatial mean (e.g. indices).
+        If save_by_one is not None but a string, saves a file for each reconstruction.
         """
 
         self.reconstructions = []
 
         if self.verbose:
             print("reconstructing 3D geo fields...")
+            if save_by_one is not None:
+                if not isinstance(save_by_one, basestring):
+                    raise Exception("save_by_one must be a string! It is a filename base for files.")
+
+                print("...individual reconstructed fields will be saved in separate files...")
 
         if self.combined:
             combined_pcs = self.integration_results[:, self.no_input_ts:, :].copy()
@@ -787,9 +795,24 @@ class EmpiricalModel(DataField):
                 if mean:
                     reconstruction = np.nanmean(reconstruction, axis = (1,2))
 
-            self.reconstructions.append(reconstruction)
+            if save_by_one is not None:
+                if self.verbose:
+                    print("...saving file...")
 
-        self.reconstructions = np.array(self.reconstructions)
+                to_save = {'reconstruction' : reconstruction, 'lats' : self.lats, 'lons' : self.lons}
+                # comment/uncomment your preference
+                ## mat file
+                import scipy.io as sio
+                sio.savemat("%s-%d.mat" % (save_by_one, n), to_save)
+
+                ## cPickle binary file
+                # import cPickle
+                # with open("%s-%d.mat" % (save_by_one, n), "wb") as f:
+                #     cPickle.dump(to_save, f, protocol = cPickle.HIGHEST_PROTOCOL)
+            else:
+                self.reconstructions.append(reconstruction)
+        if save_by_one is None:
+            self.reconstructions = np.array(self.reconstructions)
         
         if self.verbose:
             print("...reconstruction done.")
@@ -802,6 +825,9 @@ class EmpiricalModel(DataField):
         if save_all is False, saves just the result (self.reconstructions) with lats and lons, if True, saves whole class
         if mat is True, saves to matlab ".mat" file
         """
+
+        if isinstance(self.reconstructions, list) and len(self.reconstructions) == 0:
+            raise Exception("List of reconstructions is empty! You've probably chosen to save individual reconstructions in separate files!")
 
         if self.verbose:
             print("saving to file: %s" % fname)
