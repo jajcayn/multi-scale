@@ -95,7 +95,7 @@ class m_ssa():
                 self.rc[:, ch, m] = np.dot(Z, self.e[ch*self.M:(ch+1)*self.M, m] / self.M)
 
 
-        return self.lam, self.e, self.pc, self.rc
+        return self.lam, self.e, self.pc, np.squeeze(self.rc)
 
 
 
@@ -208,4 +208,4 @@ class m_ssa():
                 # Determine RC as a scalar product.
                 self.rc_rot[:, ch, m] = np.dot(Z, e_mix[ch*self.M:(ch+1)*self.M, m] / self.M)
 
-        return self.lam_rot, self.Es_rot, self.pc_rot, self.rc_rot
+        return self.lam_rot, self.Es_rot, self.pc_rot, np.squeeze(self.rc_rot)
