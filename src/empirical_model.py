@@ -106,6 +106,7 @@ class EmpiricalModel(DataField):
         self.input_eofs = None
         self.verbose = verbose
         self.combined = False
+        self.delay_model = False
 
 
 
@@ -300,17 +301,25 @@ class EmpiricalModel(DataField):
         if harmonic_pred not in ['first', 'none', 'all']:
             raise Exception("Unknown keyword for harmonic predictor, please use: 'first', 'all' or 'none'.")
 
-        if harmonic_pred in ['all', 'first']:
-            if self.verbose:
-                print("...using harmonic predictors (with annual frequency)...")
-            xsin = np.sin(2*np.pi*np.arange(pcs.shape[1]) / 12.)
-            xcos = np.cos(2*np.pi*np.arange(pcs.shape[1]) / 12.)
-            
-
         if quad and self.verbose:
             print("...training quadratic model...")
 
         pcs = pcs.T # time x dim
+        if delay_model:
+            # shorten time series because of delay
+            self.delay_model = True
+            self.delay = 5 # months
+            self.kappa = 50.
+            if self.verbose:
+                print("...training delayed model on main level with delay %d months and kappa %.3f..." % (self.delay, self.kappa))
+            pcs_delay = pcs[: -self.delay, :].copy()
+            pcs = pcs[self.delay : , :]
+
+        if harmonic_pred in ['all', 'first']:
+            if self.verbose:
+                print("...using harmonic predictors (with annual frequency)...")
+            xsin = np.sin(2*np.pi*np.arange(pcs.shape[0]) / 12.)
+            xcos = np.cos(2*np.pi*np.arange(pcs.shape[0]) / 12.)
 
         residuals = {}
         fit_mat = {}
@@ -354,6 +363,8 @@ class EmpiricalModel(DataField):
                         for t in range(pcs.shape[0]):
                             q = np.tril(np.outer(pcs[t, :].T, pcs[t, :]), -1)
                             quad_pred[t, :] = q[np.nonzero(q)]
+                    if self.delay_model:
+                        x = np.tanh(self.kappa * pcs_delay)
                     if harmonic_pred in ['all', 'first']:
                         if quad:
                             x = np.c_[quad_pred, x, x*np.outer(xsin,np.ones(x.shape[1])), x*np.outer(xcos,np.ones(x.shape[1])), 
@@ -451,7 +462,11 @@ class EmpiricalModel(DataField):
             n_harmonics = 5
             if self.verbose:
                 print("...fitting %d harmonics to estimate seasonal modulation of last level's residual..." % n_harmonics)
-            rr_last = np.reshape(self.last_level_res, (12, self.last_level_res.shape[0]//12, self.last_level_res.shape[1]), order = 'F')
+            if self.delay_model:
+                resid_delayed = self.last_level_res[-(self.last_level_res.shape[0]//12)*12:].copy()
+                rr_last = np.reshape(resid_delayed, (12, self.last_level_res.shape[0]//12, self.last_level_res.shape[1]), order = 'F')
+            else:
+                rr_last = np.reshape(self.last_level_res, (12, self.last_level_res.shape[0]//12, self.last_level_res.shape[1]), order = 'F')
             rr_last_std = np.nanstd(rr_last, axis = 1, ddof = 1)
             predictors = np.zeros((12, 2*n_harmonics + 1))
             for nh in range(n_harmonics):
@@ -463,9 +478,13 @@ class EmpiricalModel(DataField):
                 bamp[:, k] = np.linalg.lstsq(predictors, rr_last_std[:, k])[0]
             rr_last_std_ts = np.dot(predictors, bamp)
             self.rr_last_std_ts = np.repeat(rr_last_std_ts, repeats = self.last_level_res.shape[0]//12, axis = 0)
-            self.last_level_res /= self.rr_last_std_ts
+            if self.delay_model:
+                resid_delayed /= self.rr_last_std_ts
+                Q = np.cov(resid_delayed, rowvar = 0)
+            else:
+                self.last_level_res /= self.rr_last_std_ts
+                Q = np.cov(self.last_level_res, rowvar = 0)
 
-            Q = np.cov(self.last_level_res, rowvar = 0)
             self.rr = np.linalg.cholesky(Q).T
 
 
@@ -514,9 +533,15 @@ class EmpiricalModel(DataField):
             r = {}
             for l in self.fit_mat.keys():
                 if l == 0:
-                    r[l] = np.dot(np.random.normal(0, sigma, (pcs.shape[1],)), self.diagpc)
+                    if self.delay_model:
+                        r[l] = np.dot(self.diagpc, np.random.normal(0, sigma, (pcs.shape[1], self.delay)))
+                    else:
+                        r[l] = np.dot(np.random.normal(0, sigma, (pcs.shape[1],)), self.diagpc)
                 else:
-                    r[l] = np.dot(np.random.normal(0, sigma, (pcs.shape[1],)), self.diagres[l-1])
+                    if self.delay_model:
+                        r[l] = np.dot(self.diagres[l-1], np.random.normal(0, sigma, (pcs.shape[1], self.delay)))
+                    else:
+                        r[l] = np.dot(np.random.normal(0, sigma, (pcs.shape[1],)), self.diagres[l-1])
             rnds.append(r)
         args = [[i, rnd, noise_type] for i, rnd in zip(range(n_realizations), rnds)]
         results = map_func(self._process_integration, args)
@@ -603,7 +628,7 @@ class EmpiricalModel(DataField):
                         plt.xlim([p[0][0, sub, 0], p[0][-1, sub, 0]])
                     plt.xlabel(xlab, size = 15)
                     plt.title("PC %d" % (int(sub)+1), size = 20)
-                plt.tight_layout()
+                # plt.tight_layout()
                 plt.show()
                 plt.close()
 
@@ -618,17 +643,28 @@ class EmpiricalModel(DataField):
         x = {}
         for l in self.fit_mat.keys():
             xx[l] = np.zeros((repeats, self.input_pcs.shape[0]))
-            xx[l][0, :] = rnd[l]
+            if self.delay_model:
+                xx[l][:self.delay, :] = rnd[l].T
+            else:
+                xx[l][0, :] = rnd[l]
 
             x[l] = np.zeros((self.int_length, self.input_pcs.shape[0]))
-            x[l][0, :] = xx[l][0, :]
+            if self.delay_model:
+                x[l][:self.delay, :] = xx[l][:self.delay, :]
+            else:
+                x[l][0, :] = xx[l][0, :]
 
         step0 = 0
-        step = 1
+        if self.delay_model:
+            step = self.delay
+        else:
+            step = 1
         blow_counter = 0
         zz = {}
         for n in range(repeats*int(np.ceil(self.int_length/repeats))):
             for k in range(1, repeats):
+                if (self.delay_model and k < self.delay) and step == self.delay:
+                    continue
                 if blow_counter >= 10:
                     raise Exception("Model blowed up 10 times.")
                 if step >= self.int_length:
@@ -643,6 +679,8 @@ class EmpiricalModel(DataField):
                         if self.quad:
                             q = np.tril(np.outer(zz[l].T, zz[l]), -1)
                             quad_pred = q[np.nonzero(q)]
+                        if self.delay_model:
+                            zz[l] = np.tanh(self.kappa * x[l][step - self.delay, :])
                         if self.harmonic_pred in ['all', 'first']:
                             if self.quad:
                                 zz[l] = np.r_[quad_pred, zz[l], zz[l]*self.xsin[step], zz[l]*self.xcos[step], 
