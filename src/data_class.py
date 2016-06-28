@@ -900,6 +900,46 @@ class DataField:
 
 
 
+    def interpolate_spatial_nans(self, method = 'cubic', apply_to_data = True):
+        """
+        Interpolates data with spatial NaNs in them.
+        Method is one of the following:
+          nearest, linear, cubic
+        If apply to data, interpolation is done in-place, if False, data field is returned.
+        Uses scipy's griddata.
+        """
+
+        if self.nans:
+            if self.check_NaNs_only_spatial():
+                import scipy.interpolate as si
+
+                if self.data.ndim < 4:
+                    self.data = self.data[:, np.newaxis, ...]
+
+                new_data = np.zeros_like(self.data)
+                for lvl in range(self.data.shape[1]):
+                    msk = np.isnan(self.data[0, lvl, ...]) # nan mask
+                    grid_lat, grid_lon = np.meshgrid(self.lats, self.lons, indexing = 'ij') # final grids
+                    points = np.zeros((grid_lat[~msk].shape[0], 2))
+                    points[:, 0] = grid_lat[~msk]
+                    points[:, 1] = grid_lon[~msk]
+                    for t in range(self.time.shape[0]):
+                        d = self.data[t, lvl, ...].copy()
+                        new_data[t, lvl, ...] = si.griddata(points, d[~msk], (grid_lat, grid_lon), method = method)
+
+                new_data = np.squeeze(new_data)
+
+                if apply_to_data:
+                    self.data = new_data.copy()
+                else:
+                    return new_data
+            else:
+                raise Exception("NaNs are also temporal, no way to filter them out!")
+        else:
+            print("No NaNs in the data, nothing happened!")
+
+
+
     def check_NaNs_only_spatial(self):
         """
         Returns True if the NaNs contained in the data are of spatial nature, e.g.
