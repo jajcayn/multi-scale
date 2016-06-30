@@ -308,7 +308,7 @@ class EmpiricalModel(DataField):
         if delay_model:
             # shorten time series because of delay
             self.delay_model = True
-            self.delay = 5 # months
+            self.delay = 6 # months
             self.kappa = 50.
             if self.verbose:
                 print("...training delayed model on main level with delay %d months and kappa %.3f..." % (self.delay, self.kappa))
@@ -447,8 +447,13 @@ class EmpiricalModel(DataField):
             print("...preparing noise forcing...")
 
         self.sigma = sigma
-        if noise_type not in ['white', 'cond', 'seasonal']:
-            raise Exception("Unknown noise type to be used as forcing. Use 'white', 'cond', or 'seasonal'.")
+        if isinstance(noise_type, basestring):
+            if noise_type not in ['white', 'cond', 'seasonal']:
+                raise Exception("Unknown noise type to be used as forcing. Use 'white', 'cond', or 'seasonal'.")
+        elif isinstance(noise_type, list):
+            noise_type = frozenset(noise_type)
+            if not noise_type.issubset(set(['white', 'cond', 'seasonal'])):
+                raise Exception("Unknown noise type to be used as forcing. Use 'white', 'cond', or 'seasonal'.")
         
         self.last_level_res = self.residuals[max(self.residuals.keys())]
         self.noise_type = noise_type
@@ -732,7 +737,7 @@ class EmpiricalModel(DataField):
                 for l in self.fit_mat.keys():
                     x[l][step-repeats + 1 : step, :] = xx[l][1:, :]
                     # set first to last
-                    xx[l][0,:] = xx[l][-1, :]
+                    xx[l][0, :] = xx[l][-1, :]
             else:
                 for l in self.fit_mat.keys():
                     if l == 0:

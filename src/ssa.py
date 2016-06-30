@@ -7,7 +7,7 @@ class m_ssa():
     Can perform rotated M-SSA.
     """
 
-    def __init__(self, X, M):
+    def __init__(self, X, M, compute_rc = True):
         """
         X is input data matrix as time x dimension -- N x D.
         If X is univariate, analysis could be performed as well, M-SSA reduces to classic SSA.
@@ -19,6 +19,7 @@ class m_ssa():
         self.X = X
         self.n, self.d = X.shape
         self.M = M
+        self.compute_rc = compute_rc
         self.T = None
 
 
@@ -83,19 +84,21 @@ class m_ssa():
         self.pc = np.dot(aug_x, e)
 
         # reconstructed components
-        # self.rc = np.zeros((self.n, self.d, self.M))
-        self.rc = np.zeros((self.n, self.d, self.d*self.M))
-        for ch in range(self.d):
-            for m in np.arange(self.d*self.M):
-                Z = np.zeros((self.n, self.M))  # Time-delayed embedding of PC[:, m].
-                for m2 in np.arange(self.M):
-                    Z[m2 - self.n:, m2] = self.pc[:self.n - m2, m]
+        if self.compute_rc:
+            self.rc = np.zeros((self.n, self.d, self.d*self.M))
+            for ch in range(self.d):
+                for m in np.arange(self.d*self.M):
+                    Z = np.zeros((self.n, self.M))  # Time-delayed embedding of PC[:, m].
+                    for m2 in np.arange(self.M):
+                        Z[m2 - self.n:, m2] = self.pc[:self.n - m2, m]
 
-                # Determine RC as a scalar product.
-                self.rc[:, ch, m] = np.dot(Z, self.e[ch*self.M:(ch+1)*self.M, m] / self.M)
+                    # Determine RC as a scalar product.
+                    self.rc[:, ch, m] = np.dot(Z, self.e[ch*self.M:(ch+1)*self.M, m] / self.M)
 
 
-        return self.lam, self.e, self.pc, np.squeeze(self.rc)
+            return self.lam, self.e, self.pc, np.squeeze(self.rc)
+        else:
+            return self.lam, self.e, self.pc
 
 
 
@@ -194,18 +197,21 @@ class m_ssa():
         self.pc_rot = np.dot(self.pc[:, :self.S], self.T)
 
         # rotated RCs
-        self.rc_rot = np.zeros((self.n, self.d, self.d*self.M))
-        pc_mix = self.pc.copy()
-        pc_mix[:, :self.S] = self.pc_rot.copy()
-        e_mix = self.e.copy()
-        e_mix[:, :self.S] = self.Es_rot.copy() 
-        for ch in range(self.d):
-            for m in np.arange(self.d*self.M):
-                Z = np.zeros((self.n, self.M))  # Time-delayed embedding of PC[:, m].
-                for m2 in np.arange(self.M):
-                    Z[m2 - self.n:, m2] = pc_mix[:self.n - m2, m]
+        if self.compute_rc:
+            self.rc_rot = np.zeros((self.n, self.d, self.d*self.M))
+            pc_mix = self.pc.copy()
+            pc_mix[:, :self.S] = self.pc_rot.copy()
+            e_mix = self.e.copy()
+            e_mix[:, :self.S] = self.Es_rot.copy() 
+            for ch in range(self.d):
+                for m in np.arange(self.d*self.M):
+                    Z = np.zeros((self.n, self.M))  # Time-delayed embedding of PC[:, m].
+                    for m2 in np.arange(self.M):
+                        Z[m2 - self.n:, m2] = pc_mix[:self.n - m2, m]
 
-                # Determine RC as a scalar product.
-                self.rc_rot[:, ch, m] = np.dot(Z, e_mix[ch*self.M:(ch+1)*self.M, m] / self.M)
+                    # Determine RC as a scalar product.
+                    self.rc_rot[:, ch, m] = np.dot(Z, e_mix[ch*self.M:(ch+1)*self.M, m] / self.M)
 
-        return self.lam_rot, self.Es_rot, self.pc_rot, np.squeeze(self.rc_rot)
+            return self.lam_rot, self.Es_rot, self.pc_rot, np.squeeze(self.rc_rot)
+        else:
+            return self.lam_rot, self.Es_rot, self.pc_rot
