@@ -47,7 +47,7 @@ class VARModel:
         
     def order(self):
         """Return model order."""
-        return self.A.shape[1] if self.A != None else 0
+        return self.A.shape[1] / self.A.shape[0] if self.A != None else 0
     
     
     def dimension(self):
@@ -55,7 +55,7 @@ class VARModel:
         return len(self.w)
     
     
-    def simulate_with_residuals(self, residuals, ndisc = 100, seed = None):
+    def simulate_with_residuals(self, residuals, ndisc = 100, seed = None, orig_length = False):
         """Simulate a time series using this model using the supplied residuals
            in residuals (ndarray).  This function is NOT deterministic and employs
            a spin-up phase to init the model state using random noise."""
@@ -69,7 +69,7 @@ class VARModel:
         w = self.w
         
         m, p = self.dimension(), self.order()
-        N = residuals.shape[0]
+        N = residuals.shape[0] if not orig_length else (residuals.shape[0] + self.order())
         ts = np.zeros((N, m))
 
         # predictors always start with zeros
@@ -77,7 +77,7 @@ class VARModel:
         
         # initialize system using noise with correct covariance matrix if required
         if ndisc > 0:
-            eps_noise = np.dot(np.random.normal(size=(ndisc, m)), self.U)
+            eps_noise = np.dot(np.random.normal(size=(ndisc + self.order(), m)), self.U)
             
             # spin-up to random state, which is captured by vector u
             var_model_acc.execute_Aupw(A, w, u, eps_noise, eps_noise)

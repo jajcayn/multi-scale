@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class m_ssa():
+class ssa():
     """
     Holds data and performs M-SSA.
     Can perform rotated M-SSA.
@@ -42,6 +42,30 @@ class m_ssa():
 
 
 
+    def _get_cov_matrix(self, x):
+        """
+        Helper function to obtain structured cov. matrix from X.
+        Standardises data, embeds into M-dimensions and computes C.
+        """
+
+        # center and normalise
+        for i in range(self.d):
+            x[:, i] -= np.mean(x[:, i])
+            x[:, i] /= np.std(x[:, i], ddof = 1)
+
+        # embed
+        aug_x = np.zeros((self.n, self.d*self.M))
+        for ch in range(self.d):
+            tmp = np.c_[[self._shift(x[:, ch], m) for m in range(self.M)]].T
+            aug_x[:, ch*self.M:(ch+1)*self.M] = tmp
+
+        # cov matrix
+        C = np.dot(aug_x.T, aug_x) / self.n
+
+        return C, aug_x
+
+
+
     def run_ssa(self):
         """
         Performs multichannel SSA (M-SSA) on data matrix X.
@@ -55,19 +79,8 @@ class m_ssa():
         principal components (N x M*D) and recontructed components (N x D x M).
         """
 
-        # center and normalise
-        for i in range(self.d):
-            self.X[:, i] -= np.mean(self.X[:, i])
-            self.X[:, i] /= np.std(self.X[:, i], ddof = 1)
-
-        # embed
-        aug_x = np.zeros((self.n, self.d*self.M))
-        for ch in range(self.d):
-            tmp = np.c_[[self._shift(self.X[:, ch], m) for m in range(self.M)]].T
-            aug_x[:, ch*self.M:(ch+1)*self.M] = tmp
-
         # cov matrix
-        self.C = np.dot(aug_x.T, aug_x) / self.n
+        self.C, aug_x = self._get_cov_matrix(self.X)
 
         # eigendecomposition
         u, lam, e = np.linalg.svd(self.C, compute_uv = True) # diag(lambda) = E.T * C * E, lambda are eigenvalues, cols of E are eigenvectors
@@ -215,3 +228,101 @@ class m_ssa():
             return self.lam_rot, self.Es_rot, self.pc_rot, np.squeeze(self.rc_rot)
         else:
             return self.lam_rot, self.Es_rot, self.pc_rot
+
+
+
+    def _get_MC_realizations(self, n = 100, multivariate = True, residuals = True):
+        """
+        Gets n surrogates for Monte Carlo testing. 
+        If multivariate True, extimates AR(1) model for whole data, if False, treats as univariate
+        and estimates each channel separately.
+        If residuals True, generates AR model using actual residuals from fitting, if False,
+        only uses model matrix A.
+        """
+
+        from var_model import VARModel
+
+        self.MCsurrs = np.zeros([n] + list(self.X.shape))
+        
+        # multivariate model
+        if multivariate:
+            v = VARModel()
+            v.estimate(self.X, [1,1], True, 'sbc', None)
+            if residuals:
+                r = v.compute_residuals(self.X) ## wrong!! check the original code
+        
+        # univariate model - estimating for each channel separately
+        else:
+            vs = {}
+            for d in range(self.X.shape[1]):
+                vs[d] = VARModel()
+                vs[d].estimate(self.X[:, d], [1,1], True, 'sbc', None)
+                if residuals:
+                    vs['res' + str(d)] = vs[d].compute_residuals(self.X[:, d])
+
+        for i in range(n):
+            if multivariate:
+                if not residuals:
+                    self.MCsurrs[i, ...] = v.simulate(N = self.X.shape[0])
+                else:
+                    self.MCsurrs[i, ...] = v.simulate_with_residuals(r, orig_length = True)
+            else:
+                for d in range(self.X.shape[1]):   
+                    if not residuals:
+                        self.MCsurrs[i, :, d] = np.squeeze(vs[d].simulate(N = self.X.shape[0]))
+                    else:
+                        self.MCsurrs[i, :, d] = np.squeeze(vs[d].simulate_with_residuals(vs['res' + str(d)], orig_length = True))
+
+
+
+    def run_Monte_Carlo(self, n_realizations, method = 'rotation', multivariate = True, residuals = True):
+        """
+        Performs Monte Carlo SSA.
+        Computes n realizations of stochastic AR(1) process fitted onto data.
+        method: (to obtain eigenspectrum of AR surrogates)
+          'data' - project cov. matrix of surrogates onto data eigenvectors
+          'separately' - compute SVD per surrogate
+          'ensemble' - average all cov. matrices into one avg
+          'rotation'
+        multivariate (True | False) - whether to fit multivariate model or univariate  
+        residuals (True | False) - whether simulate with residuals or just use model matrix A
+        """
+
+        if method not in ['data', 'separately', 'ensemble', 'rotation']:
+            raise Exception("Method not know. Please use one of the 'data', 'separately', 'ensemble', 'rotation'.")
+
+        # get the ensamble of surrogate data
+        self._get_MC_realizations(n = n_realizations, multivariate = multivariate, residuals = residuals)
+
+        # if emsemble - first get ensemble cov. matrix and vectors
+        if method == 'ensemble':
+            C_mean_surr = np.mean(np.array([self._get_cov_matrix(self.MCsurrs[i, ...])[0] for i in range(n_realizations)]), axis = 0)
+            _, ltemp, e_mean_surr = np.linalg.svd(C_mean_surr, compute_uv = True) # diag(lambda) = E.T * C * E, lambda are eigenvalues, cols of E are eigenvectors
+            e_mean_surr = e_mean_surr.T
+
+            eig_data_ensemble = np.dot(e_mean_surr.T, np.dot(self.C, e_mean_surr))
+
+        eigvals_surrs = []
+        for i in range(n_realizations):
+            C_surr = self._get_cov_matrix(self.MCsurrs[i, ...])[0]
+
+            if method == 'data':
+                eig_s = np.diag(np.dot(self.e.T, np.dot(C_surr, self.e)))
+            elif method == 'separately':
+                _, eig_s, _ = np.linalg.svd(C_surr, compute_uv = True)
+            elif method == 'ensemble':
+                eig_s = np.diag(np.dot(e_mean_surr.T, np.dot(C_surr, e_mean_surr)))
+
+            eigvals_surrs.append(eig_s)
+
+        eigvals_surrs = np.array(eigvals_surrs)
+
+
+
+
+
+a = np.random.rand(2500,15)
+ssa = ssa(a, M = 30)
+ssa.run_ssa()
+ssa.run_Monte_Carlo(10, method = 'ensemble')
+
