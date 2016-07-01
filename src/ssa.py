@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class ssa():
+class ssa_class():
     """
     Holds data and performs M-SSA.
     Can perform rotated M-SSA.
@@ -21,6 +21,7 @@ class ssa():
         self.M = M
         self.compute_rc = compute_rc
         self.T = None
+        self.rotated = False
 
 
 
@@ -42,7 +43,7 @@ class ssa():
 
 
 
-    def _get_cov_matrix(self, x):
+    def _get_cov_matrix(self, x, rank_def = False):
         """
         Helper function to obtain structured cov. matrix from X.
         Standardises data, embeds into M-dimensions and computes C.
@@ -60,7 +61,10 @@ class ssa():
             aug_x[:, ch*self.M:(ch+1)*self.M] = tmp
 
         # cov matrix
-        C = np.dot(aug_x.T, aug_x) / self.n
+        if not rank_def:
+            C = np.dot(aug_x.T, aug_x) / self.n
+        else:
+            C = np.dot(aug_x, aug_x.T) / (self.d*self.M)
 
         return C, aug_x
 
@@ -185,11 +189,14 @@ class ssa():
         Performs varimax rotation on M-SSA eigenvectors.
         S is number of eigenvectors entering the rotation.
         If structured is True, applies structured varimax rotation, if False applies basic orthomax.
+        
+        According to Portes & Aguirre (2016), Physical Review E, 93(5).
 
         Returns as M-SSA, but rotated.
         """
 
         self.S = S
+        self.rotated = True
         if structured:
             self._get_structured_varimax_rotation_matrix()
         else:
@@ -231,7 +238,7 @@ class ssa():
 
 
 
-    def _get_MC_realizations(self, n = 100, multivariate = True, residuals = True):
+    def _get_MC_realizations(self, n = 100, multivariate = False, residuals = True):
         """
         Gets n surrogates for Monte Carlo testing. 
         If multivariate True, extimates AR(1) model for whole data, if False, treats as univariate
@@ -275,54 +282,144 @@ class ssa():
 
 
 
-    def run_Monte_Carlo(self, n_realizations, method = 'rotation', multivariate = True, residuals = True):
+    def run_Monte_Carlo(self, n_realizations, p_value = 0.05, method = 'rotation', multivariate = False, residuals = True, 
+            plot = True, return_eigvals = False):
         """
         Performs Monte Carlo SSA.
         Computes n realizations of stochastic AR(1) process fitted onto data.
         method: (to obtain eigenspectrum of AR surrogates)
           'data' - project cov. matrix of surrogates onto data eigenvectors
           'separately' - compute SVD per surrogate
-          'ensemble' - average all cov. matrices into one avg
-          'rotation'
+          'ensemble' - average all cov. matrices into one, and project cov. matrices onto this average eigenvectors
+          'rotation' - projection is done onto rotation approximation (G&G 2015, J. Clim.)
+          'rank-def' - rank deficient method, used when N' < DM
         multivariate (True | False) - whether to fit multivariate model or univariate  
         residuals (True | False) - whether simulate with residuals or just use model matrix A
+        plot (True | False) - whether to plot data vs. surr. eigenvalues (for visual inspection) - recommended!
+        return_eigvals (True | False) - whether to return all surrogate eigenvalues, for further inspection
+
+        According to Groth & Ghil (2015), Journal of Climate, 28(19). 
         """
 
-        if method not in ['data', 'separately', 'ensemble', 'rotation']:
-            raise Exception("Method not know. Please use one of the 'data', 'separately', 'ensemble', 'rotation'.")
+        if method not in ['data', 'separately', 'ensemble', 'rotation', 'rank-def']:
+            raise Exception("Method not know. Please use one of the 'data', 'separately', 'ensemble', 'rotation', 'rank-def'.")
 
         # get the ensamble of surrogate data
         self._get_MC_realizations(n = n_realizations, multivariate = multivariate, residuals = residuals)
+
+        if method == 'rank-def':
+            if (self.n - self.M + 1) > self.d*self.M:
+                print("**WARNING: rank deficient method is usually used when N' < DM. Otherwise, 'rotation method works best.'")
+            print("**WARNING: in rank deficient matrix the problem is more compicated, rely more on visual spectra than computational method.")
+            # cov matrix
+            C_rd, _ = self._get_cov_matrix(self.X, rank_def = True)
+            # eigendecomposition
+            _, l_rd, e_rd = np.linalg.svd(C_rd, compute_uv = True) # diag(lambda) = E.T * C * E, lambda are eigenvalues, cols of E are eigenvectors
+            e_rd = e_rd.T
+            assert np.allclose(C_rd, np.dot(e_rd, np.dot(np.diag(l_rd), e_rd.T)))
+            l_rd = l_rd / np.sum(l_rd)
+            ndx = np.argsort(l_rd)[::-1]
+            l_rd = l_rd[ndx]
 
         # if emsemble - first get ensemble cov. matrix and vectors
         if method == 'ensemble':
             C_mean_surr = np.mean(np.array([self._get_cov_matrix(self.MCsurrs[i, ...])[0] for i in range(n_realizations)]), axis = 0)
             _, ltemp, e_mean_surr = np.linalg.svd(C_mean_surr, compute_uv = True) # diag(lambda) = E.T * C * E, lambda are eigenvalues, cols of E are eigenvectors
             e_mean_surr = e_mean_surr.T
+            assert np.allclose(C_mean_surr, np.dot(e_mean_surr, np.dot(np.diag(ltemp), e_mean_surr.T)))
 
-            eig_data_ensemble = np.dot(e_mean_surr.T, np.dot(self.C, e_mean_surr))
+            eig_data_ensemble = np.diag(np.dot(e_mean_surr.T, np.dot(self.C, e_mean_surr)))
+            eig_data_ensemble = eig_data_ensemble / np.sum(eig_data_ensemble)
+            ndx = np.argsort(eig_data_ensemble)[::-1]
+            eig_data_ensemble = eig_data_ensemble[ndx]
 
         eigvals_surrs = []
         for i in range(n_realizations):
-            C_surr = self._get_cov_matrix(self.MCsurrs[i, ...])[0]
+            if method == 'rank-def':
+                C_surr = self._get_cov_matrix(self.MCsurrs[i, ...], rank_def = True)[0]
+            else:
+                C_surr = self._get_cov_matrix(self.MCsurrs[i, ...])[0]
 
             if method == 'data':
+                # project on data eigenvectors
                 eig_s = np.diag(np.dot(self.e.T, np.dot(C_surr, self.e)))
+                # normalise
+                eig_s = eig_s / np.sum(eig_s)
+                # sort
+                ndx = np.argsort(eig_s)[::-1]
+                eig_s = eig_s[ndx]
             elif method == 'separately':
+                # get eigenvectors for each surrogate separately
                 _, eig_s, _ = np.linalg.svd(C_surr, compute_uv = True)
+                # normalise
+                eig_s /= np.sum(eig_s)
+                # sort
+                ndx = np.argsort(eig_s)[::-1]
+                eig_s = eig_s[ndx]
             elif method == 'ensemble':
+                # project on mean eigenvectors from surrs
                 eig_s = np.diag(np.dot(e_mean_surr.T, np.dot(C_surr, e_mean_surr)))
+                # normalise
+                eig_s = eig_s / np.sum(eig_s)
+                # sort
+                ndx = np.argsort(eig_s)[::-1]
+                eig_s = eig_s[ndx]
+            elif method == 'rotation' or method == 'rank-def':
+                _, eig, e_s = np.linalg.svd(C_surr, compute_uv = True)
+                e_s = e_s.T
+                if method == 'rotation':
+                    u, _, v = np.linalg.svd(np.dot((eig**0.5)*e_s.T, (self.lam**0.5)*self.e))
+                elif method == 'rank-def':
+                    u, _, v = np.linalg.svd(np.dot((eig**0.5)*e_s.T, (l_rd**0.5)*e_rd))
+                T_e = np.dot(u, v)
+                # project with rotation
+                eig_s = np.diag(np.dot(T_e.T, np.dot(np.diag(eig), T_e)))
+                # normalise
+                eig_s = eig_s / np.sum(eig_s)
+                # sort
+                ndx = np.argsort(eig_s)[::-1]
+                eig_s = eig_s[ndx]
 
             eigvals_surrs.append(eig_s)
 
         eigvals_surrs = np.array(eigvals_surrs)
+
+        if method == 'ensemble':
+            data_eigvals = eig_data_ensemble
+        elif method == 'rank-def':
+            data_eigvals = l_rd
+        else:
+            data_eigvals = self.lam if not self.rotated else self.lam_rot
+
+        if plot:
+            import matplotlib.pyplot as plt
+            plt.plot(data_eigvals[:40], marker = 'o', markersize = 10, linestyle = 'none', color = 'k')
+            plt.plot(np.percentile(eigvals_surrs[:, :40], q = 97.5, axis = 0), marker = "^", markersize = 6, linestyle = 'none', color = 'g')
+            plt.plot(np.percentile(eigvals_surrs[:, :40], q = 2.5, axis = 0), marker = "v", markersize = 6, linestyle = 'none', color = 'g')
+            plt.xlabel("ORDER", size = 20)
+            plt.title("DATA EIGENVALUES vs. %d MONTE-CARLO AR(1)" % (n_realizations), size = 25)
+            plt.show()
+
+        prctl = np.percentile(eigvals_surrs, q = 1 - p_value/2., axis = 0) if not self.rotated else np.percentile(eigvals_surrs[:, :self.S], q = 1 - p_value/2., axis = 0)
+        num_sign = 0
+        for i in range(data_eigvals.shape[0]):
+            if data_eigvals[i] > prctl[i]:
+                num_sign += 1
+            else:
+                break
+
+        if not return_eigvals:
+            return num_sign
+        else:
+            return num, eigvals_surrs
 
 
 
 
 
 a = np.random.rand(2500,15)
-ssa = ssa(a, M = 30)
-ssa.run_ssa()
-ssa.run_Monte_Carlo(10, method = 'ensemble')
+ssa = ssa_class(a, M = 30)
+l = ssa.run_ssa()[0]
+# print l[:20]
+# ssa.run_Monte_Carlo(10, method = 'data')
 

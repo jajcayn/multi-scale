@@ -64,6 +64,8 @@ class VARModel:
             np.random.seed()
         else:
             np.random.seed(seed)
+
+        residuals = np.random.permutation(residuals)
            
         A = self.A
         w = self.w
@@ -77,7 +79,10 @@ class VARModel:
         
         # initialize system using noise with correct covariance matrix if required
         if ndisc > 0:
-            eps_noise = np.dot(np.random.normal(size=(ndisc + self.order(), m)), self.U)
+            if orig_length:
+                eps_noise = np.dot(np.random.normal(size=(ndisc + self.order(), m)), self.U)
+            else:
+                eps_noise = np.dot(np.random.normal(size=(ndisc, m)), self.U)
             
             # spin-up to random state, which is captured by vector u
             var_model_acc.execute_Aupw(A, w, u, eps_noise, eps_noise)
