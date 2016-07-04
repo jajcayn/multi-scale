@@ -256,7 +256,7 @@ class ssa_class():
             v = VARModel()
             v.estimate(self.X, [1,1], True, 'sbc', None)
             if residuals:
-                r = v.compute_residuals(self.X) ## wrong!! check the original code
+                r = v.compute_residuals(self.X)
         
         # univariate model - estimating for each channel separately
         else:
@@ -307,9 +307,12 @@ class ssa_class():
         # get the ensamble of surrogate data
         self._get_MC_realizations(n = n_realizations, multivariate = multivariate, residuals = residuals)
 
+        if (self.n - self.M + 1) < self.d*self.M:
+            print("**WARNING: with the current SSA settings, the cov. matrix is rank deficient. Keep in mind.")
+
         if method == 'rank-def':
             if (self.n - self.M + 1) > self.d*self.M:
-                print("**WARNING: rank deficient method is usually used when N' < DM. Otherwise, 'rotation method works best.'")
+                print("**WARNING: rank deficient method is usually used when N' < DM. Otherwise, 'rotation' method works best.")
             print("**WARNING: in rank deficient matrix the problem is more compicated, rely more on visual spectra than computational method.")
             # cov matrix
             C_rd, _ = self._get_cov_matrix(self.X, rank_def = True)
@@ -415,11 +418,69 @@ class ssa_class():
 
 
 
+    def run_enhanced_Monte_Carlo(self, n_realizations, to_plot = 60, multivariate = False, residuals = True, return_eigvals = False):
+        """
+        Performs Enhanced Monte Carlo SSA.
+
+        According to Palus & Novotna (2004), Nonlinear Processes in Geophys., 11(5/6).
+        """
+
+        # get the ensamble of surrogate data
+        self._get_MC_realizations(n = n_realizations, multivariate = multivariate, residuals = residuals)
+
+        # unlike MC-SSA, we are plotting eigenspectrum not against the order (size), but rather against the 
+        # dominant frequency associated with it
+
+        # create bins
+        freq_bins = np.linspace(0, 0.5, self.M+1)
+
+        # get freqs from data's PCs
+        freqs = np.fft.fftfreq(self.pc.shape[0])
+        # sort according to bins
+        lam_freqs = np.digitize(np.abs([freqs[np.fft.fft(self.pc[:, i]).argmax()] for i in range(self.pc.shape[1])]), freq_bins)
+
+        # surrogates
+        lam_freqs_surrs = np.zeros(([n_realizations] + list(lam_freqs.shape)))
+        eigvals_surrs = []
+        for i in range(n_realizations):
+            # for each surrogate separately
+            C_surr, x_surr = self._get_cov_matrix(self.MCsurrs[i, ...])
+            # get eigenvectors for each surrogate separately
+            _, eig_s, e_surr = np.linalg.svd(C_surr, compute_uv = True)
+            e_surr = e_surr.T
+            # normalise
+            eig_s /= np.sum(eig_s)
+            # sort
+            ndx = np.argsort(eig_s)[::-1]
+            eig_s = eig_s[ndx]
+            e_surr = e_surr[:, ndx]
+            # PCs
+            pc_surr = np.dot(x_surr, e_surr)
+            assert pc_surr.shape == self.pc.shape
+            # sort to bins
+            lam_freqs_surrs[i, ...] = np.digitize(np.abs([freqs[np.fft.fft(pc_surr[:, ii]).argmax()] for ii in range(pc_surr.shape[1])]), freq_bins)
+
+            eigvals_surrs.append(eig_s)
+
+        eigvals_surrs = np.array(eigvals_surrs)
+
+        # plot
+        import matplotlib.pyplot as plt
+        for ii in range(to_plot):
+            plt.plot(freq_bins[lam_freqs[ii]] + np.diff(freq_bins)[0]/2., self.lam[ii], marker = 'o', markersize = 10, linestyle = 'none', color = 'k')
+            # plt.plot(freq_bins[int(lam_freqs_surrs[:, ii].mean())] + np.diff(freq_bins)[0]/2., np.percentile(eigvals_surrs[:, ii], q = 97.5, axis = 0),
+            #     marker = "^", markersize = 6, linestyle = 'none', color = 'g') 
+            # plt.plot(freq_bins[int(lam_freqs_surrs[:, ii].mean())] + np.diff(freq_bins)[0]/2., np.percentile(eigvals_surrs[:, ii], q = 2.5, axis = 0),
+            #     marker = "v", markersize = 6, linestyle = 'none', color = 'g') 
+
+        plt.show()
 
 
-a = np.random.rand(2500,15)
-ssa = ssa_class(a, M = 30)
-l = ssa.run_ssa()[0]
-# print l[:20]
-# ssa.run_Monte_Carlo(10, method = 'data')
+
+# a = np.random.rand(2500,15)
+# ssa = ssa_class(a, M = 30)
+# l = ssa.run_ssa()[0]
+# # print l[:20]
+# # ssa.run_Monte_Carlo(10, method = 'data')
+# ssa.run_enhanced_Monte_Carlo(10)
 

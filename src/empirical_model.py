@@ -308,7 +308,7 @@ class EmpiricalModel(DataField):
         if delay_model:
             # shorten time series because of delay
             self.delay_model = True
-            self.delay = 6 # months
+            self.delay = 8 # months
             self.kappa = 50.
             if self.verbose:
                 print("...training delayed model on main level with delay %d months and kappa %.3f..." % (self.delay, self.kappa))
