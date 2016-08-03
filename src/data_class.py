@@ -605,10 +605,10 @@ class DataField:
                 
                 
                 
-    def get_data_of_precise_length(self, length = '16k', start_date = None, end_date = None, copy = False):
+    def get_data_of_precise_length(self, length = '16k', start_date = None, end_date = None, apply_to_data = False):
         """
         Selects the data such that the length of the time series is exactly length.
-        If copy is True, it will replace the data and time, if False it will return them.
+        If apply_to_data is True, it will replace the data and time, if False it will return them.
         If end_date is defined, it is exclusive.
         """
         
@@ -642,7 +642,7 @@ class DataField:
         else:
             raise Exception('You messed start / end date selection! Pick only one!')
             
-        if copy:
+        if apply_to_data:
             self.data = data_temp.copy()
             self.time = time_temp.copy()
             return idx_tuple

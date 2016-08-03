@@ -8,9 +8,9 @@ created on June 13, 2014
 import cPickle
 #import hickle as hkl
 from datetime import datetime, date
-from matplotlib import rc
-rc('font', family='Arial')
-rc('ps',usedistiller='xpdf')
+# from matplotlib import rc
+# rc('font', family='Arial')
+# rc('ps',usedistiller='xpdf')
 import matplotlib.pyplot as plt
 from mpl_toolkits.basemap import Basemap
 import numpy as np
@@ -51,15 +51,15 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
     if not MEANS:
         levs = np.arange(0.,1.,0.05) # 0.5 - 6 / 0.25
     else:
-        levs = np.arange(0.01,7.025,0.025) # 0 - 4 / 0.2
+        levs = np.arange(0.01,8.025,0.025) # 0 - 4 / 0.2
     if ECA:
-        cs = m.contourf(x, y, diffs, levels = levs)
+        cs = m.contourf(x, y, diffs, levels = levs, cmap = plt.get_cmap('CMRmap'))
         # m.contourf(x, y, perc, 1, colors = "none", hatches = [None, '///'])
         # m.contour(x, y, perc, 1, linewidths = 2, colors = "#030303" )
     else:
         cs = m.contourf(x, y, diffs[::-1, :], levels = levs, cmap = plt.get_cmap('CMRmap'))
     # cbar = m.colorbar(cs, location = 'right', size = "5%", pad = "10%")
-    cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05, ticks = np.arange(0,7.25,0.5))
+    cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05, ticks = np.arange(0,9,1))
     cbar.ax.tick_params(labelsize = 30)
     if MEANS:
         cbar.set_label("TEMPERATURE DIFFERENCE [$^{\circ}$C]", size = 38, labelpad = 30)
@@ -78,10 +78,10 @@ def render_differences_map(diffs, lats, lons, subtit = '', fname = None):
         else:
             title = ("%s reanalysis - differences of conditional standard deviation \n MF SURROGATE STD" % ('ECA & D' if ECA else 'ERA-40'))
     title += subtit
-    plt.title("EFFECT ON WINTER MEAN TEMPERATURE", size = 35)
+    # plt.title("EFFECT ON WINTER MEAN TEMPERATURE", size = 35)
     
     if fname != None:
-        plt.savefig(fname)
+        plt.savefig(fname, bbox_inches = 'tight')
     else:
         plt.show()
 
@@ -317,7 +317,7 @@ if SIGN:
     # fname = ('debug/%s_SATamplitude_%s_scaled_%s_bins_%ssurrogates_from_%s_16k_above_%dpercentil%s%s.png' % ('ECA-D' if ECA else 'ERA', 'SATA' if ANOMALISE else 'SAT', 
     #              'means' if MEANS else 'std', SURR_TYPE, str(START_DATE), PERCENTIL, '_same_bins' if SAME_BINS else '', 
     #              '_condition' if CONDITION else ''))
-    fname = ('debug/ECA-D_SATA_DJF_500FTsurrogates_above_%dpercentil_%s.eps' % (PERCENTIL, 'false_pos' if FALSE_POS else 'TEST'))
+    # fname = ('debug/ECA-D_SATA_DJF_500FTsurrogates_above_%dpercentil_%s.eps' % (PERCENTIL, 'false_pos' if FALSE_POS else 'TEST'))
     # NaNs to 0
     mask = np.isnan(result_percentil)
     result_percentil[mask] = 0.
@@ -332,7 +332,8 @@ if SIGN:
             to_txt[lat*lons.shape[0] + lon, 0] = lats[lat]
             to_txt[lat*lons.shape[0] + lon, 1] = lons[lon]
             to_txt[lat*lons.shape[0] + lon, 2] = result_percentil[lat, lon]
-    np.savetxt('debug/ECA-D_SATA_DJF_FT_%dpercentil.txt' % PERCENTIL, to_txt, fmt = '%.3f')
+    # np.savetxt('debug/ECA-D_SATA_DJF_FT_%dpercentil.txt' % PERCENTIL, to_txt, fmt = '%.3f')
+    fname = "ECA-D_DJF.eps"
     render_differences_map(result, result_percentil, lats, lons, subtit = (' - %d percentil %s' % 
                             (PERCENTIL, '- SAME BINS' if SAME_BINS else '- CONDITION' if CONDITION else '')), fname = fname)
     
@@ -342,7 +343,7 @@ else:
         #                                                                str(START_DATE)))
         # fname = ('debug/ECA-D_%s_scaled_%s_bins_data_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
                                                                        # str(START_DATE)))
-        fname = "ECA-D_DJF.png"
+        fname = "ECA-D_DJF.eps"
     else:
         fname = ('debug/ERA_%s_cond_%s_MFsurrogate_std_from_%s.png' % ('SATA' if ANOMALISE else 'SAT', 'means' if MEANS else 'std', 
                                                                        str(START_DATE)))

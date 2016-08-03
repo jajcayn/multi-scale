@@ -281,6 +281,7 @@ class EmpiricalModel(DataField):
             print("... input pcs from other field added. Now we are training model on %d PCs..." % (self.input_pcs.shape[0]))
 
 
+
     def train_model(self, harmonic_pred = 'first', quad = False, delay_model = False):
         """
         Train the model.

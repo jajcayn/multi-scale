@@ -174,6 +174,49 @@ def mutual_information(x, y, algorithm = 'EQQ', bins = 8, log2 = True):
     return mi
 
 
+
+def kNN_mutual_information(x, y, k, symm_algorithm = True):
+    """
+    Computes mutual information between two time series x and y as
+        I(x; y) = sum( p(x,y) * log( p(x,y) / p(x)p(y) ),
+        where p(x), p(y) and p(x, y) are probability distributions.
+    Performs k-nearest neighbours search using k-d tree.
+    Uses sklearn.neighbors for KDTree class.
+
+    According to Kraskov A., Stogbauer H. and Grassberger P., Phys. Rev. E, 69, 2004.
+    """
+
+    from sklearn.neighbors import KDTree
+    from scipy.special import digamma
+
+    data = np.vstack([x, y]).T
+
+    tree = KDTree(data, leaf_size = 15, metric = "chebyshev")
+    ind = tree.query(data, k = k + 1, return_distance = False)
+
+    sum_ = 0
+    for n in range(data.shape[0]):
+        eps_x = np.abs(data[n, 0] - data[ind[n, -1], 0])
+        eps_y = np.abs(data[n, 1] - data[ind[n, -1], 1])
+        if symm_algorithm:
+            eps = np.max((eps_x, eps_y))
+            n_x = np.sum(np.less(np.abs(x - x[n]), eps)) - 1
+            n_y = np.sum(np.less(np.abs(y - y[n]), eps)) - 1
+            sum_ += digamma(n_x + 1) + digamma(n_y + 1)
+        else:
+            n_x = np.sum(np.less(np.abs(x - x[n]), eps_x)) - 1
+            n_y = np.sum(np.less(np.abs(y - y[n]), eps_y)) - 1
+            sum_ += digamma(n_x) + digamma(n_y)
+
+    sum_ /= data.shape[0]
+
+    if symm_algorithm:
+        return digamma(k) - sum_ + digamma(data.shape[0])
+    else:
+        return digamma(k) - 1./k - sum_ + digamma(data.shape[0])
+
+
+
 def _center_ts(ts):
     """
     Returns centered time series with zero mean and unit variance.
@@ -185,6 +228,7 @@ def _center_ts(ts):
     ts /= np.std(ts, ddof = 1)
 
     return ts
+
 
 
 def _get_corr_entropy(list_ts, log2 = True):
@@ -201,6 +245,7 @@ def _get_corr_entropy(list_ts, log2 = True):
     eigvals = eigvals[eigvals > 0.]
 
     return -0.5 * np.nansum(log_f(eigvals))
+
 
 
 def cond_mutual_information(x, y, z, algorithm = 'EQQ', bins = 8, log2 = True):

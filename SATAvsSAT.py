@@ -11,8 +11,8 @@ AMP_PERIODS = [1, 8]
 
 # g_amp = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), False)
 # g_amp_sata = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), True)
-g_amp = load_station_data('TG_STAID000027.txt', date(1775,1,1), date(2014,1,1), False)
-g_amp_sata = load_station_data('TG_STAID000027.txt', date(1775,1,1), date(2014,1,1), True)
+g_amp = load_station_data('../data/TG_STAID000027.txt', date(1775,1,1), date(2014,1,1), False)
+g_amp_sata = load_station_data('../data/TG_STAID000027.txt', date(1775,1,1), date(2014,1,1), True)
 
 k0 = 6. # wavenumber of Morlet wavelet used in analysis
 y = 365.25 # year in days
@@ -79,7 +79,7 @@ else:
 subtract = clim_amp[specific_idx_clim, 0][0] - first_ndx
 
 # fig = plt.figure(figsize = (15,10), dpi = 1200)
-fig, ax = plt.subplots(figsize = (15,10), dpi = 1200)
+fig, ax = plt.subplots(figsize = (15,10))#, dpi = 1200)
 ax.spines['top'].set_visible(False)
 ax.spines['right'].set_visible(False)
 ax.spines['left'].set_visible(False)
@@ -102,8 +102,8 @@ ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
 plt.xticks(locs_new, ['%d / %d' % (g_amp.get_date_from_ndx(i).month, g_amp.get_date_from_ndx(i).year) for i in locs_new[:-1]], rotation = 30)
 plt.title("%s 1-year SAT vs. 8-year SATA \n %s -- %s \n Perason 1-year SAT amp vs. 8-year SATA recon.: %.2f" % (g_amp.location, 
     str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
-# plt.show()
-plt.savefig('debug/cycles1ySAT_8ySATA_%s-%s_%.2fcorr.eps' % (str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
+plt.show()
+# plt.savefig('debug/cycles1ySAT_8ySATA_%s-%s_%.2fcorr.eps' % (str(g_amp.get_date_from_ndx(0)), str(g_amp.get_date_from_ndx(-1)), np.corrcoef(-result[2][specific_idx], result[1][specific_idx])[0,1]))
 
 
 to_txt = np.zeros((result[2][specific_idx].shape[0], 6))
