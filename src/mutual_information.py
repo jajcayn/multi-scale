@@ -175,13 +175,20 @@ def mutual_information(x, y, algorithm = 'EQQ', bins = 8, log2 = True):
 
 
 
-def kNN_mutual_information(x, y, k, symm_algorithm = True):
+def kNN_mutual_information(x, y, k, standartize = True, symm_algorithm = True, dualtree = False):
     """
     Computes mutual information between two time series x and y as
         I(x; y) = sum( p(x,y) * log( p(x,y) / p(x)p(y) ),
         where p(x), p(y) and p(x, y) are probability distributions.
-    Performs k-nearest neighbours search using k-d tree.
+    Performs k-nearest neighbours search using k-dimensional tree.
     Uses sklearn.neighbors for KDTree class.
+    
+    standartize - whether transform data to zero mean and unit variance
+    symm_algorithm
+      True - use symmetric algorithm with one eps in both dimensions
+      False - use different eps_x and eps_y in respective dimensions -- SOME PROBLEMS, DON'T USE NOW
+    dualtree - whether to use dualtree formalism in k-d tree for the k-NN search
+      could lead to better performance with large N
 
     According to Kraskov A., Stogbauer H. and Grassberger P., Phys. Rev. E, 69, 2004.
     """
@@ -189,24 +196,40 @@ def kNN_mutual_information(x, y, k, symm_algorithm = True):
     from sklearn.neighbors import KDTree
     from scipy.special import digamma
 
+    # prepare data
+    if standartize:
+        x = _center_ts(x)
+        y = _center_ts(y)
     data = np.vstack([x, y]).T
 
+    # build k-d tree using the maximum (Chebyshev) norm
     tree = KDTree(data, leaf_size = 15, metric = "chebyshev")
-    ind = tree.query(data, k = k + 1, return_distance = False)
+    # find k-nearest neighbour indices for each point
+    dist, ind = tree.query(data, k = k + 1, return_distance = True, dualtree = dualtree)
 
     sum_ = 0
     for n in range(data.shape[0]):
+        # find x and y distances between nth point and its k-nearest neighbour
         eps_x = np.abs(data[n, 0] - data[ind[n, -1], 0])
         eps_y = np.abs(data[n, 1] - data[ind[n, -1], 1])
         if symm_algorithm:
+            # use symmetric algorithm with one eps - see the paper
             eps = np.max((eps_x, eps_y))
+            # find number of points within eps distance
             n_x = np.sum(np.less(np.abs(x - x[n]), eps)) - 1
             n_y = np.sum(np.less(np.abs(y - y[n]), eps)) - 1
+            # add to digamma sum
             sum_ += digamma(n_x + 1) + digamma(n_y + 1)
         else:
+            # use asymmetric algorithm with eps_x and eps_y - see the paper
+            # find number of points within eps distance
             n_x = np.sum(np.less(np.abs(x - x[n]), eps_x)) - 1
             n_y = np.sum(np.less(np.abs(y - y[n]), eps_y)) - 1
-            sum_ += digamma(n_x) + digamma(n_y)
+            # add to digamma sum
+            if n_x != 0:
+                sum_ += digamma(n_x) 
+            if n_y != 0:
+                sum_ += digamma(n_y)
 
     sum_ /= data.shape[0]
 
@@ -457,3 +480,69 @@ def cond_mutual_information(x, y, z, algorithm = 'EQQ', bins = 8, log2 = True):
         cmi = Hall - Hxz - Hyz + Hz
 
     return cmi
+
+
+
+def _neg_harmonic(n):
+    """
+    Returns a negative Nth harmonic number.
+    For kNN CMI computation
+    """
+
+    return -np.sum(1./np.arange(1,n+1))
+
+
+
+def kNN_cond_mutual_information(x, y, z, standartize = True, dualtree = False):
+    """
+    Computes conditional mutual information between two time series x and y 
+    conditioned on a third z (which can be multi-dimensional) as
+        I(x; y | z) = sum( p(x,y,z) * log( p(z)*p(x,y,z) / p(x,z)*p(y,z) ),
+        where p(z), p(x,z), p(y,z) and p(x,y,z) are probability distributions.
+    Performs k-nearest neighbours search using k-dimensional tree.
+    Uses sklearn.neighbors for KDTree class.
+
+    standartize - whether transform data to zero mean and unit variance
+    dualtree - whether to use dualtree formalism in k-d tree for the k-NN search
+      could lead to better performance with large N
+
+    According to Frenzel S. and Pompe B., Phys. Rev. Lett., 99, 2007.
+    """
+
+    from sklearn.neighbors import KDTree
+
+    # prepare data
+    if standartize:
+        x = _center_ts(x)
+        y = _center_ts(y)
+        for cond_ts in z:
+            cond_ts = _center_ts(cond_ts)
+    z = np.atleast_2d(z)
+    data = np.vstack([x, y, z]).T
+
+    # build k-d tree using the maximum (Chebyshev) norm
+    tree = KDTree(data, leaf_size = 15, metric = "chebyshev")
+    # find distance to k-nearest neighbour per point
+    dist, _ = tree.query(data, k = k + 1, return_distance = True, dualtree = dualtree)
+
+    sum_ = 0
+    # prepare marginal vectors xz, yz and z
+    n_x_z_data = np.delete(data, 1, axis = 1)
+    n_y_z_data = np.delete(data, 0, axis = 1)
+    n_z_data = np.delete(data, [0, 1], axis = 1)
+
+    # build and query k-d trees in marginal spaces for number of points in a given dist from a point
+    tree_x_z = KDTree(n_x_z_data, leaf_size = 15, metric = "chebyshev")
+    n_x_z = tree_x_z.query_radius(n_x_z_data, r = dist[:, -1], count_only = True) - 2
+    tree_y_z = KDTree(n_y_z_data, leaf_size = 15, metric = "chebyshev")
+    n_y_z = tree_y_z.query_radius(n_y_z_data, r = dist[:, -1], count_only = True) - 2
+    tree_z = KDTree(n_z_data, leaf_size = 15, metric = "chebyshev")
+    n_z = tree_z.query_radius(n_z_data, r = dist[:, -1], count_only = True) - 2
+
+    # count points
+    for n in range(data.shape[0]):
+        sum_ += _neg_harmonic(n_x_z[n]) + _neg_harmonic(n_y_z[n]) - _neg_harmonic(n_z[n])
+
+    sum_ /= data.shape[0]
+
+    return sum_ - _neg_harmonic(k-1)
