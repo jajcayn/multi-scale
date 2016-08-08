@@ -515,8 +515,11 @@ def knn_cond_mutual_information(x, y, z, k, standartize = True, dualtree = False
     if standartize:
         x = _center_ts(x)
         y = _center_ts(y)
-        for cond_ts in z:
-            cond_ts = _center_ts(cond_ts)
+        if isinstance(z, np.ndarray):
+            z = _center_ts(z)
+        elif isinstance(z, list):
+            for cond_ts in z:
+                cond_ts = _center_ts(cond_ts)
     z = np.atleast_2d(z)
     data = np.vstack([x, y, z]).T
 
