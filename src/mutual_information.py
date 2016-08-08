@@ -175,7 +175,7 @@ def mutual_information(x, y, algorithm = 'EQQ', bins = 8, log2 = True):
 
 
 
-def kNN_mutual_information(x, y, k, standartize = True, symm_algorithm = True, dualtree = False):
+def knn_mutual_information(x, y, k, standartize = True, symm_algorithm = True, dualtree = False):
     """
     Computes mutual information between two time series x and y as
         I(x; y) = sum( p(x,y) * log( p(x,y) / p(x)p(y) ),
@@ -486,14 +486,14 @@ def cond_mutual_information(x, y, z, algorithm = 'EQQ', bins = 8, log2 = True):
 def _neg_harmonic(n):
     """
     Returns a negative Nth harmonic number.
-    For kNN CMI computation
+    For knn CMI computation
     """
 
     return -np.sum(1./np.arange(1,n+1))
 
 
 
-def kNN_cond_mutual_information(x, y, z, standartize = True, dualtree = False):
+def knn_cond_mutual_information(x, y, z, k, standartize = True, dualtree = False):
     """
     Computes conditional mutual information between two time series x and y 
     conditioned on a third z (which can be multi-dimensional) as
