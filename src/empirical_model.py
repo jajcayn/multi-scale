@@ -249,7 +249,8 @@ class EmpiricalModel(DataField):
                 print("...and they explain %.2f%% of variability..." % (np.sum(var[sel])*100.))
 
         # standardise PCs
-        self.input_pcs /= np.std(self.input_pcs[0, :], ddof = 1)
+        self.std_first_pc = np.std(self.input_pcs[0, :], ddof = 1)
+        self.input_pcs /= self.std_first_pc
 
         if self.verbose:
             print("done.")
@@ -811,7 +812,7 @@ class EmpiricalModel(DataField):
             if self.verbose and (n+1)%5 == 0:
                 print("...processing field %d/%d..." % (n+1, self.integration_results.shape[0]))
             # "destandardise" PCs
-            pcs = self.integration_results[n, ...] * np.std(self.input_pcs[0, :], ddof = 1)
+            pcs = self.integration_results[n, ...] * self.std_first_pc
             # invert PCA analysis with modelled PCs
             reconstruction = self.invert_pca(self.input_eofs, pcs) # time x lats x lons
             # if anomalised, return seasonal climatology
