@@ -337,13 +337,14 @@ class DataField:
 
         copied = DataField()
         copied.data = self.data.copy()
+        copied.time = self.time.copy()
+        
         if self.lats is not None:
             copied.lats = self.lats.copy()
         if self.lons is not None:
             copied.lons = self.lons.copy()
         if self.location is not None:
             copied.location = self.location
-        copied.time = self.time.copy()
         if self.nans is not None:
             copied.nans = self.nans
 
