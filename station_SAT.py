@@ -18,12 +18,12 @@ def get_equidistant_bins():
 
 
 PLOT = True
-SEASON = 'DJF'
+SEASON = 'JJA'
 PERCENTIL = 80
 
 
-g = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
-g_amp = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+g = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+g_amp = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
 # g_sun = load_sunspot_data('monthssn.dat', date(1775, 1, 1), date(2014, 1, 1), False)
 tg = g.copy_data()
 g.anomalise()
@@ -154,7 +154,7 @@ cold_winters_sum = np.array(cold_winters_sum)
 
 plt.figure()
 plt.plot(cold_winters_sum)
-plt.savefig('negative_sum.png')
+plt.savefig('/Users/nikola/Desktop/extremes/negative_sum.png')
 
 # plotting
 if PLOT:
@@ -321,5 +321,5 @@ if PLOT:
     
     
     plt.suptitle("%s -- %s SAT analysis" % (g.location, SEASON), size = 20)
-    plt.savefig('debug/Praha_SAT_%s_%dperc.png' % (SEASON.lower(), PERCENTIL))
+    plt.savefig('/Users/nikola/Desktop/extremes/Praha_SAT_%s_%dperc.png' % (SEASON.lower(), PERCENTIL))
     

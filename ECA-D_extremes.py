@@ -124,7 +124,7 @@ if SAVE:
 
 else:
     print("[%s] Loading data..." % (str(datetime.now())))
-    with open('ECA_extremes.bin', 'rb') as f:
+    with open('/Users/nikola/Desktop/extremes/ECA_extremes.bin', 'rb') as f:
         data = cPickle.load(f)
 
     # plotting
@@ -187,5 +187,5 @@ else:
 
     plt.suptitle("ECA&D reanalysis extremes correlation with sin / -sin from %s" %(str(START_DATE)), size = 22)
 
-    plt.savefig('debug/ECA-D_extremes_corr_with_sin.png')
+    plt.savefig('/Users/nikola/Desktop/extremes/ECA-D_extremes_corr_with_sin.png')
 

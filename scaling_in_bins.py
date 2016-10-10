@@ -26,7 +26,7 @@ def render_extremes_and_scaling_in_bins(res, heat_w, cold_w, fname = None):
     titles = ['> 2$\cdot\sigma$', '> 3$\cdot\sigma$', 
               '< -2$\cdot\sigma$', '< -3$\cdot\sigma$',
               '5 days > 0.8$\cdot$max T', '5 days < 0.8$\cdot$min T']
-    colours = ['#F38630', '#FA6900', '#69 D2E7', '#A7DBD8', '#EB6841', '#00 A0B0']
+    colours = ['#F38630', '#FA6900', '#69D2E7', '#A7DBD8', '#EB6841', '#00A0B0']
     hatches = ['/', '+', 'x', '.']
     labels = ['DJF', 'MAM', 'JJA', 'SON']
     for i in range(4):
@@ -184,7 +184,7 @@ def render_scaling_min_max(scaling, min_scaling, max_scaling, fname = None):
 PERIOD = 8
 WINDOW_LENGTH = 13462 # 13462, 16384
 MIDDLE_YEAR = 1965 # year around which the window will be deployed
-JUST_SCALING = False
+JUST_SCALING = True
 PLOT = True
 WAVES_PERCENTIL = 80
 DATA = 0 # 0 - original station, 1 - closest ERA, 2 - closest ECA&D
@@ -192,7 +192,7 @@ DATA = 0 # 0 - original station, 1 - closest ERA, 2 - closest ECA&D
 
 # load whole data - load SAT data
 if DATA == 0:
-    g = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+    g = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
 elif DATA == 1:
     g = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1940,1,1), date(2014,1,1), False)
 elif DATA == 2:
@@ -203,8 +203,8 @@ tg_sat = g.copy_data()
 g.anomalise()
 
 if DATA == 0:
-    g_max = load_station_data('TX_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
-    g_min = load_station_data('TN_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+    g_max = load_station_data('../data/TX_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+    g_min = load_station_data('../data/TN_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
 elif DATA == 1:
     g_max = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1940,1,1), date(2014,1,1), False)
     g_min = load_bin_data('../data/ERA_time_series_50.0N_15.0E.bin', date(1940,1,1), date(2014,1,1), False)
@@ -411,14 +411,14 @@ if JUST_SCALING:
 if PLOT:
     if not JUST_SCALING:
         if DATA == 0:
-            fname = ('debug/scaling_extremes_%d_%sk_window_%dpercentil_SATA.eps' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
+            fname = ('/Users/nikola/Desktop/extremes/scaling_extremes_%d_%sk_window_%dpercentil_SATA.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
         elif DATA == 1:
-            fname = ('debug/scaling_extremes_%d_ERA_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
+            fname = ('/Users/nikola/Desktop/extremes/scaling_extremes_%d_ERA_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
         elif DATA == 2:
-            fname = ('debug/scaling_extremes_%d_ECA&D_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
+            fname = ('/Users/nikola/Desktop/extremes/scaling_extremes_%d_ECA&D_%sk_window_%dpercentil_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16', WAVES_PERCENTIL))
         render_extremes_and_scaling_in_bins(result, hw, cw, fname)
     else:
-        fname = ('debug/scaling_min_max_%d_%sk_window_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))
+        fname = ('/Users/nikola/Desktop/extremes/scaling_min_max_%d_%sk_window_SAT.png' % (MIDDLE_YEAR, '14' if WINDOW_LENGTH < 16000 else '16'))
         render_scaling_min_max(scaling, scaling_min, scaling_max, fname)
             
 

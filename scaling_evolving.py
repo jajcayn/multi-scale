@@ -9,7 +9,7 @@ import numpy as np
 from src.data_class import load_station_data, DataField
 from datetime import date
 from src import wavelet_analysis as wvlt
-from surrogates.surrogates import SurrogateField
+from src.surrogates import SurrogateField
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
 import matplotlib.ticker as ticker 
@@ -24,7 +24,7 @@ PERIOD = 8
 PAST_UNTIL = 1930 # from which segment the average extremes should be computed
 WINDOW_LENGTH = 13462 # 13462, 16384 for surrogates only 13462
 PLOT = True
-USE_SURR = False
+USE_SURR = True
 NUM_SURR = 100
 
 
@@ -32,11 +32,11 @@ NUM_SURR = 100
 
 # load whole data - load SAT data
 if USE_SURR:
-    g = load_station_data('TG_STAID000027.txt', date(1834, 7, 28), date(2014, 1, 1), False) # 1834-7-28 till 2014-1-1 = 64k
-    g_for_avg = load_station_data('TG_STAID000027.txt', date(1840, 4, 14), date(1930, 1, 1), False) # 1840-4-14 till 1930-1-1 = 32k
+    g = load_station_data('../data/TG_STAID000027.txt', date(1834, 7, 28), date(2014, 1, 1), False) # 1834-7-28 till 2014-1-1 = 64k
+    g_for_avg = load_station_data('../data/TG_STAID000027.txt', date(1840, 4, 14), date(1930, 1, 1), False) # 1840-4-14 till 1930-1-1 = 32k
 else:
-    g = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
-    g_for_avg = load_station_data('TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+    g = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
+    g_for_avg = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2014, 1, 1), False)
 
 if not USE_SURR:
     # save SAT data
@@ -87,7 +87,7 @@ if not USE_SURR:
 else:
     sg = SurrogateField()
     # g_for_avg are SAT data
-    mean, var, trend = g_for_avg.get_seasonality(DETREND = True)
+    mean, var, trend = g_for_avg.get_seasonality(detrend = True)
     sg.copy_field(g_for_avg)
     sg.prepare_AR_surrogates()
     year = 365.25
@@ -360,9 +360,9 @@ if PLOT:
     fig.text(0.88, 0.47, 'average extremes \n 1775-%d' % PAST_UNTIL, va = 'center', ha = 'center', size = 13, weight = 'heavy') # 0.7
     # fig.text(0.9, 0.47, 'collage of bar plots', va = 'center', ha = 'center', size = 13, weight = 'heavy')    
     if USE_SURR:
-        plt.savefig('debug/ARsurr_extremes_evolving_%d_%s_window.png' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
+        plt.savefig('/Users/nikola/Desktop/extremes/ARsurr_extremes_evolving_%d_%s_window.png' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
     else:
-        plt.savefig('debug/extremes_evolving_%d_%s_window.eps' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
+        plt.savefig('/Users/nikola/Desktop/extremes/extremes_evolving_%d_%s_window.png' % (PAST_UNTIL, '16k' if WINDOW_LENGTH > 16000 else '14k'))
 
     
     

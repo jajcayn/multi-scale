@@ -383,10 +383,19 @@ class EmpiricalModel(DataField):
                                 xsin, xcos]
 
                 # regularize and regress
+                from sklearn import linear_model as lm
+                # regressor = lm.LinearRegression(fit_intercept = True)
+                # regressor = lm.Ridge(fit_intercept = True, alpha = .5)
+                # regressor = lm.Lasso(fit_intercept = True, alpha = .1) # blows up
+                # regressor = lm.ElasticNet(fit_intercept = True, alpha = 0.1) # blows up
+                self.regressor = lm.BayesianRidge(fit_intercept = True)
                 x -= np.mean(x, axis = 0)
                 ux,sx,vx = np.linalg.svd(x, False)
                 optimal = min(ux.shape[1], 25)
-                b_aux, residuals[level][:, k] = _partial_least_squares(x, y[:, k], ux, sx, vx.T, optimal, True)
+                self.regressor.fit(x, y[:, k])
+                b_aux = np.append(self.regressor.coef_, self.regressor.intercept_)
+                residuals[level][:, k] = y[:, k] - self.regressor.predict(x)
+                # b_aux, residuals[level][:, k] = _partial_least_squares(x, y[:, k], ux, sx, vx.T, optimal, True)
 
                 # store results
                 fit_mat[level][:, k] = b_aux
@@ -731,6 +740,7 @@ class EmpiricalModel(DataField):
                     else:
                         forcing = xx[l+1][k, :]
                     xx[l][k, :] = xx[l][k-1, :] + np.dot(zz[l], self.fit_mat[l]) + forcing
+                    # xx[l][k, :] = xx[l][k-1, :] + self.regressor.predict(zz[l]) + forcing
 
                 step += 1
 
