@@ -74,9 +74,32 @@ class DataField:
         self.var_name = None
         self.nans = False
         self.cos_weights = None
+
+
+
+    def __str__(self):
+        """
+        String representation.
+        """
+
+        if self.data is not None:
+            return ("Geo data of shape %s as time x lat x lon." % str(self.data.shape))
+        else:
+            return("Empty DataField instance.")
         
         
-        
+    def __getitem__(self, key):
+        """
+        getitem representation.
+        """        
+
+        if self.data is not None:
+            return self.data[key]
+        else:
+            raise Exception("DataField is empty.")
+
+
+
     def load(self, filename = None, variable_name = None, dataset = 'ECA-reanalysis', print_prog = True):
         """
         Loads geophysical data from netCDF file for reanalysis or from text file for station data.
@@ -376,7 +399,10 @@ class DataField:
         """
         Creates time array for already saved data in 'self.data'.
         From date_from to date_from + data length. date_from is inclusive.
-        Sampling 'm' for monthly, 'd' for daily or 'x h' where x = {1, 6, 12} for sub-daily.
+        Sampling: 
+            'm' for monthly, could be just 'm' or '3m' as three-monthly
+            'd' for daily
+            'xh' where x = {1, 6, 12} for sub-daily.
         """
 
         from dateutil.relativedelta import relativedelta
