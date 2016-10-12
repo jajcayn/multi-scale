@@ -15,6 +15,35 @@ import os
 
 
         
+def cross_correlation(a, b, max_lag):
+    """
+    Cross correlation with lag.
+    """
+
+    a = (a - np.mean(a)) / (np.std(a, ddof = 1) * (len(a) - 1))
+    b = (b - np.mean(b)) / np.std(b, ddof = 1)
+    cor = np.correlate(a, b, 'full')
+
+    return cor[len(cor)//2 - max_lag : len(cor)//2 + max_lag+1]
+
+
+
+def kdensity_estimate(a, kernel = 'gaussian', bandwidth = 1.0):
+    """
+    Estimates kernel density. Uses sklearn.
+    kernels: 'gaussian', 'tophat', 'epanechnikov', 'exponential', 'linear', 'cosine'
+    """
+
+    from sklearn.neighbors import KernelDensity
+    a = a[:, None]
+    x = np.linspace(a.min(), a.max(), 100)[:, None]
+    kde = KernelDensity(kernel = kernel, bandwidth = bandwidth).fit(a)
+    logkde = kde.score_samples(x)
+
+    return np.squeeze(x), np.exp(logkde)
+
+
+
 def nandetrend(arr, axis = 0):
     """
     Removes the linear trend along the axis, ignoring Nans.

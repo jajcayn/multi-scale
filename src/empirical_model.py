@@ -1,4 +1,4 @@
-from data_class import DataField
+from data_class import DataField, cross_correlation, kdensity_estimate
 import numpy as np
 import scipy.stats as sts
 
@@ -59,32 +59,6 @@ def _partial_least_squares(x, y, ux, sx, vx, optimal, intercept = True):
 
     return bpls, r
 
-
-def cross_correlation(a, b, max_lag):
-    """
-    Cross correlation with lag.
-    """
-
-    a = (a - np.mean(a)) / (np.std(a, ddof = 1) * (len(a) - 1))
-    b = (b - np.mean(b)) / np.std(b, ddof = 1)
-    cor = np.correlate(a, b, 'full')
-
-    return cor[len(cor)//2 - max_lag : len(cor)//2 + max_lag+1]
-
-
-def kdensity_estimate(a, kernel = 'gaussian', bandwidth = 1.0):
-    """
-    Estimates kernel density. Uses sklearn.
-    kernels: 'gaussian', 'tophat', 'epanechnikov', 'exponential', 'linear', 'cosine'
-    """
-
-    from sklearn.neighbors import KernelDensity
-    a = a[:, None]
-    x = np.linspace(a.min(), a.max(), 100)[:, None]
-    kde = KernelDensity(kernel = kernel, bandwidth = bandwidth).fit(a)
-    logkde = kde.score_samples(x)
-
-    return np.squeeze(x), np.exp(logkde)
 
 
 class EmpiricalModel(DataField):
