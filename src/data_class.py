@@ -764,7 +764,7 @@ class DataField:
             self.time = np.array(monthly_time)                
         elif abs(delta - 30) < 3.0:
             # monhtly data
-            raise Exception('The data are already monthly values.')
+            print('The data are already monthly values. Nothing happend.')
         else:
             raise Exception('Unknown temporal sampling in the field.')
             
@@ -839,11 +839,15 @@ class DataField:
             if lat_to % delta_lats == 0 and lon_to % delta_lons == 0:
                 lat_ndx = int(lat_to // delta_lats)
                 lon_ndx = int(lon_to // delta_lons)
+
+                lat_flg, lon_flg = self._ascending_descending_lat_lons(lats = True, lons = True, direction = 'asc')
+
                 start_lat_ndx = np.where(self.lats == start[0])[0]
                 start_lon_ndx = np.where(self.lons == start[1])[0]
                 if start_lon_ndx.size == 1 and start_lat_ndx.size == 1:
                     start_lat_ndx = start_lat_ndx[0]
                     start_lon_ndx = start_lon_ndx[0]
+
                     if not average:
                         self.lats = self.lats[start_lat_ndx::lat_ndx]
                         self.lons = self.lons[start_lon_ndx::lon_ndx]
@@ -855,7 +859,6 @@ class DataField:
 
                         from scipy.interpolate import RectBivariateSpline
 
-                        lat_flg, lon_flg = self._ascending_descending_lat_lons(lats = True, lons = True, direction = 'asc')
                         # if data is single-level - create additional dummy dimension
                         if self.data.ndim == 3:
                             self.data = self.data[:, np.newaxis, :, :]
@@ -873,8 +876,6 @@ class DataField:
                         self.lons = new_lons
                         self.data = np.squeeze(d)
 
-                        self._ascending_descending_lat_lons(lats = lat_flg, lons = lon_flg, direction = 'des')
-
                     if np.any(np.isnan(self.data)):
                         self.nans = True
                     else:
@@ -882,6 +883,8 @@ class DataField:
 
                 else:
                     raise Exception("Start lat and / or lon for subsampling does not exist in the data!")
+
+                self._ascending_descending_lat_lons(lats = lat_flg, lons = lon_flg, direction = 'des')
 
             else:
                 raise Exception("Subsampling lats only to multiples of %.2f and lons of %.2f" % (delta_lats, delta_lons))
@@ -1341,8 +1344,8 @@ class DataField:
 
         import wavelet_analysis as wvlt
 
-        i, j, s0, data, flag = a
-        wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
+        i, j, s0, data, flag, k0 = a
+        wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
         phase = np.arctan2(np.imag(wave), np.real(wave))
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
         ret = [phase, amplitude]
@@ -1353,14 +1356,13 @@ class DataField:
 
 
 
-    def wavelet(self, period, period_unit = 'y', ts = None, pool = None, save_wave = False):
+    def wavelet(self, period, period_unit = 'y', ts = None, pool = None, save_wave = False, k0 = 6.):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years, or days.
         if ts is None, use self.data as input time series.
         """
 
-        k0 = 6.
         delta = self.time[1] - self.time[0]
         if delta == 1:
             # daily data
@@ -1408,7 +1410,7 @@ class DataField:
             if save_wave:
                 self.wave = np.zeros_like(self.data, dtype = np.complex64)
 
-            job_args = [ (i, j, s0, self.data[:, i, j], save_wave) for i in range(num_lats) for j in range(num_lons) ]
+            job_args = [ (i, j, s0, self.data[:, i, j], save_wave, k0) for i in range(num_lats) for j in range(num_lons) ]
             job_result = map_func(self._get_oscillatory_modes, job_args)
             del job_args
             for i, j, res in job_result:
