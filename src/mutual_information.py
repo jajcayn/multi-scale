@@ -175,7 +175,7 @@ def mutual_information(x, y, algorithm = 'EQQ', bins = 8, log2 = True):
 
 
 
-def knn_mutual_information(x, y, k, standartize = True, symm_algorithm = True, dualtree = False):
+def knn_mutual_information(x, y, k, standardize = True, symm_algorithm = True, dualtree = False):
     """
     Computes mutual information between two time series x and y as
         I(x; y) = sum( p(x,y) * log( p(x,y) / p(x)p(y) ),
@@ -183,7 +183,7 @@ def knn_mutual_information(x, y, k, standartize = True, symm_algorithm = True, d
     Performs k-nearest neighbours search using k-dimensional tree.
     Uses sklearn.neighbors for KDTree class.
     
-    standartize - whether transform data to zero mean and unit variance
+    standardize - whether transform data to zero mean and unit variance
     symm_algorithm
       True - use symmetric algorithm with one eps in both dimensions
       False - use different eps_x and eps_y in respective dimensions -- SOME PROBLEMS, DON'T USE NOW
@@ -197,7 +197,7 @@ def knn_mutual_information(x, y, k, standartize = True, symm_algorithm = True, d
     from scipy.special import digamma
 
     # prepare data
-    if standartize:
+    if standardize:
         x = _center_ts(x)
         y = _center_ts(y)
     data = np.vstack([x, y]).T
@@ -493,7 +493,7 @@ def _neg_harmonic(n):
 
 
 
-def knn_cond_mutual_information(x, y, z, k, standartize = True, dualtree = False):
+def knn_cond_mutual_information(x, y, z, k, standardize = True, dualtree = False):
     """
     Computes conditional mutual information between two time series x and y 
     conditioned on a third z (which can be multi-dimensional) as
@@ -502,7 +502,7 @@ def knn_cond_mutual_information(x, y, z, k, standartize = True, dualtree = False
     Performs k-nearest neighbours search using k-dimensional tree.
     Uses sklearn.neighbors for KDTree class.
 
-    standartize - whether transform data to zero mean and unit variance
+    standardize - whether transform data to zero mean and unit variance
     dualtree - whether to use dualtree formalism in k-d tree for the k-NN search
       could lead to better performance with large N
 
@@ -512,7 +512,7 @@ def knn_cond_mutual_information(x, y, z, k, standartize = True, dualtree = False
     from sklearn.neighbors import KDTree
 
     # prepare data
-    if standartize:
+    if standardize:
         x = _center_ts(x)
         y = _center_ts(y)
         if isinstance(z, np.ndarray):

@@ -79,7 +79,7 @@ def fdr_test(p_vals, sig_level, Nsurr, Nhyp = None):
         
         # check if we satisfy the FDR condition
         if p_vals[hndx] <= (i+1)*bonf_level:
-        h[sndx[:i+1]] = True
+            h[sndx[:i+1]] = True
             break
         
     return h
