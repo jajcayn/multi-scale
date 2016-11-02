@@ -66,7 +66,7 @@ def fdr_test(p_vals, sig_level, Nsurr, Nhyp = None):
     bonf_level = sig_level / Nhyp
     
     if bonf_level < 1.0 / Nsurr:
-        raise "Will not run FDR, not enough surrogates used for the test!"
+        raise Exception("Will not run FDR, not enough surrogates used for the test!")
     
     Npvals = len(p_vals)
     h = np.zeros((Npvals,), dtype = np.bool)
