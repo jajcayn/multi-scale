@@ -34,7 +34,7 @@ def bonferroni_test(p_vals, sig_level, Nsurr, Nhyp = None, Sidak = False):
         bonf_level = 1.0 - (1.0 - sig_level) ** (1.0 / Nhyp)
     
     if bonf_level < 1.0 / Nsurr:
-        raise "Will not run Bonferroni, not enough surrogates available for the test!"
+        raise Exception("Will not run Bonferroni, not enough surrogates available for the test!")
     
     return p_vals < bonf_level
 
@@ -111,7 +111,7 @@ def holm_test(p_vals, sig_level, Nsurr, Nhyp = None):
     bonf_level = sig_level / Nhyp
     
     if bonf_level < 1.0 / Nsurr:
-        raise "Will not run Bonferroni-Holm test, not enough surrogates used for the test!"
+        raise Exception("Will not run Bonferroni-Holm test, not enough surrogates used for the test!")
 
     h = np.zeros((Nhyp,), dtype = np.bool)
 
