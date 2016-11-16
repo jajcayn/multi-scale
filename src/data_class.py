@@ -857,20 +857,40 @@ class DataField:
 
                     else:
 
-                        from scipy.interpolate import RectBivariateSpline
+                        nan_flag = False
+                        if self.nans:
+                            if self.check_NaNs_only_spatial():
+                                # for interpolation purposes, fill NaNs with 0.
+                                msk = np.isnan(self.data)
+                                self.data[msk] = 0.
+                                msk = msk[0, ...]
+                                nan_flag = True
+                            else:
+                                raise Exception("NaNs in the data are not only spatial, cannot interpolate!")
 
+                        from scipy.interpolate import RectBivariateSpline
                         # if data is single-level - create additional dummy dimension
                         if self.data.ndim == 3:
                             self.data = self.data[:, np.newaxis, :, :]
+
                         # fields for new lats / lons
                         new_lats = np.arange(start[0], self.lats[-1]+lat_to, lat_to)
-                        new_lons = np.arange(start[1], self.lons[-1]+lon_to, lon_to)
+                        new_lons = np.arange(start[1], self.lons[-1], lon_to)
                         d = np.zeros((list(self.data.shape[:2]) + [new_lats.shape[0], new_lons.shape[0]]))
+                        # interpolate using Bivariate spline
                         for t in range(self.time.shape[0]):
                             for lvl in range(self.data.shape[1]):
                                 int_scheme = RectBivariateSpline(self.lats, self.lons, self.data[t, lvl, ...])
-
                                 d[t, lvl, ...] = int_scheme(new_lats, new_lons)
+                        
+                        if nan_flag:
+                            # subsample mask to new grid
+                            msk_temp = msk[start_lat_ndx::lat_ndx, :]
+                            msk = msk_temp[..., start_lon_ndx::lon_ndx]
+                            # return back NaNs
+                            for t in range(self.time.shape[0]):
+                                for lvl in range(self.data.shape[1]):
+                                    d[t, lvl, msk] = np.nan
 
                         self.lats = new_lats
                         self.lons = new_lons
@@ -1430,6 +1450,75 @@ class DataField:
         else:
             res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave])[-1]
             return [i[0, :] for i in res]
+
+
+
+    def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, fname = None):
+        """
+        Simple plot of the geo data using the Robinson projection.
+        By default, plots first temporal field in the data.
+        t is temporal point (< self.time.shape[0])
+        if mean is True, plots the temporal mean.
+        to render different field than self.data, enter 2d field of the same shape.
+        if fname is None, shows the plot, otherwise saves it to the given filename.
+        """
+
+        import matplotlib.pyplot as plt
+        from mpl_toolkits.basemap import Basemap, shiftgrid
+
+        if self.data.ndim == 3:
+            field = self.data[t, ...]
+            title = ("%s: %d. point -- %s" % (self.var_name.upper(), t, self.get_date_from_ndx(t)))
+            if mean:
+                field = np.mean(self.data, axis = 0)
+                title = ("%s: temporal mean" % (self.var_name.upper()))
+        
+        elif self.data.ndim == 4:
+            field = self.data[t, lvl, ...]
+            title = ("%s at %d level: %d. point -- %s" % (self.var_name.upper(), lvl, t, self.get_date_from_ndx(t)))
+            if mean:
+                field = np.mean(self.data[:, lvl, ...], axis = 0)
+                title = ("%s at %d level: temporal mean" % (self.var_name.upper(), lvl))
+
+        if field_to_plot is not None:
+            if field_to_plot.ndim == 2 and field_to_plot.shape[0] == self.lats.shape[0] and field_to_plot.shape[1] == self.lons.shape[0]:
+                field = field_to_plot
+                title = ("Some field you should know")
+            else:
+                raise Exception("field_to_plot has to have shape as lats x lons saved in the data class!")
+
+        plt.figure(figsize=(15,7.5))
+        lat_ndx = np.argsort(self.lats)
+        lats = self.lats[lat_ndx]
+        field = field[lat_ndx, :]
+        
+        data = np.zeros((field.shape[0], field.shape[1] + 1))
+        data[:, :-1] = field
+        data[:, -1] = data[:, 0]
+        llons = self.lons.tolist()
+        llons.append(360)
+        lons = np.array(llons)
+        m = Basemap(projection = 'robin', lon_0 = 0, resolution='c')
+        
+        data, lons = shiftgrid(180., data, lons, start = False)
+                    
+        m.fillcontinents(color = "#ECF0F3", lake_color = "#A9E5FF", zorder = 0)
+        m.drawmapboundary(fill_color = "#A9E5FF")
+        m.drawcoastlines(linewidth = 2, color = "#333333")
+        m.drawcountries(linewidth = 1.5, color = "#333333")
+        m.drawparallels(np.arange(-90, 90, 30), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
+        m.drawmeridians(np.arange(-180, 180, 60), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
+        x, y = m(*np.meshgrid(lons, lats))
+        
+        cs = m.contourf(x, y, data, cmap = plt.get_cmap('jet'))
+        cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05)
+
+        plt.title(title, size = 30)
+
+        if fname is None:
+            plt.show()
+        else:
+            plt.save_fig(fname, bbox_inches = 'tight')
 
 
         

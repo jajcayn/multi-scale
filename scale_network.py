@@ -72,8 +72,9 @@ def _get_phase_fluctuations(a):
 
     i, j, omega, ph = a
 
+    ph0 = ph[0]
     for t in range(ph.shape[0]):
-        ph[t] -= ph[0] + omega*t 
+        ph[t] -= ph0 + omega*t 
 
     return i, j, ph
 
