@@ -488,6 +488,15 @@ class DataField:
             return int(pos[0])
         else:
             return None
+
+
+
+    def get_closest_lat_lon(self, lat, lon):
+        """
+        Returns closest lat, lon index in the data.
+        """
+
+        return [np.abs(self.lats - lat).argmin(), np.abs(self.lons - lon).argmin()]
             
             
             
@@ -728,6 +737,26 @@ class DataField:
             y = dt.year + 1
             
         return self.find_date_ndx(date(y, mi, dt.day))
+
+
+
+    def get_annual_data(self):
+        """
+        Converts the data to annual means.
+        """
+
+        yearly_data = []
+        yearly_time = []
+
+        day, mon, year = self.extract_day_month_year()
+
+        for y in range(year[0], year[-1]+1, 1):
+            year_ndx = np.where(year == y)[0]
+            yearly_data.append(np.nanmean(self.data[year_ndx, ...], axis = 0))
+            yearly_time.append(date(y, 1, 1).toordinal())
+
+        self.data = np.array(yearly_data)
+        self.time = np.array(yearly_time) 
         
             
             
