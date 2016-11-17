@@ -1,6 +1,6 @@
 from scale_network import ScaleSpecificNetwork
 from datetime import date
-from multiprocessing import Pool
+from pathos.multiprocessing import Pool
 import numpy as np
 from src.data_class import DataField
 import csv
