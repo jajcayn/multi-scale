@@ -1433,6 +1433,16 @@ class DataField:
                 raise Exception("For monthly data doesn't make sense to enter wavelet period in days.")
             else:
                 raise Exception("Unknown type.")
+        elif delta == 365 or delta == 366:
+            # annual data
+            if period_unit == 'y':
+                y = 1.
+            elif period_unit == 'm':
+                raise Exception("For monthly data doesn't make sense to enter wavelet period in days.")
+            elif period_unit == 'd':
+                raise Exception("For monthly data doesn't make sense to enter wavelet period in days.")
+            else:
+                raise Exception("Unknown type.")
         else:
             raise Exception('Unknown temporal sampling in the field.')
 
