@@ -8,10 +8,11 @@ import matplotlib.pyplot as plt
 import src.wavelet_analysis as wvlt
 
 
-# fname = '/home/nikola/Work/phd/data/air.mon.mean.sig995.nc'
-fname = "/Users/nikola/work-ui/data/air.mon.mean.sig995.nc"
+fname = '/home/nikola/Work/phd/data/air.mon.mean.sig995.nc'
+# fname = "/Users/nikola/work-ui/data/air.mon.mean.sig995.nc"
 
 ## PHASE FLUCTUATIONS NETWORK EQQ
+print "Computing MI EQQ..."
 net = ScaleSpecificNetwork(fname, 'air', date(1950,1,1), date(2016,1,1), None, None, None, 'monthly', anom = False)
 pool = Pool(20)
 net.wavelet(1, 'y', pool = pool, cut = 1)
@@ -23,9 +24,10 @@ pool.close()
 pool.join()
 net.get_adjacency_matrix(net.phase_fluctuations, method = "MIEQQ", pool = None, use_queue = True, num_workers = 20)
 net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatMIEQQ-bins=4.bin', only_matrix = True)
-
+print "MI EQQ done."
 
 ## PHASE FLUCTUATIONS NETWORK kNN
+print "Computing MI knn..."
 net = ScaleSpecificNetwork(fname, 'air', date(1950,1,1), date(2016,1,1), None, None, None, 'monthly', anom = False)
 pool = Pool(20)
 net.wavelet(1, 'y', pool = pool, cut = 1)
@@ -37,7 +39,7 @@ pool.close()
 pool.join()
 net.get_adjacency_matrix(net.phase_fluctuations, method = "MIKNN", pool = None, use_queue = True, num_workers = 20)
 net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatMIKNN-k=32.bin', only_matrix = True)
-
+print "DONE."
 
 # ## PHASE FLUCTUATIONS CONDITION NAO
 # NAOdata = DataField()
