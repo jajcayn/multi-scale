@@ -2,29 +2,11 @@ import numpy as np
 from src.data_class import DataField
 import src.wavelet_analysis as wvlt
 from datetime import datetime
-from src.mutual_information import mutual_information, cond_mutual_information
+import src.mutual_information as MI
 
 import multiprocessing as mp
 from time import sleep
 
-
-def _get_oscillatory_modes(a):
-    """
-    Gets oscillatory modes in terms of phase and amplitude from wavelet analysis for given data.
-    """
-    i, j, s0, flag, flag2, data = a
-    wave, _, _, _ = wvlt.continous_wavelet(data, 1, False, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = 6.)
-    phase = np.arctan2(np.imag(wave), np.real(wave))
-    if flag:
-        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
-
-    ret = [phase]
-    if flag:
-        ret.append(amplitude)
-    if flag2:
-        ret.append(wave)
-    
-    return i, j, ret
 
 
 def _filtered_data(a):
@@ -98,7 +80,16 @@ def _get_mutual_inf_EQQ(a):
     """
     
     i, j, ph1, ph2 = a
-    return i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 4, log2 = False)
+    return i, j, MI.mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 4, log2 = False)
+
+
+def _get_mutual_inf_KNN(a):
+    """
+    Gets mutual information using EQQ algorithm for given data.
+    """
+    
+    i, j, ph1, ph2 = a
+    return i, j, MI.knn_mutual_information(ph1, ph2, k = 32, dualtree = True)
 
 
 def _get_automutual_info(a):
@@ -109,7 +100,7 @@ def _get_automutual_info(a):
     i, j, to, ph = a
     result = []
     for tau in range(1,to):
-        result.append(mutual_information(ph[tau:], ph[:-tau], algorithm = 'EQQ2', bins = 4, log2 = False))
+        result.append(MI.mutual_information(ph[tau:], ph[:-tau], algorithm = 'EQQ2', bins = 4, log2 = False))
 
     return i, j, np.array(result)
 
@@ -156,50 +147,6 @@ class ScaleSpecificNetwork(DataField):
         self.num_lats = self.lats.shape[0]
         self.num_lons = self.lons.shape[0]
         self.sampling = sampling
-
-
-
-    def wavelet(self, period, get_amplitude = False, save_wavelet = False, pool = None):
-        """
-        Performs wavelet analysis on the data.
-        """
-
-        self.period = period
-
-        k0 = 6. # wavenumber of Morlet wavelet used in analysis, suppose Morlet mother wavelet
-        if self.sampling == 'monthly':
-            y = 12
-        elif self.sampling == 'daily':
-            y = 365.25
-        fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
-        per = period * y # frequency of interest
-        s0 = per / fourier_factor # get scale
-
-        self.phase = np.zeros_like(self.data)
-        if get_amplitude:
-            self.amplitude = np.zeros_like(self.data)
-        if save_wavelet:
-            self.wave = np.zeros_like(self.data, dtype = np.complex64)
-
-        if pool is None:
-            map_func = map
-        elif pool is not None:
-            map_func = pool.map
-
-        job_args = [ (i, j, s0, get_amplitude, save_wavelet, self.data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
-        job_result = map_func(_get_oscillatory_modes, job_args)
-        del job_args
-
-        for i, j, res in job_result:
-            self.phase[:, i, j] = res[0]
-            if get_amplitude:
-                self.amplitude[:, i, j] = res[1]
-            if save_wavelet and get_amplitude:
-                self.wave[:, i, j] = res[2]
-            if save_wavelet and not get_amplitude:
-                self.wave[:, i, j] = res[1]
-
-        del job_result
 
 
 
@@ -279,9 +226,9 @@ class ScaleSpecificNetwork(DataField):
         self.get_continuous_phase(pool = pool)
 
         if self.sampling == 'monthly':
-           omega = 2 * np.pi / 12
+           omega = 2 * np.pi / self.frequency
         elif self.sampling == 'daily':
-            omega = 2 * np.pi / 365.25
+            omega = 2 * np.pi / self.frequency
 
         if pool is None:
             map_func = map
@@ -292,7 +239,7 @@ class ScaleSpecificNetwork(DataField):
         job_result = map_func(_get_phase_fluctuations, job_args)
         del job_args
 
-        self.phase_fluctuations = np.zeros_like(self.data)
+        self.phase_fluctuations = np.zeros_like(self.phase)
         
         for i, j, res in job_result:
             self.phase_fluctuations[:, i, j] = res
@@ -321,7 +268,10 @@ class ScaleSpecificNetwork(DataField):
                     resq.put((i, j, coh))
 
                 elif method == "MIEQQ":
-                    resq.put((i, j, mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 4, log2 = False)))
+                    resq.put((i, j, MI.mutual_information(ph1, ph2, algorithm = 'EQQ2', bins = 4, log2 = False)))
+
+                elif method == "MIKNN":
+                    resq.put((i, j, MI.knn_mutual_information(ph1, ph2, k = 32, dualtree = True)))
 
                 elif method == "MIGAU":
                     corr = np.corrcoef([ph1, ph2])[0, 1]                    
@@ -359,7 +309,7 @@ class ScaleSpecificNetwork(DataField):
                 break # break infinity cycle
             else:
                 i, j, ph1, ph2, cond_ts = a # compute stuff
-                resq.put((i, j, cond_mutual_information(ph1, ph2, cond_ts, algorithm = 'EQQ2', bins = 4, log2 = False)))
+                resq.put((i, j, MI.cond_mutual_information(ph1, ph2, cond_ts, algorithm = 'EQQ2', bins = 4, log2 = False)))
 
 
 
@@ -369,6 +319,7 @@ class ScaleSpecificNetwork(DataField):
         Methods for adjacency matrix:
             MPC - mean phase coherence
             MIEQQ - mutual information - equiquantal algorithm
+            MIKNN - mutual information - k-nearest neighbours algorithm
             MIGAU - mutual information - Gauss algorithm
             COV - covariance matrix
             WCOH - wavelet coherence
@@ -395,6 +346,8 @@ class ScaleSpecificNetwork(DataField):
             elif method == 'MIGAU':
                 job_results = map_func(_get_mutual_inf_gauss, job_args)
             elif method == 'MIEQQ':
+                job_results = map_func(_get_mutual_inf_EQQ, job_args)
+            elif method == 'MIKNN':
                 job_results = map_func(_get_mutual_inf_EQQ, job_args)
             del job_args
 

@@ -1405,11 +1405,12 @@ class DataField:
 
 
 
-    def wavelet(self, period, period_unit = 'y', ts = None, pool = None, save_wave = False, k0 = 6.):
+    def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, k0 = 6.):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years, or days.
         if ts is None, use self.data as input time series.
+        cut is either None or number period to be cut from beginning and end of the time series in years
         """
 
         delta = self.time[1] - self.time[0]
@@ -1448,7 +1449,10 @@ class DataField:
 
         fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
         per = period * y # frequency of interest
+        self.frequency = per
         s0 = per / fourier_factor # get scale
+        if cut is not None:
+            to_cut = int(y*cut)
 
         if ts is None:
             if pool is None:
@@ -1481,14 +1485,17 @@ class DataField:
             del job_result
 
             self.data = np.squeeze(self.data)
-            self.phase = np.squeeze(self.phase)
-            self.amplitude = np.squeeze(self.amplitude)
+            self.phase = np.squeeze(self.phase) if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
+            self.amplitude = np.squeeze(self.amplitude) if cut is None else np.squeeze(self.amplitude[to_cut:-to_cut, ...])
             if save_wave:
-                self.wave = np.squeeze(self.wave)
+                self.wave = np.squeeze(self.wave) if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
         
         else:
             res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave])[-1]
-            return [i[0, :] for i in res]
+            if cut is not None:
+                return [i[0, to_cut:-to_cut] for i in res]
+            else:
+                return [i[0, :] for i in res]
 
 
 
