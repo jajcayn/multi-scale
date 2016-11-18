@@ -9,6 +9,25 @@ from data_class import DataField
 
 
 
+def get_p_vals(field, surr_field, one_tailed = True):
+    """
+    Returns one-tailed or two-tailed values of percentiles with respect to 
+    surrogate testing.
+    """
+
+    num_surrs = surr_field.shape[0]
+    if field.shape != surr_field.shape[1:]:
+        raise Exception("Wrong input fields. surr_field has to have shape as num_surr x field.shape!")
+
+    # get significance - p-values
+    sig = 1. - np.sum(np.greater_equal(field, surr_field), axis = 0) / float(num_surr)
+    if one_tailed:
+        return sig
+    else:
+        return 2 * np.minimum(sig, 1. - sig)
+
+
+
 def bonferroni_test(p_vals, sig_level, Nsurr, Nhyp = None, Sidak = False):
     """
     Run a Bonferroni multiple testing procedure on p-values <p_vals> with significance

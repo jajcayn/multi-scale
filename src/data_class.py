@@ -1491,7 +1491,7 @@ class DataField:
                 self.wave = np.squeeze(self.wave) if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
         
         else:
-            res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave])[-1]
+            res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave, k0])[-1]
             if cut is not None:
                 return [i[0, to_cut:-to_cut] for i in res]
             else:
