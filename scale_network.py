@@ -3,6 +3,7 @@ from src.data_class import DataField
 import src.wavelet_analysis as wvlt
 from datetime import datetime
 import src.mutual_information as MI
+import scipy.stats as st
 
 import multiprocessing as mp
 from time import sleep
@@ -281,6 +282,9 @@ class ScaleSpecificNetwork(DataField):
                 elif method == "COV":
                     resq.put((i, j, np.cov(ph1, ph2, ddof = 1)[0,1]))
 
+                elif method == "CORR":
+                    resq.put((i, j, st.pearsonr(ph1, ph2)[0]))
+
                 elif method == "WCOH":
                     # input field must be wave from wavelet!!!!
                     w1 = np.complex(0, 0)
@@ -297,7 +301,7 @@ class ScaleSpecificNetwork(DataField):
                     res = 0
                     for t in range(ph1.shape[0]):
                         res += np.power(np.abs(ph1[t] - ph2[t]), p)
-                    resq.put((i, j, res))
+                    resq.put((i, j, np.power(res, 1./p)))
 
 
     def _process_matrix_cond(self, jobq, resq):

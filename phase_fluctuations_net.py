@@ -11,8 +11,8 @@ import src.wavelet_analysis as wvlt
 fname = '/home/nikola/Work/phd/data/air.mon.mean.sig995.nc'
 # fname = "/Users/nikola/work-ui/data/air.mon.mean.sig995.nc"
 
-## PHASE FLUCTUATIONS NETWORK EQQ
-print "Computing MI EQQ..."
+## PHASE FLUCTUATIONS NETWORK L2 dist.
+print "Computing L2 distance..."
 net = ScaleSpecificNetwork(fname, 'air', date(1950,1,1), date(2016,1,1), None, None, None, 'monthly', anom = False)
 pool = Pool(20)
 net.wavelet(1, 'y', pool = pool, cut = 1)
@@ -22,11 +22,12 @@ net.get_phase_fluctuations(rewrite = True, pool = pool)
 print "fluctuations done"
 pool.close()
 pool.join()
-net.get_adjacency_matrix(net.phase_fluctuations, method = "MIEQQ", pool = None, use_queue = True, num_workers = 20)
-net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatMIEQQ-bins=4.bin', only_matrix = True)
-print "MI EQQ done."
+net.phase_fluctuations -= np.nanmean(net.phase_fluctuations, axis = 0)
+net.get_adjacency_matrix(net.phase_fluctuations, method = "L2", pool = None, use_queue = True, num_workers = 20)
+net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatL2.bin', only_matrix = True)
+print "L2 done"
 
-## PHASE FLUCTUATIONS NETWORK kNN
+## PHASE FLUCTUATIONS NETWORK correlation
 print "Computing MI knn..."
 net = ScaleSpecificNetwork(fname, 'air', date(1950,1,1), date(2016,1,1), None, None, None, 'monthly', anom = False)
 pool = Pool(20)
@@ -37,8 +38,8 @@ net.get_phase_fluctuations(rewrite = True, pool = pool)
 print "fluctuations done"
 pool.close()
 pool.join()
-net.get_adjacency_matrix(net.phase_fluctuations, method = "MIKNN", pool = None, use_queue = True, num_workers = 20)
-net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatMIKNN-k=32.bin', only_matrix = True)
+net.get_adjacency_matrix(net.phase_fluctuations, method = "CORR", pool = None, use_queue = True, num_workers = 20)
+net.save_net('networks/NCEP-SATannual-phase-fluctuations-adjmatCORR.bin', only_matrix = True)
 print "DONE."
 
 # ## PHASE FLUCTUATIONS CONDITION NAO
