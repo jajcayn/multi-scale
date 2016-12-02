@@ -15,6 +15,8 @@ END_YEARS = [2016, 2014, 2016, 2016, 2015, 2015, 2016, 2016, 2015]
 DATE_TYPE = [1, 1, 0, 0, 1, 0, 1, 0, 2]
 NUM_SURR = 1000
 NUM_WORKERS = 20
+path_to_data = "/Users/nikola/work-ui/data/"
+path_to_data = "/home/nikola/Work/phd/data/"
 
 
 def get_corrs(net, ndx):
@@ -30,10 +32,10 @@ def get_corrs(net, ndx):
 
 
 
-net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/air.mon.mean.levels.nc', 'air', 
+net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
                            date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
 
-net_surrs = ScaleSpecificNetwork('/Users/nikola/work-ui/data/air.mon.mean.levels.nc', 'air', 
+net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
                            date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
 
 
@@ -62,7 +64,7 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
 
     if index != 'NINO3.4':
         index_data = DataField()
-        raw = np.loadtxt("/Users/nikola/work-ui/data/%s.monthly.%d-%d.txt" % (index, start_date.year, end_year))
+        raw = np.loadtxt("%s%s.monthly.%d-%d.txt" % (path_to_data, index, start_date.year, end_year))
         if ndx_type == 0:
             index_data.data = raw[:, 2]
         elif ndx_type == 1:
@@ -72,7 +74,7 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
         index_data.create_time_array(date_from = start_date, sampling = 'm')
     
     elif index == 'NINO3.4':
-        index_data = load_enso_index("/Users/nikola/work-ui/data/nino34raw.txt", '3.4', date(1950, 1, 1), date(2014, 1, 1), anom = True)
+        index_data = load_enso_index("%snino34raw.txt" % path_to_data, '3.4', date(1950, 1, 1), date(2014, 1, 1), anom = True)
 
     index_data.select_date(date(1950, 1, 1), date(2014, 1, 1))
     index_data.anomalise()
