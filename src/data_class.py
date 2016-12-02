@@ -1499,7 +1499,7 @@ class DataField:
 
 
 
-    def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, fname = None):
+    def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, tit = None, fname = None):
         """
         Simple plot of the geo data using the Robinson projection.
         By default, plots first temporal field in the data.
@@ -1533,7 +1533,7 @@ class DataField:
             else:
                 raise Exception("field_to_plot has to have shape as lats x lons saved in the data class!")
 
-        plt.figure(figsize=(15,7.5))
+        plt.figure(figsize=(20,10))
         lat_ndx = np.argsort(self.lats)
         lats = self.lats[lat_ndx]
         field = field[lat_ndx, :]
@@ -1556,15 +1556,18 @@ class DataField:
         m.drawmeridians(np.arange(-180, 180, 60), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
         x, y = m(*np.meshgrid(lons, lats))
         
-        cs = m.contourf(x, y, data, cmap = plt.get_cmap('jet'))
+        cs = m.contourf(x, y, data, 21, cmap = plt.get_cmap('jet'))
         cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05)
 
-        plt.title(title, size = 30)
+        if tit is None:
+            plt.title(title, size = 30)
+        else:
+            plt.title(tit, size = 30)
 
         if fname is None:
             plt.show()
         else:
-            plt.save_fig(fname, bbox_inches = 'tight')
+            plt.savefig(fname, bbox_inches = 'tight')
 
 
         
