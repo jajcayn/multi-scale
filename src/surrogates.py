@@ -20,7 +20,7 @@ def get_p_vals(field, surr_field, one_tailed = True):
         raise Exception("Wrong input fields. surr_field has to have shape as num_surr x field.shape!")
 
     # get significance - p-values
-    sig = 1. - np.sum(np.greater_equal(field, surr_field), axis = 0) / float(num_surr)
+    sig = 1. - np.sum(np.greater_equal(field, surr_field), axis = 0) / float(num_surrs)
     if one_tailed:
         return sig
     else:

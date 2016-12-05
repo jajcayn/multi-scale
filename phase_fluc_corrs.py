@@ -15,7 +15,7 @@ END_YEARS = [2016, 2014, 2016, 2016, 2015, 2015, 2016, 2016, 2015]
 DATE_TYPE = [1, 1, 0, 0, 1, 0, 1, 0, 2]
 NUM_SURR = 1000
 NUM_WORKERS = 20
-path_to_data = "/Users/nikola/work-ui/data/"
+# path_to_data = "/Users/nikola/work-ui/data/"
 path_to_data = "/home/nikola/Work/phd/data/"
 
 
@@ -32,17 +32,26 @@ def get_corrs(net, ndx):
 
 
 
-net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
-                           date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
+# net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
+#                            date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
+
+net = ScaleSpecificNetwork('%sERAconcat.t2m.mon.means.1958-2014.bin' % path_to_data, 't2m', 
+                       date(1958,1,1), date(2015,1,1), None, None, None, 'monthly', anom = False, pickled = True)
+
+net_surrs = ScaleSpecificNetwork('%sERAconcat.t2m.mon.means.1958-2014.bin' % path_to_data, 't2m', 
+                       date(1958,1,1), date(2015,1,1), None, None, None, 'monthly', anom = False, pickled = True)
+
+# net = ScaleSpecificNetwork('%s20CR/20CR.t2m.mon.nc' % path_to_data, 't2m', 
+                           # date(1949,1,1), date(2011,1,1), None, None, dataset = "ERA", sampling = 'monthly', anom = False)
 
 # net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
 #                            date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
 
 
-# surr_field = SurrogateField()
-# a = net.get_seasonality(detrend = True)
-# surr_field.copy_field(net)
-# net.return_seasonality(a[0], a[1], a[2])
+surr_field = SurrogateField()
+a = net.get_seasonality(detrend = True)
+surr_field.copy_field(net)
+net.return_seasonality(a[0], a[1], a[2])
 
 
 pool = Pool(NUM_WORKERS)
@@ -51,13 +60,14 @@ net.get_continuous_phase(pool = pool)
 print "wavelet done"
 net.get_phase_fluctuations(rewrite = True, pool = pool)
 print "fluctuations done"
+print net.data.shape
 pool.close()
 pool.join()
 
 index_correlations = {}
 index_datas = {}
 
-# SURROGATES
+# # SURROGATES
 for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES, END_YEARS):
     # load index
     print index
@@ -76,33 +86,32 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
     elif index == 'NINO3.4':
         index_data = load_enso_index("%snino34raw.txt" % path_to_data, '3.4', date(1950, 1, 1), date(2014, 1, 1), anom = True)
 
-    index_data.select_date(date(1950, 1, 1), date(2014, 1, 1))
+    index_data.select_date(date(1959, 1, 1), date(2014, 1, 1))
     index_data.anomalise()
 
     index_datas[index] = index_data
     index_correlations[index] = get_corrs(net, index_datas[index])
 
-    with open("NCEPtemp-phase-fluct-corr-with-%sindex-1950-2014.bin" % index, "wb") as f:
-        cPickle.dump({('%scorrs' % index) : index_correlations[index].reshape(np.prod(index_correlations[index].shape))}, f)
+    # with open("NCEPtemp-phase-fluct-corr-with-%sindex-1950-2014.bin" % index, "wb") as f:
+        # cPickle.dump({('%scorrs' % index) : index_correlations[index].reshape(np.prod(index_correlations[index].shape))}, f)
 
     ## plotting
-    # tit = ("NCEP annual phase fluctuations x %s correlations" % index)
-    # fname = ("../scale-nets/NCEP-SAT-annual-phase-fluc-%scorrs.png" % index)
+    # tit = ("20CR annual phase fluctuations x %s correlations" % index)
+    # fname = ("../scale-nets/20CR-SAT-annual-phase-fluc-%scorrs.png" % index)
     # net.quick_render(field_to_plot = index_correlations[index], tit = tit, fname = fname)
 
 
 def _corrs_surrs(args):
     index_correlations_surrs = {}
-    # surr_field.construct_fourier_surrogates()
-    # surr_field.add_seasonality(a[0], a[1], a[2])
+    surr_field.construct_fourier_surrogates()
+    surr_field.add_seasonality(a[0], a[1], a[2])
 
-    # net_surrs.data = surr_field.get_surr()
-    # net_surrs.wavelet(1, 'y', cut = 1)
-    # net_surrs.get_continuous_phase()
-    # net_surrs.get_phase_fluctuations(rewrite = True)
+    net_surrs.data = surr_field.get_surr()
+    net_surrs.wavelet(1, 'y', cut = 1)
+    net_surrs.get_continuous_phase()
+    net_surrs.get_phase_fluctuations(rewrite = True)
     for index in INDICES:
-        index_surr = get_single_FT_surrogate(index_datas[index])
-        index_correlations_surrs[index] = get_corrs(net, index_surr)
+        ndex_correlations_surrs[index] = get_corrs(net_surrs, index_datas[index])
 
     return index_correlations_surrs
 
@@ -114,7 +123,28 @@ results = pool.map(_corrs_surrs, args)
 pool.close()
 pool.join()
 
-with open("NCEP-SAT-annual-phase-fluc-%dFTsurrs-from-indices.bin" % NUM_SURR, "wb") as f:
+with open("ERA-SAT-annual-phase-fluc-%dFTsurrs.bin" % NUM_SURR, "wb") as f:
+    cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+
+
+def _corrs_surrs_ind(args):
+    index_correlations_surrs = {}
+    for index in INDICES:
+        index_surr = DataField()
+        index_surr.data = get_single_FT_surrogate(index_datas[index].data)
+        index_correlations_surrs[index] = get_corrs(net, index_surr)
+
+    return index_correlations_surrs
+
+
+
+pool = Pool(NUM_WORKERS)
+args = [1 for i in range(NUM_SURR)]
+results = pool.map(_corrs_surrs_ind, args)
+pool.close()
+pool.join()
+
+with open("ERA-SAT-annual-phase-fluc-%dFTsurrs-from-indices.bin" % NUM_SURR, "wb") as f:
     cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 

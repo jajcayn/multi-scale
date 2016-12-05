@@ -1548,8 +1548,8 @@ class DataField:
         
         data, lons = shiftgrid(180., data, lons, start = False)
                     
-        m.fillcontinents(color = "#ECF0F3", lake_color = "#A9E5FF", zorder = 0)
-        m.drawmapboundary(fill_color = "#A9E5FF")
+        # m.fillcontinents(color = "#ECF0F3", lake_color = "#A9E5FF", zorder = 0)
+        # m.drawmapboundary(fill_color = "#A9E5FF")
         m.drawcoastlines(linewidth = 2, color = "#333333")
         m.drawcountries(linewidth = 1.5, color = "#333333")
         m.drawparallels(np.arange(-90, 90, 30), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
