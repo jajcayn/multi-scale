@@ -3,7 +3,7 @@ from datetime import date
 from pathos.multiprocessing import Pool
 import numpy as np
 from src.data_class import DataField, load_enso_index
-from src.surrogates import SurrogateField
+from src.surrogates import SurrogateField, get_single_FT_surrogate
 from scipy.stats import pearsonr
 import cPickle
 
@@ -35,14 +35,14 @@ def get_corrs(net, ndx):
 net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
                            date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
 
-net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
-                           date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
+# net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
+#                            date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
 
 
-surr_field = SurrogateField()
-a = net.get_seasonality(detrend = True)
-surr_field.copy_field(net)
-net.return_seasonality(a[0], a[1], a[2])
+# surr_field = SurrogateField()
+# a = net.get_seasonality(detrend = True)
+# surr_field.copy_field(net)
+# net.return_seasonality(a[0], a[1], a[2])
 
 
 pool = Pool(NUM_WORKERS)
@@ -82,6 +82,9 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
     index_datas[index] = index_data
     index_correlations[index] = get_corrs(net, index_datas[index])
 
+    with open("NCEPtemp-phase-fluct-corr-with-%sindex-1950-2014.bin" % index, "wb") as f:
+        cPickle.dump({('%scorrs' % index) : index_correlations[index].reshape(np.prod(index_correlations[index].shape))}, f)
+
     ## plotting
     # tit = ("NCEP annual phase fluctuations x %s correlations" % index)
     # fname = ("../scale-nets/NCEP-SAT-annual-phase-fluc-%scorrs.png" % index)
@@ -90,15 +93,16 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
 
 def _corrs_surrs(args):
     index_correlations_surrs = {}
-    surr_field.construct_fourier_surrogates()
-    surr_field.add_seasonality(a[0], a[1], a[2])
+    # surr_field.construct_fourier_surrogates()
+    # surr_field.add_seasonality(a[0], a[1], a[2])
 
-    net_surrs.data = surr_field.get_surr()
-    net_surrs.wavelet(1, 'y', cut = 1)
-    net_surrs.get_continuous_phase()
-    net_surrs.get_phase_fluctuations(rewrite = True)
+    # net_surrs.data = surr_field.get_surr()
+    # net_surrs.wavelet(1, 'y', cut = 1)
+    # net_surrs.get_continuous_phase()
+    # net_surrs.get_phase_fluctuations(rewrite = True)
     for index in INDICES:
-        index_correlations_surrs[index] = get_corrs(net_surrs, index_datas[index])
+        index_surr = get_single_FT_surrogate(index_datas[index])
+        index_correlations_surrs[index] = get_corrs(net, index_surr)
 
     return index_correlations_surrs
 
@@ -110,7 +114,7 @@ results = pool.map(_corrs_surrs, args)
 pool.close()
 pool.join()
 
-with open("NCEP-SAT-annual-phase-fluc-%dFTsurrs.bin" % NUM_SURR, "wb") as f:
+with open("NCEP-SAT-annual-phase-fluc-%dFTsurrs-from-indices.bin" % NUM_SURR, "wb") as f:
     cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 
