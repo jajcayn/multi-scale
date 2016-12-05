@@ -111,6 +111,6 @@ pool.close()
 pool.join()
 
 with open("NCEP-SAT-annual-phase-fluc-%dFTsurrs.bin" % NUM_SURR, "wb") as f:
-    cPickle.dump({'data': index_correlations, 'surrs' : results})
+    cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 
