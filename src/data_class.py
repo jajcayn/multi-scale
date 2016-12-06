@@ -1499,7 +1499,8 @@ class DataField:
 
 
 
-    def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, tit = None, fname = None):
+    def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, tit = None, 
+                        symm = True, whole_world = True, fname = None):
         """
         Simple plot of the geo data using the Robinson projection.
         By default, plots first temporal field in the data.
@@ -1537,27 +1538,52 @@ class DataField:
         lat_ndx = np.argsort(self.lats)
         lats = self.lats[lat_ndx]
         field = field[lat_ndx, :]
-        
-        data = np.zeros((field.shape[0], field.shape[1] + 1))
-        data[:, :-1] = field
-        data[:, -1] = data[:, 0]
-        llons = self.lons.tolist()
-        llons.append(360)
-        lons = np.array(llons)
-        m = Basemap(projection = 'robin', lon_0 = 0, resolution='c')
-        
-        data, lons = shiftgrid(180., data, lons, start = False)
-                    
-        # m.fillcontinents(color = "#ECF0F3", lake_color = "#A9E5FF", zorder = 0)
-        # m.drawmapboundary(fill_color = "#A9E5FF")
+
+        if whole_world:
+            data = np.zeros((field.shape[0], field.shape[1] + 1))
+            data[:, :-1] = field
+            data[:, -1] = data[:, 0]
+            llons = self.lons.tolist()
+            llons.append(360)
+            lons = np.array(llons)
+            m = Basemap(projection = 'robin', lon_0 = 0, resolution='c')
+            
+            data, lons = shiftgrid(180., data, lons, start = False)
+
+            m.drawparallels(np.arange(-90, 90, 30), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
+            m.drawmeridians(np.arange(-180, 180, 60), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
+
+        else:
+            lons = self.lons.copy()
+            m = Basemap(projection = 'merc',
+                    llcrnrlat = lats[0], urcrnrlat = lats[-1],
+                    llcrnrlon = lons[0], urcrnrlon = lons[-1],
+                    resolution = 'i')
+
+            data = field.copy()
+
+            m.drawparallels(np.arange(int(lats[0]), int(lats[-1]), 10), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
+            m.drawmeridians(np.arange(int(lons[0]), int(lons[-1]), 20), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
+            
+
         m.drawcoastlines(linewidth = 2, color = "#333333")
         m.drawcountries(linewidth = 1.5, color = "#333333")
-        m.drawparallels(np.arange(-90, 90, 30), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
-        m.drawmeridians(np.arange(-180, 180, 60), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
+    
         x, y = m(*np.meshgrid(lons, lats))
         
-        cs = m.contourf(x, y, data, 21, cmap = plt.get_cmap('jet'))
-        cbar = plt.colorbar(cs, pad = 0.07, shrink = 0.8, fraction = 0.05)
+        max = np.nanmax(data)
+        min  = np.nanmin(data)
+        if symm:
+            if np.abs(max) > np.abs(min):
+                min = -max
+            else:
+                max = -min
+        
+        levels = np.linspace(min, max, 41)
+
+        cs = m.contourf(x, y, data, levels = levels, cmap = plt.get_cmap('jet'))
+        cbar = plt.colorbar(cs, ticks = levels[::4] ,pad = 0.07, shrink = 0.8, fraction = 0.05)
+        cbar.ax.set_yticklabels(np.around(levels[::4], decimals = 2))
 
         if tit is None:
             plt.title(title, size = 30)
