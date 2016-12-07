@@ -142,7 +142,11 @@ def _corrs_surrs(args):
     net_surrs.get_continuous_phase()
     net_surrs.get_phase_fluctuations(rewrite = True)
     for index in INDICES:
-        index_correlations_surrs[index] = get_corrs(net_surrs, index_datas[index])
+        if index == 'SAM':
+            index_correlations_surrs[index] = get_corrs(net_surrs, index_datas[index], cut_ndx = ndx_sam)
+        else:
+            index_correlations_surrs[index] = get_corrs(net_surrs, index_datas[index])
+        
 
     return index_correlations_surrs
 
