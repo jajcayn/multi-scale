@@ -56,7 +56,7 @@ net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air',
                            # date(1949,1,1), date(2011,1,1), None, None, dataset = "ERA", sampling = 'monthly', anom = False)
 
 net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
-                           date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
+                           date(1949,1,1), date(2015,1,1), None, None, 0, dataset = "NCEP", sampling = 'monthly', anom = False)
 
 # net = ScaleSpecificNetwork('%sECAD.tg.daily.nc' % path_to_data, 'tg', date(1950, 1, 1), date(2015,1,1), None, 
 #     None, None, dataset = 'ECA-reanalysis', anom = False)
