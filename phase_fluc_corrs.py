@@ -43,7 +43,7 @@ def get_corrs(net, ndx, cut_ndx = None):
 
 
 
-net = ScaleSpecificNetwork('%sNCEP/air.mon.mean.levels.nc' % path_to_data, 'air', 
+net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
                            date(1949,1,1), date(2015,1,1), None, None, 0, dataset = "NCEP", sampling = 'monthly', anom = False)
 
 # net = ScaleSpecificNetwork('%sERA/ERAconcat.t2m.mon.means.1958-2014.bin' % path_to_data, 't2m', 
