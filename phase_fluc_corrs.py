@@ -118,7 +118,7 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
         ndx_sam = net.select_date(date(1957, 1, 1), date(2014, 1, 1), apply_to_data = False)[12:-12]
         index_correlations[index] = get_corrs(net, index_datas[index], cut_ndx = ndx_sam)
     else:
-        index_data.select_date(date(1951, 1, 1), date(2014, 1, 1))
+        index_data.select_date(date(1950, 1, 1), date(2014, 1, 1))
         index_data.anomalise()
         index_datas[index] = index_data
         index_correlations[index] = get_corrs(net, index_datas[index])
