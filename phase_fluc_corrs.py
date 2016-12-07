@@ -65,10 +65,10 @@ net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air
 # print net.get_date_from_ndx(0), net.get_date_from_ndx(-1)
 
 
-# surr_field = SurrogateField()
-# a = net.get_seasonality(detrend = True)
-# surr_field.copy_field(net)
-# net.return_seasonality(a[0], a[1], a[2])
+surr_field = SurrogateField()
+a = net.get_seasonality(detrend = True)
+surr_field.copy_field(net)
+net.return_seasonality(a[0], a[1], a[2])
 
 
 pool = Pool(NUM_WORKERS)
