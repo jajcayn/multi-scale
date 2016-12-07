@@ -1555,12 +1555,16 @@ class DataField:
 
         else:
             lons = self.lons.copy()
+            data = field.copy()
+
+            # if not monotonic
+            if not np.all([x < y for x, y in zip(lons, lons[1:])]):
+                lons[lons > lons[-1]] -= 360
+
             m = Basemap(projection = 'merc',
                     llcrnrlat = lats[0], urcrnrlat = lats[-1],
                     llcrnrlon = lons[0], urcrnrlon = lons[-1],
                     resolution = 'i')
-
-            data = field.copy()
 
             m.drawparallels(np.arange(int(lats[0]), int(lats[-1]), 10), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
             m.drawmeridians(np.arange(int(lons[0]), int(lons[-1]), 20), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)

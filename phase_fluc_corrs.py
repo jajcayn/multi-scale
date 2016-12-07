@@ -8,11 +8,15 @@ from scipy.stats import pearsonr
 import cPickle
 
 
-INDICES = ['TNA', 'SOI', 'SCAND', 'PNA', 'PDO', 'EA', 'AMO', 'NAO', 'TPI', 'SAM', 'NINO3.4']
-START_DATES = [date(1948, 1, 1), date(1866, 1, 1), date(1950, 1, 1), date(1950, 1, 1), date(1900, 1, 1), 
-                date(1950, 1, 1), date(1948, 1, 1), date(1950, 1, 1), date(1895, 1, 1), date(1957, 1, 1), date(1870, 1, 1)]
-END_YEARS = [2016, 2014, 2016, 2016, 2015, 2015, 2016, 2016, 2014, 2016, 2015]
-DATE_TYPE = [1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 2]
+# INDICES = ['TNA', 'SOI', 'SCAND', 'PNA', 'PDO', 'EA', 'AMO', 'NAO', 'TPI', 'SAM', 'NINO3.4']
+INDICES = ['TPI', 'SAM']
+# START_DATES = [date(1948, 1, 1), date(1866, 1, 1), date(1950, 1, 1), date(1950, 1, 1), date(1900, 1, 1), 
+#                 date(1950, 1, 1), date(1948, 1, 1), date(1950, 1, 1), date(1895, 1, 1), date(1957, 1, 1), date(1870, 1, 1)]
+START_DATES = [date(1895, 1, 1), date(1957, 1, 1)]
+# END_YEARS = [2016, 2014, 2016, 2016, 2015, 2015, 2016, 2016, 2014, 2016, 2015]
+END_YEARS = [2014, 2016]
+# DATE_TYPE = [1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 2]
+DATE_TYPE = [1, 1]
 NUM_SURR = 1000
 NUM_WORKERS = 20
 # path_to_data = "/Users/nikola/work-ui/data/"
@@ -39,8 +43,8 @@ def get_corrs(net, ndx, cut_ndx = None):
 
 
 
-# net = ScaleSpecificNetwork('%sNCEP/air.mon.mean.levels.nc' % path_to_data, 'air', 
-                           # date(1949,1,1), date(2015,1,1), None, None, 0, dataset = "NCEP", sampling = 'monthly', anom = False)
+net = ScaleSpecificNetwork('%sNCEP/air.mon.mean.levels.nc' % path_to_data, 'air', 
+                           date(1949,1,1), date(2015,1,1), None, None, 0, dataset = "NCEP", sampling = 'monthly', anom = False)
 
 # net = ScaleSpecificNetwork('%sERA/ERAconcat.t2m.mon.means.1958-2014.bin' % path_to_data, 't2m', 
                        # date(1958,1,1), date(2015,1,1), None, None, None, 'monthly', anom = False, pickled = True)
@@ -51,14 +55,14 @@ def get_corrs(net, ndx, cut_ndx = None):
 # net = ScaleSpecificNetwork('%s20CR/20CR.t2m.mon.nc' % path_to_data, 't2m', 
                            # date(1949,1,1), date(2011,1,1), None, None, dataset = "ERA", sampling = 'monthly', anom = False)
 
-# net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
-#                            date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
+net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
+                           date(1949,1,1), date(2015,1,1), None, None, 0, 'monthly', anom = False)
 
-net = ScaleSpecificNetwork('%sECAD.tg.daily.nc' % path_to_data, 'tg', date(1950, 1, 1), date(2015,1,1), None, 
-    None, None, dataset = 'ECA-reanalysis', anom = False)
-net.get_monthly_data()
-print net.data.shape
-print net.get_date_from_ndx(0), net.get_date_from_ndx(-1)
+# net = ScaleSpecificNetwork('%sECAD.tg.daily.nc' % path_to_data, 'tg', date(1950, 1, 1), date(2015,1,1), None, 
+#     None, None, dataset = 'ECA-reanalysis', anom = False)
+# net.get_monthly_data()
+# print net.data.shape
+# print net.get_date_from_ndx(0), net.get_date_from_ndx(-1)
 
 
 # surr_field = SurrogateField()
@@ -128,30 +132,30 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
     # net.quick_render(field_to_plot = index_correlations[index], tit = tit, symm = True, whole_world = False, fname = fname)
 
 
-# def _corrs_surrs(args):
-#     index_correlations_surrs = {}
-#     surr_field.construct_fourier_surrogates()
-#     surr_field.add_seasonality(a[0], a[1], a[2])
+def _corrs_surrs(args):
+    index_correlations_surrs = {}
+    surr_field.construct_fourier_surrogates()
+    surr_field.add_seasonality(a[0], a[1], a[2])
 
-#     net_surrs.data = surr_field.get_surr()
-#     net_surrs.wavelet(1, 'y', cut = 1)
-#     net_surrs.get_continuous_phase()
-#     net_surrs.get_phase_fluctuations(rewrite = True)
-#     for index in INDICES:
-#         index_correlations_surrs[index] = get_corrs(net_surrs, index_datas[index])
+    net_surrs.data = surr_field.get_surr()
+    net_surrs.wavelet(1, 'y', cut = 1)
+    net_surrs.get_continuous_phase()
+    net_surrs.get_phase_fluctuations(rewrite = True)
+    for index in INDICES:
+        index_correlations_surrs[index] = get_corrs(net_surrs, index_datas[index])
 
-#     return index_correlations_surrs
+    return index_correlations_surrs
 
 
 
-# pool = Pool(NUM_WORKERS)
-# args = [1 for i in range(NUM_SURR)]
-# results = pool.map(_corrs_surrs, args)
-# pool.close()
-# pool.join()
+pool = Pool(NUM_WORKERS)
+args = [1 for i in range(NUM_SURR)]
+results = pool.map(_corrs_surrs, args)
+pool.close()
+pool.join()
 
-# with open("ERA-SAT-annual-phase-fluc-%dFTsurrs.bin" % NUM_SURR, "wb") as f:
-#     cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
+with open("NCEP-SAT-annual-phase-fluc-%dFTsurrs-add.bin" % NUM_SURR, "wb") as f:
+    cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 
 def _corrs_surrs_ind(args):
@@ -174,7 +178,7 @@ results = pool.map(_corrs_surrs_ind, args)
 pool.close()
 pool.join()
 
-with open("ECAD-SAT-annual-phase-fluc-%dFTsurrs-from-indices.bin" % NUM_SURR, "wb") as f:
+with open("NCEP-SAT-annual-phase-fluc-%dFTsurrs-add-from-indices.bin" % NUM_SURR, "wb") as f:
     cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 

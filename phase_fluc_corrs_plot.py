@@ -5,20 +5,31 @@ import cPickle
 from src.surrogates import get_p_vals
 
 
-net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/NCEP/air.mon.mean.levels.nc', 'air', 
-                           date(1949,1,1), date(2015,1,1), None, None, 0, sampling = 'monthly', anom = False)
+# net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/NCEP/air.mon.mean.levels.nc', 'air', 
+#                            date(1949,1,1), date(2015,1,1), None, None, 0, sampling = 'monthly', anom = False)
 
 # net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/ERA/ERAconcat.t2m.mon.means.1958-2014.bin', 't2m', 
                        # date(1958,1,1), date(2015,1,1), None, None, None, 'monthly', anom = False, pickled = True)
 
-with open("../scale-nets/bins/NCEP-SAT-annual-phase-fluc-1000FTsurrs.bin", "rb") as f:
+net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/ECAD.tg.daily.nc', 'tg', date(1950, 1, 1), date(2015,1,1), None, 
+        None, None, dataset = 'ECA-reanalysis', anom = False)
+net.get_monthly_data()
+print net.data.shape
+print net.get_date_from_ndx(0), net.get_date_from_ndx(-1)
+
+
+with open("../scale-nets/bins/ECAD-SAT-annual-phase-fluc-1000FTsurrs-from-indices.bin", "rb") as f:
     surr_res = cPickle.load(f)
 
-INDICES = ['TNA', 'SOI', 'SCAND', 'PNA', 'PDO', 'EA', 'AMO', 'NAO', 'NINO3.4']
+INDICES = ['TNA', 'SOI', 'SCAND', 'PNA', 'PDO', 'EA', 'AMO', 'NAO', 'TPI', 'SAM', 'NINO3.4']
 P_VAL = 0.05
 
 data_corrs = surr_res['data']
 surr_corrs = surr_res['surrs']
+
+no_sigs = np.zeros_like(data_corrs['TNA'])
+msk = np.isnan(data_corrs['TNA'])
+no_sigs[msk] = np.nan
 
 for index in INDICES:
     result = data_corrs[index].copy()
@@ -29,8 +40,15 @@ for index in INDICES:
 
     result[~msk] = np.nan
 
-    tit = ("NCEP annual phase fluctuations x %s correlations \n p-value %.2f" % (index, P_VAL))
-    fname = ("../scale-nets/NCEP-SAT-annual-phase-fluc-%scorrs-sig.png" % index)
-    net.quick_render(field_to_plot = result, tit = tit, fname = fname, symm = True, whole_world = True)
+    no_sigs[msk] += 1
+
+    # tit = ("ECA&D annual phase fluctuations x %s correlations \n p-value %.2f" % (index, P_VAL))
+    # fname = ("../scale-nets/ECAD-SAT-annual-phase-fluc-%scorrs-sig-from-indices.png" % index)
+    # net.quick_render(field_to_plot = result, tit = tit, fname = fname, symm = True, whole_world = False)
+
+tit = ("ECA&D number of significant with p-value %.2f" % (P_VAL))
+fname = ("../scale-nets/ECAD-SAT-annual-phase-fluc-number-of-sig-from-indices.png")
+net.quick_render(field_to_plot = no_sigs, tit = tit, fname = fname, symm = True, whole_world = False)
+
 
 
