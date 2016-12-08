@@ -1003,16 +1003,18 @@ class DataField:
 
         nyq = 0.5 * fs # Nyquist frequency
 
-        if type(cutoff) == list:
+        if type(cutoff) == list and btype in ['bandpass', 'bandstop']:
             low = cutoff[0] if cutoff[0] > cutoff[1] else cutoff[1]
             high = cutoff[1] if cutoff[0] > cutoff[1] else cutoff[0]
             low = 1./(low*2.628e+6) # in months
             high = 1./(high*2.628e+6)
             # get coefficients
             b, a = butter(order, [low/nyq, high/nyq], btype = btype)
-        else:
+        elif btype in ['lowpass', 'highpass']:
             cutoff = 1./(cutoff*2.628e+6)
             b, a = butter(order, cutoff/nyq, btype = btype)
+        else:
+            raise Exception("For band filter cutoff must be a list of [low,high] for low/high-pass cutoff must be a integer!")
 
         if cut is not None:
             to_cut = int(y*cut)
