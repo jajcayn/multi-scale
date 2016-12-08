@@ -45,8 +45,8 @@ def get_corrs(net, ndx, cut_ndx = None):
 
 
 
-net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
-                           date(1949,1,1), date(2015,1,1), None, None, 0, dataset = "NCEP", sampling = 'monthly', anom = False)
+# net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
+#                            date(1949,1,1), date(2015,1,1), None, None, 0, dataset = "NCEP", sampling = 'monthly', anom = False)
 
 # net = ScaleSpecificNetwork('%sERA/ERAconcat.t2m.mon.means.1958-2014.bin' % path_to_data, 't2m', 
                        # date(1958,1,1), date(2015,1,1), None, None, None, 'monthly', anom = False, pickled = True)
@@ -60,11 +60,11 @@ net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air',
 # net_surrs = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air', 
                            # date(1949,1,1), date(2015,1,1), None, None, 0, dataset = "NCEP", sampling = 'monthly', anom = False)
 
-# net = ScaleSpecificNetwork('%sECAD.tg.daily.nc' % path_to_data, 'tg', date(1950, 1, 1), date(2015,1,1), None, 
-#     None, None, dataset = 'ECA-reanalysis', anom = False)
-# net.get_monthly_data()
-# print net.data.shape
-# print net.get_date_from_ndx(0), net.get_date_from_ndx(-1)
+net = ScaleSpecificNetwork('%sECAD.tg.daily.nc' % path_to_data, 'tg', date(1950, 1, 1), date(2015,1,1), None, 
+    None, None, dataset = 'ECA-reanalysis', anom = False)
+net.get_monthly_data()
+print net.data.shape
+print net.get_date_from_ndx(0), net.get_date_from_ndx(-1)
 
 
 # surr_field = SurrogateField()
@@ -74,11 +74,14 @@ net = ScaleSpecificNetwork('%sair.mon.mean.levels.nc' % path_to_data, 'air',
 
 def _hilbert_ssa(args):
     i, j, data = args
-    ssa = ssa_class(data, M = 12)
-    _, _, _, rc = ssa.run_ssa()
-    real_part = rc[:, 0] + rc[:, 1]
-    imag_part = np.imag(hilbert(real_part))
-    phase_hilb_rc = np.arctan2(imag_part[12:-12], real_part[12:-12])
+    if not np.any(np.isnan(data)):
+        ssa = ssa_class(data, M = 12)
+        _, _, _, rc = ssa.run_ssa()
+        real_part = rc[:, 0] + rc[:, 1]
+        imag_part = np.imag(hilbert(real_part))
+        phase_hilb_rc = np.arctan2(imag_part[12:-12], real_part[12:-12])
+    else:
+        phase_hilb_rc = np.nan
         
     return i, j, phase_hilb_rc
 
@@ -126,7 +129,7 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
         ndx_sam = net.select_date(date(1957, 1, 1), date(2014, 1, 1), apply_to_data = False)[12:-12]
         index_correlations[index] = get_corrs(net, index_datas[index], cut_ndx = ndx_sam)
     else:
-        index_data.select_date(date(1950, 1, 1), date(2014, 1, 1))
+        index_data.select_date(date(1951, 1, 1), date(2014, 1, 1))
         index_data.anomalise()
         index_datas[index] = index_data
         index_correlations[index] = get_corrs(net, index_datas[index])
@@ -134,10 +137,10 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
     # with open("20CRtemp-phase-fluct-corr-with-%sindex-1950-2014.bin" % index, "wb") as f:
         # cPickle.dump({('%scorrs' % index) : index_correlations[index].reshape(np.prod(index_correlations[index].shape))}, f)
 
-    # plotting
-    # tit = ("NCEP annual phase SSA RC fluctuations x %s correlations" % index)
-    # fname = ("../scale-nets/NCEP-SAT-annual-phase-fluc-SSA-RC-%scorrs.png" % index)
-    # net.quick_render(field_to_plot = index_correlations[index], tit = tit, symm = True, whole_world = True, fname = fname)
+    # # plotting
+    # tit = ("ECA&D annual phase SSA RC fluctuations x %s correlations" % index)
+    # fname = ("../scale-nets/ECAD-SAT-annual-phase-fluc-SSA-RC-%scorrs.png" % index)
+    # net.quick_render(field_to_plot = index_correlations[index], tit = tit, symm = True, whole_world = False, fname = fname)
 
 
 # def _corrs_surrs(args):
@@ -190,7 +193,7 @@ results = pool.map(_corrs_surrs_ind, args)
 pool.close()
 pool.join()
 
-with open("NCEP-SAT-annual-phase-fluc-SSA-RC-%dFTsurrs-from-indices.bin" % NUM_SURR, "wb") as f:
+with open("ECAD-SAT-annual-phase-fluc-SSA-RC-%dFTsurrs-from-indices.bin" % NUM_SURR, "wb") as f:
     cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 
