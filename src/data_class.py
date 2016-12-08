@@ -975,6 +975,76 @@ class DataField:
 
 
 
+    def temporal_filter(self, cutoff, btype, order = 2, cut = 1, pool = None):
+        """
+        Filters data in temporal sense.
+        Uses Butterworth filter of order order.
+        btype:
+            lowpass
+            highpass
+            bandpass
+            bandstop
+        cutoff:
+            for low/high pass one frequency in months
+            for band list of frequencies
+        """
+
+        from scipy.signal import butter
+
+        delta = self.time[1] - self.time[0]
+        if delta == 1:
+            # daily time series
+            fs = 1./86400 # Hz
+            y = 365.25
+        elif abs(delta - 30) < 3.0:
+            # monthly time series
+            fs = 1./2.628e+6
+            y = 12
+
+        nyq = 0.5 * fs # Nyquist frequency
+
+        if type(cutoff) == list:
+            low = cutoff[0] if cutoff[0] > cutoff[1] else cutoff[1]
+            high = cutoff[1] if cutoff[0] > cutoff[1] else cutoff[0]
+            low = 1./(low*2.628e+6) # in months
+            high = 1./(high*2.628e+6)
+            # get coefficients
+            b, a = butter(order, [low/nyq, high/nyq], btype = btype)
+        else:
+            cutoff = 1./(cutoff*2.628e+6)
+            b, a = butter(order, cutoff/nyq, btype = btype)
+
+        if cut is not None:
+            to_cut = int(y*cut)
+
+        if pool is None:
+            map_func = map
+        elif pool is not None:
+            map_func = pool.map
+
+        if self.data.ndim > 1:
+            num_lats = self.lats.shape[0]
+            num_lons = self.lons.shape[0]
+        else:
+            num_lats = 1
+            num_lons = 1
+            self.data = self.data[:, np.newaxis, np.newaxis]
+
+        self.filtered_data = np.zeros_like(self.data)
+
+        job_args = [ (i, j, self.data[:, i, j], b, a) for i in range(num_lats) for j in range(num_lons) ]
+        job_result = map_func(self._get_filtered_data, job_args)
+        del job_args
+        for i, j, res in job_result:
+            self.filtered_data[:, i, j] = res
+
+        del job_result
+
+        self.data = np.squeeze(self.data)
+        self.filtered_data = np.squeeze(self.filtered_data) if cut is None else np.squeeze(self.filtered_data[to_cut:-to_cut, ...])
+        
+
+
     def spatial_filter(self, filter_weights = [1, 2, 1], use_to_data = False):
         """
         Filters the data in spatial sense with weights filter_weights.
@@ -1405,6 +1475,19 @@ class DataField:
 
 
 
+    def _get_filtered_data(self, arg):
+        """
+        Helper function for temporal filtering.
+        """
+
+        from scipy.signal import filtfilt
+
+        i, j, data, b, a = arg
+
+        return i, j, filtfilt(b, a, data)
+
+
+
     def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, k0 = 6.):
         """
         Permforms wavelet transformation on data.
@@ -1500,19 +1583,23 @@ class DataField:
 
 
     def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, tit = None, 
-                        symm = True, whole_world = True, fname = None):
+                        symm = True, whole_world = True, log = None, fname = None):
         """
-        Simple plot of the geo data using the Robinson projection.
+        Simple plot of the geo data using the Robinson projection for whole world
+        or Mercator projection for local plots.
         By default, plots first temporal field in the data.
         t is temporal point (< self.time.shape[0])
         if mean is True, plots the temporal mean.
         to render different field than self.data, enter 2d field of the same shape.
+        log is either None or base.
         if fname is None, shows the plot, otherwise saves it to the given filename.
         """
 
         import matplotlib.pyplot as plt
         from mpl_toolkits.basemap import Basemap, shiftgrid
+        from matplotlib import colors
 
+        # set up field to plot
         if self.data.ndim == 3:
             field = self.data[t, ...]
             title = ("%s: %d. point -- %s" % (self.var_name.upper(), t, self.get_date_from_ndx(t)))
@@ -1534,11 +1621,13 @@ class DataField:
             else:
                 raise Exception("field_to_plot has to have shape as lats x lons saved in the data class!")
 
+        # set up figure
         plt.figure(figsize=(20,10))
         lat_ndx = np.argsort(self.lats)
         lats = self.lats[lat_ndx]
         field = field[lat_ndx, :]
 
+        # set up projections
         if whole_world:
             data = np.zeros((field.shape[0], field.shape[1] + 1))
             data[:, :-1] = field
@@ -1582,11 +1671,17 @@ class DataField:
                 min = -max
             else:
                 max = -min
-        
-        levels = np.linspace(min, max, 41)
 
-        cs = m.contourf(x, y, data, levels = levels, cmap = plt.get_cmap('jet'))
-        cbar = plt.colorbar(cs, ticks = levels[::4] ,pad = 0.07, shrink = 0.8, fraction = 0.05)
+        # draw contours
+        if log is not None:
+            levels = np.logspace(np.log10(min)/np.log10(log), np.log10(max)/np.log10(log), 41)
+            cs = m.contourf(x, y, data, norm = colors.LogNorm(vmin = min, vmax = max), levels = levels, cmap = plt.get_cmap('jet'))
+        else:
+            levels = np.linspace(min, max, 41)
+            cs = m.contourf(x, y, data, levels = levels, cmap = plt.get_cmap('jet'))
+        
+        # colorbar
+        cbar = plt.colorbar(cs, ticks = levels[::4], pad = 0.07, shrink = 0.8, fraction = 0.05)
         cbar.ax.set_yticklabels(np.around(levels[::4], decimals = 2))
 
         if tit is None:
