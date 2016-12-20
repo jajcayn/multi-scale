@@ -5,8 +5,8 @@ import matplotlib.pyplot as plt
 import src.wavelet_analysis as wvlt
 import numpy as np
 
-# fname = '/home/nikola/Work/phd/data/air.mon.mean.sig995.nc'
-fname = "/Users/nikola/work-ui/data/NCEP/air.mon.mean.sig995.nc"
+fname = '/home/nikola/Work/phd/data/air.mon.mean.sig995.nc'
+# fname = "/Users/nikola/work-ui/data/NCEP/air.mon.mean.sig995.nc"
 NUM_WORKERS = 20
 
 SCALES = np.arange(24, 186, 6) # 2 - 15yrs, 0.5yr step, in months
