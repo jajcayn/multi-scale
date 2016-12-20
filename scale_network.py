@@ -113,7 +113,7 @@ class ScaleSpecificNetwork(DataField):
     Class holds geo data (inherits methods from DataField) and can construct networks.
     """
 
-    def __init__(self, fname, varname, start_date, end_date, lats, lons, level = None, dataset = "NCEP", sampling = 'monthly', anom = False, pickled = False):
+    def __init__(self, fname, varname, start_date, end_date, lats, lons, level = None, dataset = "NCEP", sampling = 'monthly', anom = False, pickled = False, verbose = False):
         """
         Initialisation of the class.
         """
@@ -136,9 +136,10 @@ class ScaleSpecificNetwork(DataField):
         if anom:
             self.anomalise()
         day, month, year = self.extract_day_month_year()
-        print("[%s] NCEP data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
-                % (str(datetime.now()), str(self.data.shape), day[0], month[0], 
-                   year[0], day[-1], month[-1], year[-1]))
+        if verbose:
+            print("[%s] NCEP data loaded with shape %s. Date range is %d.%d.%d - %d.%d.%d inclusive." 
+                    % (str(datetime.now()), str(self.data.shape), day[0], month[0], 
+                       year[0], day[-1], month[-1], year[-1]))
 
 
         self.phase = None

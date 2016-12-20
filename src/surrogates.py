@@ -652,6 +652,7 @@ class SurrogateField(DataField):
             self.max_ord = max_ord
             
             self.data = np.squeeze(self.data)
+            self.residuals = np.squeeze(self.residuals)
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
