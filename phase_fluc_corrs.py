@@ -10,14 +10,14 @@ from src.ssa import ssa_class
 import cPickle
 
 
-INDICES = ['TNA', 'SOI', 'SCAND', 'PNA', 'PDO', 'EA', 'AMO', 'NAO', 'TPI', 'SAM', 'NINO3.4']
-# INDICES = ['TPI', 'SAM']
-START_DATES = [date(1948, 1, 1), date(1866, 1, 1), date(1950, 1, 1), date(1950, 1, 1), date(1900, 1, 1), 
-                date(1950, 1, 1), date(1948, 1, 1), date(1950, 1, 1), date(1895, 1, 1), date(1957, 1, 1), date(1870, 1, 1)]
-# START_DATES = [date(1895, 1, 1), date(1957, 1, 1)]
-END_YEARS = [2016, 2014, 2016, 2016, 2015, 2015, 2016, 2016, 2014, 2016, 2015]
-# END_YEARS = [2014, 2016]
-DATE_TYPE = [1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 2]
+# INDICES = ['TNA', 'SOI', 'SCAND', 'PNA', 'PDO', 'EA', 'AMO', 'NAO', 'TPI', 'SAM', 'NINO3.4']
+# # INDICES = ['TPI', 'SAM']
+# START_DATES = [date(1948, 1, 1), date(1866, 1, 1), date(1950, 1, 1), date(1950, 1, 1), date(1900, 1, 1), 
+#                 date(1950, 1, 1), date(1948, 1, 1), date(1950, 1, 1), date(1895, 1, 1), date(1957, 1, 1), date(1870, 1, 1)]
+# # START_DATES = [date(1895, 1, 1), date(1957, 1, 1)]
+# END_YEARS = [2016, 2014, 2016, 2016, 2015, 2015, 2016, 2016, 2014, 2016, 2015]
+# # END_YEARS = [2014, 2016]
+# DATE_TYPE = [1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 2]
 # DATE_TYPE = [1, 1]
 NUM_SURR = 1000
 NUM_WORKERS = 20
@@ -90,49 +90,33 @@ pool = Pool(NUM_WORKERS)
 net.wavelet(1, 'y', pool = pool, cut = 1)
 
 # Hilbert on RC SSA fluctuations
-args = [ (i, j, net.data[:, i, j]) for i in range(net.lats.shape[0]) for j in range(net.lons.shape[0]) ]
-results = pool.map(_hilbert_ssa, args)
-for i, j, res in results:
-    net.phase[:, i, j] = res
+# args = [ (i, j, net.data[:, i, j]) for i in range(net.lats.shape[0]) for j in range(net.lons.shape[0]) ]
+# results = pool.map(_hilbert_ssa, args)
+# for i, j, res in results:
+#     net.phase[:, i, j] = res
 
 net.get_continuous_phase(pool = pool)
 net.get_phase_fluctuations(rewrite = True, pool = pool)
 pool.close()
 pool.join()
 
-index_correlations = {}
-index_datas = {}
+# index_correlations = {}
+# index_datas = {}
 
 # # SURROGATES
-for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES, END_YEARS):
+# for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES, END_YEARS):
     # load index
-    print index
+    # print index
 
-    if index != 'NINO3.4':
-        index_data = DataField()
-        raw = np.loadtxt("%s%s.monthly.%d-%d.txt" % (path_to_data, index, start_date.year, end_year))
-        if ndx_type == 0:
-            index_data.data = raw[:, 2]
-        elif ndx_type == 1:
-            raw = raw[:, 1:]
-            index_data.data = raw.reshape(-1)
-
-        index_data.create_time_array(date_from = start_date, sampling = 'm')
-    
-    elif index == 'NINO3.4':
-        index_data = load_enso_index("%snino34raw.txt" % path_to_data, '3.4', date(1950, 1, 1), date(2014, 1, 1), anom = True)
-
-    if index == 'SAM':
-        index_data.select_date(date(1957, 1, 1), date(2014, 1, 1))
-        index_data.anomalise()
-        index_datas[index] = index_data
-        ndx_sam = net.select_date(date(1957, 1, 1), date(2014, 1, 1), apply_to_data = False)[12:-12]
-        index_correlations[index] = get_corrs(net, index_datas[index], cut_ndx = ndx_sam)
-    else:
-        index_data.select_date(date(1951, 1, 1), date(2014, 1, 1))
-        index_data.anomalise()
-        index_datas[index] = index_data
-        index_correlations[index] = get_corrs(net, index_datas[index])
+    # if index != 'NINO3.4':
+index_data = DataField()
+raw = np.loadtxt("%sNAO.station.monthly.1865-2016.txt" % (path_to_data))
+raw = raw[:, 1:]
+index_data.data = raw.reshape(-1)
+index_data.create_time_array(date_from = date(1865, 1, 1), sampling = 'm')
+index_data.select_date(date(1951, 1, 1), date(2014, 1, 1))
+index_data.anomalise()
+index_correlations = get_corrs(net, index_datas[index])
 
     # with open("20CRtemp-phase-fluct-corr-with-%sindex-1950-2014.bin" % index, "wb") as f:
         # cPickle.dump({('%scorrs' % index) : index_correlations[index].reshape(np.prod(index_correlations[index].shape))}, f)
@@ -174,14 +158,9 @@ for index, ndx_type, start_date, end_year in zip(INDICES, DATE_TYPE, START_DATES
 
 
 def _corrs_surrs_ind(args):
-    index_correlations_surrs = {}
-    for index in INDICES:
-        index_surr = DataField()
-        index_surr.data = get_single_FT_surrogate(index_datas[index].data)
-        if index == 'SAM':
-            index_correlations_surrs[index] = get_corrs(net, index_surr, cut_ndx = ndx_sam)
-        else:
-            index_correlations_surrs[index] = get_corrs(net, index_surr)
+    index_surr = DataField()
+    index_surr.data = get_single_FT_surrogate(index_data.data)
+    index_correlations_surrs = get_corrs(net, index_surr)
 
     return index_correlations_surrs
 
@@ -193,7 +172,7 @@ results = pool.map(_corrs_surrs_ind, args)
 pool.close()
 pool.join()
 
-with open("ECAD-SAT-annual-phase-fluc-SSA-RC-%dFTsurrs-from-indices.bin" % NUM_SURR, "wb") as f:
+with open("ECAD-SAT-annual-phase-fluc-%dFTsurrs-from-indices.bin" % NUM_SURR, "wb") as f:
     cPickle.dump({'data': index_correlations, 'surrs' : results}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 

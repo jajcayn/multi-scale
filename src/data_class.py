@@ -760,9 +760,9 @@ class DataField:
         
             
             
-    def get_monthly_data(self):
+    def get_monthly_data(self, means = True):
         """
-        Converts the daily data to monthly means.
+        Converts the daily data to monthly means or sums.
         """
         
         delta = self.time[1] - self.time[0]
@@ -782,12 +782,18 @@ class DataField:
             start_idx = self.find_date_ndx(date(y, mi, 1))
             end_idx = self._shift_index_by_month(start_idx)
             while end_idx <= self.data.shape[0] and end_idx is not None:
-                monthly_data.append(np.nanmean(self.data[start_idx : end_idx, ...], axis = 0))
+                if means:
+                    monthly_data.append(np.nanmean(self.data[start_idx : end_idx, ...], axis = 0))
+                else:
+                    monthly_data.append(np.nansum(self.data[start_idx : end_idx, ...], axis = 0))
                 monthly_time.append(self.time[start_idx])
                 start_idx = end_idx
                 end_idx = self._shift_index_by_month(start_idx)
                 if end_idx is None: # last piece, then exit the loop
-                    monthly_data.append(np.nanmean(self.data[start_idx : , ...], axis = 0))
+                    if means:
+                        monthly_data.append(np.nanmean(self.data[start_idx : , ...], axis = 0))
+                    else:
+                        monthly_data.append(np.nansum(self.data[start_idx : , ...], axis = 0))
                     monthly_time.append(self.time[start_idx])
             self.data = np.array(monthly_data)
             self.time = np.array(monthly_time)                
@@ -986,7 +992,7 @@ class DataField:
             bandstop
         cutoff:
             for low/high pass one frequency in months
-            for band list of frequencies
+            for band* list of frequencies in months
         """
 
         from scipy.signal import butter

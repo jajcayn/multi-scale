@@ -1,7 +1,4 @@
 """
-Created on 16 Mar 2015
-@author: Nikola Jajcay -- jajcay@cs.cas.cz
-
 ##-----------------------------------------------------------------------------##
 Script for generating multifractal surrogates. MF surrogates are independent
 shuffling of the scale-specific coefficients, preserving so-called multifractal
@@ -15,6 +12,8 @@ Written according to Palus, M. (2008): Bootstraping multifractals: Surrogate
     
 requirements:: numpy package -- http://www.numpy.org/
                PyWavelets (pywt) package -- http://www.pybytes.com/pywavelets/
+
+author: Nikola Jajcay, Institute of Computer Science, CAS.
 """
 
 
