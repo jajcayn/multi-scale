@@ -116,7 +116,7 @@ index_data.data = raw.reshape(-1)
 index_data.create_time_array(date_from = date(1865, 1, 1), sampling = 'm')
 index_data.select_date(date(1951, 1, 1), date(2014, 1, 1))
 index_data.anomalise()
-index_correlations = get_corrs(net, index_datas[index])
+index_correlations = get_corrs(net, index_data)
 
     # with open("20CRtemp-phase-fluct-corr-with-%sindex-1950-2014.bin" % index, "wb") as f:
         # cPickle.dump({('%scorrs' % index) : index_correlations[index].reshape(np.prod(index_correlations[index].shape))}, f)
