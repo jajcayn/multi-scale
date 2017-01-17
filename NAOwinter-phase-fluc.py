@@ -55,7 +55,7 @@ for lat in range(net.lats.shape[0]):
 corrs = np.zeros_like(net.data[0, ...])
 for lat in range(net.lats.shape[0]):
     for lon in range(net.lons.shape[0]):
-        corrs[lat, lon] = pearsonr(ann_wemo, ann_phase_fluc[:, lat, lon])[0]
+        corrs[lat, lon] = pearsonr(ann_nao, ann_phase_fluc[:, lat, lon])[0]
 
 
 def _corrs_surrs_ind(args):
