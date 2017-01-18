@@ -18,6 +18,8 @@ import os
 def cross_correlation(a, b, max_lag):
     """
     Cross correlation with lag.
+    When computing cross-correlation, the first parameter, a, is
+    in 'future' with positive lag and in 'past' with negative lag.
     """
 
     a = (a - np.mean(a)) / (np.std(a, ddof = 1) * (len(a) - 1))
@@ -752,7 +754,7 @@ class DataField:
 
 
 
-    def get_annual_data(self):
+    def get_annual_data(self, means = True):
         """
         Converts the data to annual means.
         """
@@ -764,7 +766,10 @@ class DataField:
 
         for y in range(year[0], year[-1]+1, 1):
             year_ndx = np.where(year == y)[0]
-            yearly_data.append(np.nanmean(self.data[year_ndx, ...], axis = 0))
+            if means:
+                yearly_data.append(np.nanmean(self.data[year_ndx, ...], axis = 0))
+            else:
+                yearly_data.append(np.nansum(self.data[year_ndx, ...], axis = 0))
             yearly_time.append(date(y, 1, 1).toordinal())
 
         self.data = np.array(yearly_data)
@@ -1539,7 +1544,7 @@ class DataField:
         if flag:
             sinusoid = np.arange(-half_length, upper_bound)*freq + phi
             sinusoid = np.angle(np.exp(1j*sinusoid))
-            iphase = np.angle(np.exp(1j*(sinusoid - iphase)))
+            iphase = np.angle(np.exp(1j*(iphase - sinusoid)))
 
         ret = [iphase]
         if save_wave:
