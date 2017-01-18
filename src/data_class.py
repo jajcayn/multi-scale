@@ -115,6 +115,18 @@ class DataField:
             return ("Geo data of shape %s as time x lat x lon." % str(self.data.shape))
         else:
             return("Empty DataField instance.")
+
+
+
+    def shape(self):
+        """
+        Prints shape of data field.
+        """
+
+        if self.data is not None:
+            return self.data.shape
+        else:
+            raise Exception("DataField is empty.")
         
         
         
@@ -1483,6 +1495,60 @@ class DataField:
 
 
 
+    def _get_parametric_phase(self, a):
+        """
+        Helper function for parametric phase.
+        """
+
+        i, j, freq, data, window, flag, save_wave = a
+        half_length = int(np.floor(data.shape[0]/2))
+        upper_bound = half_length + 1 if data.shape[0] & 0x1 else half_length
+        # center data to zero mean (NOT climatologically)
+        data -= np.mean(data, axis = 0)
+        # compute smoothing wave from signal
+        c = np.cos(np.arange(-half_length, upper_bound, 1) * freq)
+        s = np.sin(np.arange(-half_length, upper_bound, 1) * freq)
+        cx = np.dot(c, data) / data.shape[0]
+        sx = np.dot(s, data) / data.shape[0]
+        mx = np.sqrt(cx**2 + sx**2)
+        phi = np.angle(cx - 1j*sx)
+        z = mx * np.cos(np.arange(-half_length, upper_bound, 1) * freq + phi)
+
+        # iterate with window
+        iphase = np.zeros_like(data)
+        half_window = int(np.floor(window/2))
+        upper_bound_window = half_window + 1 if window & 0x1 else half_window
+        co = np.cos(np.arange(-half_window, upper_bound_window, 1) *freq)
+        so = np.sin(np.arange(-half_window, upper_bound_window, 1) *freq)
+        
+        for shift in range(0, data.shape[0] - window + 1):
+            y = data[shift:shift + window].copy()
+            y -= np.mean(y)
+            cxo = np.dot(co, y) / window
+            sxo = np.dot(so, y) / window
+            phio = np.angle(cxo - 1j*sxo)
+            iphase[shift+half_window] = phio
+
+        iphase[shift+half_window+1:] = np.angle(np.exp(1j*(np.arange(1, upper_bound_window) * freq + phio)))
+        y = data[:window].copy()
+        y -= np.mean(y)
+        cxo = np.dot(co, y) / window
+        sxo = np.dot(so, y) / window
+        phio = np.angle(cxo - 1j*sxo)
+        iphase[:half_window] = np.angle(np.exp(1j*(np.arange(-half_window, 0, 1)*freq + phio)))
+        if flag:
+            sinusoid = np.arange(-half_length, upper_bound)*freq + phi
+            sinusoid = np.angle(np.exp(1j*sinusoid))
+            iphase = np.angle(np.exp(1j*(sinusoid - iphase)))
+
+        ret = [iphase]
+        if save_wave:
+            ret.append(z)
+
+        return i, j, ret
+
+
+
     def _get_filtered_data(self, arg):
         """
         Helper function for temporal filtering.
@@ -1493,6 +1559,97 @@ class DataField:
         i, j, data, b, a = arg
 
         return i, j, filtfilt(b, a, data)
+
+
+
+    def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, phase_fluct = False, save_wave = False):
+        """
+        Computes phase of analytic signal using parametric method.
+        Period is frequency in years, or days.
+        if ts is None, use self.data as input time series.
+        cut is either None or number period to be cut from beginning and end of the time series in years
+        if phase_fluct if False, computes only phase, otherwise also phase fluctuations from stationary 
+            sinusoid and returns this instead of phase - used for phase fluctuations
+        """
+
+        delta = self.time[1] - self.time[0]
+        if delta == 1:
+            # daily data
+            if period_unit == 'y':
+                y = 365.25
+            elif period_unit == 'd':
+                y = 1.
+            elif period_unit == 'm':
+                raise Exception("For daily data is hard to enter wavelet period in months...")
+            else:
+                raise Exception("Unknown type.")
+        elif abs(delta - 30) < 3.0:
+            # monthly data
+            if period_unit == 'y':
+                y = 12.
+            elif period_unit == 'm':
+                y = 1.
+            elif period_unit == 'd':
+                raise Exception("For monthly data doesn't make sense to enter wavelet period in days.")
+            else:
+                raise Exception("Unknown type.")
+        elif delta == 365 or delta == 366:
+            # annual data
+            if period_unit == 'y':
+                y = 1.
+            elif period_unit == 'm':
+                raise Exception("For monthly data doesn't make sense to enter wavelet period in days.")
+            elif period_unit == 'd':
+                raise Exception("For monthly data doesn't make sense to enter wavelet period in days.")
+            else:
+                raise Exception("Unknown type.")
+        else:
+            raise Exception('Unknown temporal sampling in the field.')
+
+        self.frequency = 2*np.pi / (y*period) # frequency of interest
+        window = int(y*window)
+        if cut is not None:
+            to_cut = int(y*cut)
+
+        if ts is None:
+            if pool is None:
+                map_func = map
+            elif pool is not None:
+                map_func = pool.map
+
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+            else:
+                num_lats = 1
+                num_lons = 1
+                self.data = self.data[:, np.newaxis, np.newaxis]
+
+            self.phase = np.zeros_like(self.data)
+            if save_wave:
+                self.wave = np.zeros_like(self.data)
+
+            job_args = [ (i, j, self.frequency, self.data[:, i, j].copy(), window, phase_fluct, save_wave) for i in range(num_lats) for j in range(num_lons) ]
+            job_result = map_func(self._get_parametric_phase, job_args)
+            del job_args
+            for i, j, res in job_result:
+                self.phase[:, i, j] = res[0]
+                if save_wave:
+                    self.wave[:, i, j] = res[1]
+
+            del job_result
+
+            self.data = np.squeeze(self.data)
+            self.phase = np.squeeze(self.phase) if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
+            if save_wave:
+                self.wave = np.squeeze(self.wave) if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
+            
+        else:
+            res = self._get_oscillatory_modes([0, 0, self.frequency, ts.copy(), window, phase_fluct, save_wave])[-1]
+            if cut is not None:
+                return [i[0, to_cut:-to_cut] for i in res]
+            else:
+                return [i[0, :] for i in res]
 
 
 

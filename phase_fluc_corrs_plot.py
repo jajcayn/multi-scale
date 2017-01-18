@@ -5,20 +5,22 @@ import cPickle
 from src.surrogates import get_p_vals
 
 
-# net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/NCEP/air.mon.mean.levels.nc', 'air', 
-                           # date(1949,1,1), date(2015,1,1), None, None, 0, sampling = 'monthly', anom = False)
+net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/NCEP/air.mon.mean.levels.nc', 'air', 
+                           date(1949,1,1), date(2015,1,1), None, None, 0, sampling = 'monthly', anom = False)
+
+# net.quick_render(t = 0)
 
 # net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/ERA/ERAconcat.t2m.mon.means.1958-2014.bin', 't2m', 
                        # date(1958,1,1), date(2015,1,1), None, None, None, 'monthly', anom = False, pickled = True)
 
-net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/ECAD.tg.daily.nc', 'tg', date(1950, 1, 1), date(2015,1,1), None, 
-        None, None, dataset = 'ECA-reanalysis', anom = False)
-net.get_monthly_data()
+# net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/ECAD.tg.daily.nc', 'tg', date(1950, 1, 1), date(2015,1,1), None, 
+#         None, None, dataset = 'ECA-reanalysis', anom = False)
+# net.get_monthly_data()
 print net.data.shape
 print net.get_date_from_ndx(0), net.get_date_from_ndx(-1)
 
 
-with open("../scale-nets/bins/ECAD-SAT-annual-phase-fluc-1000FTsurrs-from-indices.bin", "rb") as f:
+with open("../scale-nets/bins/WeMO-JFM_ann_means-NCEP-phase-fluc-1000FTsurrs-from-indices.bin", "rb") as f:
     surr_res = cPickle.load(f)
 
 # INDICES = ['TNA', 'SOI', 'SCAND', 'PNA', 'PDO', 'EA', 'AMO', 'NAO', 'NINO3.4', 'TPI', 'SAM']
@@ -41,9 +43,11 @@ result[~msk] = np.nan
 
 no_sigs[msk] += 1
 
-tit = ("ECA&D annual phase fluctuations x NAO station correlations \n p-value %.2f" % (P_VAL))
-fname = ("../scale-nets/ECAD-SAT-annual-phase-fluc-NAOstation-corrs-sig-from-indices.png")
-net.quick_render(field_to_plot = result, tit = tit, fname = fname, symm = True, whole_world = False)
+tit = ("WeMO vs. phase fluc: JFM annual means - 1949 -- 2014 \n p-value %.2f" % (P_VAL))
+fname = ("../scale-nets/WeMO-NCEP-phase-fluc-JFMmeans-1949-2014-SURR.png")
+# print result
+# net.data[0, ...] = result.copy()
+net.quick_render(field_to_plot = result, tit = tit, fname = fname, symm = True, whole_world = True)
 
 
 # tit = ("ECA&D number of significant with p-value %.2f" % (P_VAL))
