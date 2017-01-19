@@ -4,7 +4,7 @@ created on Jan 29, 2014
 @author: Nikola Jajcay, jajcay(at)cs.cas.cz
 based on class by Martin Vejmelka -- https://github.com/vejmelkam/ndw-climate --
 
-last update on Aug 19, 2015
+last update on Jan 19, 2017
 """
 
 import numpy as np
@@ -1151,6 +1151,7 @@ class DataField:
                 if apply_to_data:
                     self.data = new_data.copy()
                 else:
+                    self.data = np.squeeze(self.data)
                     return new_data
             else:
                 raise Exception("NaNs are also temporal, no way to filter them out!")
@@ -1582,7 +1583,8 @@ class DataField:
 
 
 
-    def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, phase_fluct = False, save_wave = False):
+    def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, 
+                                phase_fluct = False, save_wave = False):
         """
         Computes phase of analytic signal using parametric method.
         Period is frequency in years, or days.
@@ -1673,7 +1675,8 @@ class DataField:
 
 
 
-    def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, regress_amp_to_data = False, k0 = 6.):
+    def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, 
+                    regress_amp_to_data = False, k0 = 6.):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years, or days.
