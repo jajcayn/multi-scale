@@ -79,7 +79,7 @@ def nandetrend(arr, axis = 0):
     
     # return detrended data and linear coefficient
     
-    return ret, m
+    return ret, m, c
         
 
 
@@ -754,9 +754,10 @@ class DataField:
 
 
 
-    def get_annual_data(self, means = True):
+    def get_annual_data(self, means = True, ts = None):
         """
         Converts the data to annual means.
+        If ts is None, uses self.data.
         """
 
         yearly_data = []
@@ -766,14 +767,23 @@ class DataField:
 
         for y in range(year[0], year[-1]+1, 1):
             year_ndx = np.where(year == y)[0]
-            if means:
-                yearly_data.append(np.nanmean(self.data[year_ndx, ...], axis = 0))
+            if ts is None:
+                if means:
+                    yearly_data.append(np.nanmean(self.data[year_ndx, ...], axis = 0))
+                else:
+                    yearly_data.append(np.nansum(self.data[year_ndx, ...], axis = 0))
             else:
-                yearly_data.append(np.nansum(self.data[year_ndx, ...], axis = 0))
+                if means:
+                    yearly_data.append(np.nanmean(ts, axis = 0))
+                else:
+                    yearly_data.append(np.nansum(ts, axis = 0))
             yearly_time.append(date(y, 1, 1).toordinal())
 
-        self.data = np.array(yearly_data)
-        self.time = np.array(yearly_time) 
+        if ts is None:
+            self.data = np.array(yearly_data)
+            self.time = np.array(yearly_time) 
+        else:
+            return np.array(yearly_data)
         
             
             
@@ -1488,10 +1498,15 @@ class DataField:
 
         import wavelet_analysis as wvlt
 
-        i, j, s0, data, flag, k0 = a
+        i, j, s0, data, flag, amp_to_data, k0 = a
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
         phase = np.arctan2(np.imag(wave), np.real(wave))
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+        if amp_to_data:
+            reconstruction = amplitude * np.cos(phase)
+            fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+            m, c = np.linalg.lstsq(fit_x, data)[0]
+            amplitude = m * amplitude + c
         ret = [phase, amplitude]
         if flag:
             ret.append(wave)
@@ -1658,7 +1673,7 @@ class DataField:
 
 
 
-    def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, k0 = 6.):
+    def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, regress_amp_to_data = False, k0 = 6.):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years, or days.
@@ -1726,7 +1741,7 @@ class DataField:
             if save_wave:
                 self.wave = np.zeros_like(self.data, dtype = np.complex64)
 
-            job_args = [ (i, j, s0, self.data[:, i, j], save_wave, k0) for i in range(num_lats) for j in range(num_lons) ]
+            job_args = [ (i, j, s0, self.data[:, i, j], save_wave, regress_amp_to_data, k0) for i in range(num_lats) for j in range(num_lons) ]
             job_result = map_func(self._get_oscillatory_modes, job_args)
             del job_args
             for i, j, res in job_result:
@@ -1744,7 +1759,7 @@ class DataField:
                 self.wave = np.squeeze(self.wave) if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
         
         else:
-            res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave, k0])[-1]
+            res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave, regress_amp_to_data, k0])[-1]
             if cut is not None:
                 return [i[0, to_cut:-to_cut] for i in res]
             else:
