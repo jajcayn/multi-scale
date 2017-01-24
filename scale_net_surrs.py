@@ -13,7 +13,8 @@ NUM_SURR = 1000
 
 # fname = "/Users/nikola/work-ui/data/NCEP/air.mon.mean.levels.nc"
 fname = "/home/nikola/Work/phd/data/air.mon.mean.levels.nc"
-net = ScaleSpecificNetwork(fname, 'air', date(1948,1,1), date(2016,1,1), [-60, 0], [40, 100], level = 0, dataset = "NCEP", 
+
+net = ScaleSpecificNetwork(fname, 'air', date(1948,1,1), date(2016,1,1), None, None, level = 0, dataset = "NCEP", 
                 sampling = 'monthly', anom = False)
 
 surrs = SurrogateField()
@@ -23,7 +24,7 @@ net.return_seasonality(a[0], a[1], a[2])
 
 pool = Pool(20)
 net.wavelet(8, 'y', cut = 1, pool = pool)
-net.get_adjacency_matrix(net.phase, method = "MIEQQ", num_workers = 0, pool = pool, use_queue = False)
+net.get_adjacency_matrix(net.phase, method = "MIEQQ", num_workers = 20, pool = None, use_queue = True)
 pool.close()
 pool.join()
 
@@ -39,12 +40,12 @@ for i in range(NUM_SURR):
 
     net.data = surrs.get_surr()
     net.wavelet(8, 'y', cut = 1, pool = pool)
-    net.get_adjacency_matrix(net.phase, method = "MIEQQ", num_workers = 0, pool = pool, use_queue = False)
+    net.get_adjacency_matrix(net.phase, method = "MIEQQ", num_workers = 20, pool = None, use_queue = True)
     pool.close()
     pool.join()
     surrs_adj_matrices.append(net.adjacency_matrix)
 
 import cPickle
-with open("8yr-phase-scale-net-surrs-test.bin", "wb") as f:
+with open("8yr-phase-scale-net-surrs-1000FT.bin", "wb") as f:
     cPickle.dump({'data' : data_adj_matrix, 'surrs' : surrs_adj_matrices}, f, protocol = cPickle.HIGHEST_PROTOCOL)
 
