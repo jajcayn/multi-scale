@@ -1411,7 +1411,7 @@ class DataField:
                     self.data[sel_data, ...] /= seasonal_var[sel_data, ...]
             if detrend:
                 data_copy = self.data.copy()
-                self.data, _ = nandetrend(self.data, axis = 0)
+                self.data, _, _ = nandetrend(self.data, axis = 0)
                 trend = data_copy - self.data
             else:
                 trend = None
@@ -1432,7 +1432,7 @@ class DataField:
                 self.data[sel_data, ...] /= seasonal_var[sel_data, ...]
             if detrend:
                 data_copy = self.data.copy()
-                self.data, _ = nandetrend(self.data, axis = 0)
+                self.data, _, _ = nandetrend(self.data, axis = 0)
                 trend = data_copy - self.data
             else:
                 trend = None
