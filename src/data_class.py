@@ -774,9 +774,9 @@ class DataField:
                     yearly_data.append(np.nansum(self.data[year_ndx, ...], axis = 0))
             else:
                 if means:
-                    yearly_data.append(np.nanmean(ts, axis = 0))
+                    yearly_data.append(np.nanmean(ts[year_ndx], axis = 0))
                 else:
-                    yearly_data.append(np.nansum(ts, axis = 0))
+                    yearly_data.append(np.nansum(ts[year_ndx], axis = 0))
             yearly_time.append(date(y, 1, 1).toordinal())
 
         if ts is None:
@@ -1008,7 +1008,7 @@ class DataField:
 
 
 
-    def temporal_filter(self, cutoff, btype, order = 2, cut = 1, pool = None):
+    def temporal_filter(self, cutoff, btype, order = 2, cut = 1, pool = None, cut_time = False):
         """
         Filters data in temporal sense.
         Uses Butterworth filter of order order.
@@ -1049,9 +1049,6 @@ class DataField:
         else:
             raise Exception("For band filter cutoff must be a list of [low,high] for low/high-pass cutoff must be a integer!")
 
-        if cut is not None:
-            to_cut = int(y*cut)
-
         if pool is None:
             map_func = map
         elif pool is not None:
@@ -1074,6 +1071,11 @@ class DataField:
             self.filtered_data[:, i, j] = res
 
         del job_result
+
+        if cut is not None:
+            to_cut = int(y*cut)
+            if cut_time:
+                self.time = self.time[to_cut:-to_cut]
 
         self.data = np.squeeze(self.data)
         self.filtered_data = np.squeeze(self.filtered_data) if cut is None else np.squeeze(self.filtered_data[to_cut:-to_cut, ...])
@@ -1501,8 +1503,8 @@ class DataField:
 
         i, j, s0, data, flag, amp_to_data, k0 = a
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
-        phase = np.arctan2(np.imag(wave), np.real(wave))
-        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
+        phase = np.arctan2(np.imag(wave), np.real(wave))[0, :]
+        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))[0, :]
         if amp_to_data:
             reconstruction = amplitude * np.cos(phase)
             fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
@@ -1584,7 +1586,7 @@ class DataField:
 
 
     def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, 
-                                phase_fluct = False, save_wave = False):
+                                phase_fluct = False, save_wave = False, cut_time = False):
         """
         Computes phase of analytic signal using parametric method.
         Period is frequency in years, or days.
@@ -1630,8 +1632,6 @@ class DataField:
 
         self.frequency = 2*np.pi / (y*period) # frequency of interest
         window = int(y*window)
-        if cut is not None:
-            to_cut = int(y*cut)
 
         if ts is None:
             if pool is None:
@@ -1661,6 +1661,11 @@ class DataField:
 
             del job_result
 
+            if cut is not None:
+                to_cut = int(y*cut)
+                if cut_time:
+                    self.time = self.time[to_cut:-to_cut]
+
             self.data = np.squeeze(self.data)
             self.phase = np.squeeze(self.phase) if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
             if save_wave:
@@ -1676,7 +1681,7 @@ class DataField:
 
 
     def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, 
-                    regress_amp_to_data = False, k0 = 6.):
+                    regress_amp_to_data = False, k0 = 6., cut_time = False):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years, or days.
@@ -1722,8 +1727,6 @@ class DataField:
         per = period * y # frequency of interest
         self.frequency = per
         s0 = per / fourier_factor # get scale
-        if cut is not None:
-            to_cut = int(y*cut)
 
         if ts is None:
             if pool is None:
@@ -1754,6 +1757,11 @@ class DataField:
                     self.wave[:, i, j] = res[2]
 
             del job_result
+
+            if cut is not None:
+                to_cut = int(y*cut)
+                if cut_time:
+                    self.time = self.time[to_cut:-to_cut]
 
             self.data = np.squeeze(self.data)
             self.phase = np.squeeze(self.phase) if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
