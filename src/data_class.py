@@ -1585,8 +1585,8 @@ class DataField:
 
 
 
-    def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, 
-                                phase_fluct = False, save_wave = False, cut_time = False):
+        def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, 
+                                    phase_fluct = False, save_wave = False, cut_time = False):
         """
         Computes phase of analytic signal using parametric method.
         Period is frequency in years, or days.
