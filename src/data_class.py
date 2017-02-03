@@ -1501,7 +1501,7 @@ class DataField:
 
         import wavelet_analysis as wvlt
 
-        i, j, s0, data, flag, amp_to_data, k0 = a
+        i, j, s0, data, flag, amp_to_data, k0, cont_ph = a
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
         phase = np.arctan2(np.imag(wave), np.real(wave))[0, :]
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))[0, :]
@@ -1510,6 +1510,10 @@ class DataField:
             fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
             m, c = np.linalg.lstsq(fit_x, data)[0]
             amplitude = m * amplitude + c
+        if cont_ph:
+            for t in range(phase.shape[0] - 1):
+                if np.abs(phase[t+1] - phase[t]) > 1:
+                    phase[t+1: ] += 2 * np.pi
         ret = [phase, amplitude]
         if flag:
             ret.append(wave)
@@ -1523,7 +1527,7 @@ class DataField:
         Helper function for parametric phase.
         """
 
-        i, j, freq, data, window, flag, save_wave = a
+        i, j, freq, data, window, flag, save_wave, cont_ph = a
         half_length = int(np.floor(data.shape[0]/2))
         upper_bound = half_length + 1 if data.shape[0] & 0x1 else half_length
         # center data to zero mean (NOT climatologically)
@@ -1559,6 +1563,10 @@ class DataField:
         sxo = np.dot(so, y) / window
         phio = np.angle(cxo - 1j*sxo)
         iphase[:half_window] = np.angle(np.exp(1j*(np.arange(-half_window, 0, 1)*freq + phio)))
+        if cont_ph:
+            for t in range(iphase.shape[0] - 1):
+                if np.abs(iphase[t+1] - iphase[t]) > 1:
+                    iphase[t+1: ] += 2 * np.pi
         if flag:
             sinusoid = np.arange(-half_length, upper_bound)*freq + phi
             sinusoid = np.angle(np.exp(1j*sinusoid))
@@ -1585,8 +1593,8 @@ class DataField:
 
 
 
-        def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, 
-                                    phase_fluct = False, save_wave = False, cut_time = False):
+    def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, 
+                                    phase_fluct = False, save_wave = False, cut_time = False, continuous_phase = False):
         """
         Computes phase of analytic signal using parametric method.
         Period is frequency in years, or days.
@@ -1651,7 +1659,7 @@ class DataField:
             if save_wave:
                 self.wave = np.zeros_like(self.data)
 
-            job_args = [ (i, j, self.frequency, self.data[:, i, j].copy(), window, phase_fluct, save_wave) for i in range(num_lats) for j in range(num_lons) ]
+            job_args = [ (i, j, self.frequency, self.data[:, i, j].copy(), window, phase_fluct, save_wave, continuous_phase) for i in range(num_lats) for j in range(num_lons) ]
             job_result = map_func(self._get_parametric_phase, job_args)
             del job_args
             for i, j, res in job_result:
@@ -1681,7 +1689,7 @@ class DataField:
 
 
     def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, 
-                    regress_amp_to_data = False, k0 = 6., cut_time = False):
+                    regress_amp_to_data = False, k0 = 6., cut_time = False, continuous_phase = False):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years, or days.
@@ -1747,7 +1755,7 @@ class DataField:
             if save_wave:
                 self.wave = np.zeros_like(self.data, dtype = np.complex64)
 
-            job_args = [ (i, j, s0, self.data[:, i, j], save_wave, regress_amp_to_data, k0) for i in range(num_lats) for j in range(num_lons) ]
+            job_args = [ (i, j, s0, self.data[:, i, j], save_wave, regress_amp_to_data, k0, continuous_phase) for i in range(num_lats) for j in range(num_lons) ]
             job_result = map_func(self._get_oscillatory_modes, job_args)
             del job_args
             for i, j, res in job_result:
