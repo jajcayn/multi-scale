@@ -566,6 +566,39 @@ class DataField:
 
         else:
             raise Exception('Slicing data with no spatial dimensions, probably station data.')
+
+
+
+    def cut_lat_lon(self, lats_to_cut, lons_to_cut):
+        """
+        Cuts region in lats/lons (puts NaNs in the selected regions). 
+        Input is for both [from, to], both are inclusive. If None, the dimension is not modified.
+        """
+
+        if self.lats is not None and self.lons is not None:
+            if lats_to_cut is not None:
+                lat_ndx = np.nonzero(np.logical_and(self.lats >= lats_to_cut[0], self.lats <= lats_to_cut[1]))[0]
+                if lons_to_cut is None:
+                    self.data[..., lat_ndx, :] = np.nan
+                
+            if lons_to_cut is not None:
+                if lons_to_cut[0] < lons_to_cut[1]:
+                    lon_ndx = np.nonzero(np.logical_and(self.lons >= lons_to_cut[0], self.lons <= lons_to_cut[1]))[0]
+                elif lons_to_cut[0] > lons_to_cut[1]:
+                    l1 = list(np.nonzero(np.logical_and(self.lons >= lons_to_cut[0], self.lons <= 360))[0])
+                    l2 = list(np.nonzero(np.logical_and(self.lons_to_cut >= 0, self.lons <= lons_to_cut[1]))[0])
+                    lon_ndx = np.array(l1 + l2)
+                if lats_to_cut is None:
+                    self.data[..., lon_ndx] = np.nan   
+
+            if lats_to_cut is not None and lons_to_cut is not None:
+                
+                for lat in lat_ndx:
+                    for lon in lon_ndx: 
+                        self.data[..., lat, lon] = np.nan
+
+        else:
+            raise Exception('Slicing data with no spatial dimensions, probably station data.')
             
             
             
@@ -1571,6 +1604,7 @@ class DataField:
             sinusoid = np.arange(-half_length, upper_bound)*freq + phi
             sinusoid = np.angle(np.exp(1j*sinusoid))
             iphase = np.angle(np.exp(1j*(iphase - sinusoid)))
+            # iphase -= iphase[0]
 
         ret = [iphase]
         if save_wave:
