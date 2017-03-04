@@ -102,9 +102,12 @@ class DataField:
         self.time = time
         self.location = None # for station data
         self.missing = None # for station data where could be some missing values
+        self.station_id = None # for station data
+        self.station_elev = None # in metres, for station data
         self.var_name = None
         self.nans = False
         self.cos_weights = None
+        self.data_mask = None
 
 
 
@@ -256,29 +259,36 @@ class DataField:
             if isinstance(data, np.ma.masked_array):             
                 self.data = data.data.copy() # get only data, not mask
                 self.data[data.mask] = np.nan # filled masked values with NaNs
+                self.data_mask = data.mask.copy()
             else:
-                self.data = data
+                self.data = data.copy()
+
+            self.data = np.squeeze(self.data)
 
             for key in d.variables.keys():
                 if key == variable_name:
                     continue
-                if 'lat' in str(d.variables[key]):
+                if 'lat' in str(d.variables[key].name):
                     self.lats = d.variables[key][:]
-                if 'lon' in str(d.variables[key]):
+                if 'lon' in str(d.variables[key].name):
                     self.lons = d.variables[key][:]
                     if np.any(self.lons < 0):
                         self._shift_lons_to_360()
-                if 'since' in d.variables[key].units:
-                    self.time = d.variables[key][:]
-                    date_since = self._parse_time_units(d.variables[key].units)
-                    if "hours" in d.variables[key].units:
-                        self.time = self.time / 24.0 + date.toordinal(date_since)
-                    elif "days" in d.variables[key].units:
-                        self.time += date.toordinal(date_since)
-                    elif "months" in d.variables[key].units:
-                        from dateutil.relativedelta import relativedelta
-                        for t in range(self.time.shape[0]):
-                            self.time[t] = date.toordinal(date_since + relativedelta(months = +int(self.time[t])))
+                try: # handling when some netCDF variable hasn't assigned units
+                    if 'since' in d.variables[key].units:
+                        self.time = d.variables[key][:]
+                        date_since = self._parse_time_units(d.variables[key].units)
+                        if "hours" in d.variables[key].units:
+                            self.time = self.time / 24.0 + date.toordinal(date_since)
+                        elif "days" in d.variables[key].units:
+                            self.time += date.toordinal(date_since)
+                        elif "months" in d.variables[key].units:
+                            from dateutil.relativedelta import relativedelta
+                            for t in range(self.time.shape[0]):
+                                self.time[t] = date.toordinal(date_since + relativedelta(months = +int(self.time[t])))
+                except AttributeError:
+                    pass
+
             self.var_name = variable_name
             if np.any(np.isnan(self.data)):
                 self.nans = True
@@ -324,7 +334,7 @@ class DataField:
             
             
             
-    def load_station_data(self, filename, dataset = 'ECA-station', print_prog = True):
+    def load_station_data(self, filename, dataset = 'ECA-station', print_prog = True, offset_in_file = 0):
         """
         Loads station data, usually from text file. Uses numpy.loadtxt reader.
         """
@@ -357,26 +367,23 @@ class DataField:
                 reader = csv.reader(f)
                 for row in reader:
                     i += 1
-                    if i == 16: # line with location
-                        country = row[0][38:].lower()
-                        if row[1][-5] == ' ': # for stations with 2-digit SOUID
-                            station = row[1][1:-13].lower()
-                        elif row[1][-6] == ' ': # for stations with 3-digit SOUID
-                            station = row[1][1:-14].lower()
-                        elif row[1][-7] == ' ': # for stations with 4-digit SOUID
-                            station = row[1][1:-15].lower()
+                    if i == 16 + offset_in_file: # line with location
+                        country = filter(None, row[1].split(" "))[0].lower()
+                        station = row[0].split(" ")[-1].lower()
                         self.location = station.title() + ', ' + country.title()
-                    if i > 20: # actual data - len(row) = 4 as SOUID, DATE, TG, Q_TG
-                        value = float(row[2])
-                        year = int(row[1][:4])
-                        month = int(row[1][4:6])
-                        day = int(row[1][6:])
+                    if i > 20 + offset_in_file: # actual data - len(row) = 5 as STAID, SOUID, DATE, TG, Q_TG
+                        staid = int(row[0])
+                        value = float(row[3])
+                        year = int(row[2][:4])
+                        month = int(row[2][4:6])
+                        day = int(row[2][6:])
                         time.append(date(year, month, day).toordinal())
                         if value == -9999.:
                             missing.append(date(year, month, day).toordinal())
                             data.append(np.nan)
                         else:
                             data.append(value/10.)
+            self.station_id = staid
             self.data = np.array(data)
             self.time = np.array(time)
             self.missing = np.array(missing)
@@ -431,6 +438,8 @@ class DataField:
         if apply_to_data:
             self.time = self.time[ndx] # slice time stamp
             self.data = self.data[ndx, ...] # slice data
+            if self.data_mask is not None and self.data_mask.ndim > 2:
+                self.data_mask = self.data_mask[ndx, ...] # slice missing if exists
         if self.missing is not None:
             missing_ndx = np.logical_and(self.missing >= d_start, self.missing < d_to)
             self.missing = self.missing[missing_ndx] # slice missing if exists
@@ -556,6 +565,10 @@ class DataField:
                 self.data = d[..., lon_ndx]
                 self.lats = self.lats[lat_ndx]
                 self.lons = self.lons[lon_ndx]
+                if self.data_mask is not None:
+                    d = self.data_mask
+                    d = d[..., lat_ndx, :]
+                    self.data_mask = d[..., lon_ndx]
 
                 if np.any(np.isnan(self.data)):
                     self.nans = True
@@ -789,8 +802,9 @@ class DataField:
 
     def get_annual_data(self, means = True, ts = None):
         """
-        Converts the data to annual means.
+        Converts the data to annual means or sums.
         If ts is None, uses self.data.
+        if means is True, computes annual means, otherwise computes sums.
         """
 
         yearly_data = []
@@ -802,14 +816,14 @@ class DataField:
             year_ndx = np.where(year == y)[0]
             if ts is None:
                 if means:
-                    yearly_data.append(np.nanmean(self.data[year_ndx, ...], axis = 0))
+                    yearly_data.append(np.squeeze(np.nanmean(self.data[year_ndx, ...], axis = 0)))
                 else:
-                    yearly_data.append(np.nansum(self.data[year_ndx, ...], axis = 0))
+                    yearly_data.append(np.squeeze(np.nansum(self.data[year_ndx, ...], axis = 0)))
             else:
                 if means:
-                    yearly_data.append(np.nanmean(ts[year_ndx], axis = 0))
+                    yearly_data.append(np.squeeze(np.nanmean(ts[year_ndx, ...], axis = 0)))
                 else:
-                    yearly_data.append(np.nansum(ts[year_ndx], axis = 0))
+                    yearly_data.append(np.squeeze(np.nansum(ts[year_ndx, ...], axis = 0)))
             yearly_time.append(date(y, 1, 1).toordinal())
 
         if ts is None:
@@ -1916,7 +1930,11 @@ class DataField:
             cs = m.contourf(x, y, data, norm = colors.LogNorm(vmin = min, vmax = max), levels = levels, cmap = plt.get_cmap('jet'))
         else:
             levels = np.linspace(min, max, 41)
-            cs = m.contourf(x, y, data, levels = levels, cmap = plt.get_cmap('jet'))
+            if not self.check_NaNs_only_spatial():
+                data = np.ma.array(data, mask = np.isnan(data))
+                cs = m.pcolormesh(x, y, data, vmin = levels[0], vmax = levels[-1], cmap = plt.get_cmap('jet'))
+            else:
+                cs = m.contourf(x, y, data, levels = levels, cmap = plt.get_cmap('jet'))
         
         # colorbar
         cbar = plt.colorbar(cs, ticks = levels[::4], pad = 0.07, shrink = 0.8, fraction = 0.05)
@@ -2366,5 +2384,31 @@ def load_ERSST_data(path, start_date, end_date, lats = None, lons = None, anom =
            year[0], day[-1], month[-1], year[-1]))
            
     return g
+
+
+def get_lat_lon_elev_from_station_file(staid, f = None, fname = None, start_line = 20):
+    import csv
+    if f is None and fname is not None:
+        f = open(fname)
+
+    reader = csv.reader(f)
+    i = 0
+    for line in reader:
+        i += 1
+        if i >= start_line:
+            staid_check = int(line[0])
+            if staid_check == staid:
+                elev = int(line[-1])
+                E = '+' in line[-2][0]
+                d, m, s =  map(float, line[-2][1:].split(":"))
+                lon = (d + m / 60. + s / 3600.) * (1 if E else -1)
+                N = '+' in line[-3][0]
+                d, m, s =  map(float, line[-3][1:].split(":"))
+                lat = (d + m / 60. + s / 3600.) * (1 if N else -1)
+
+    if fname is not None:
+        f.close()
+
+    return lat, lon, elev
 
 
