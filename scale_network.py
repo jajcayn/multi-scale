@@ -229,7 +229,7 @@ class ScaleSpecificNetwork(DataField):
         self.get_continuous_phase(pool = pool)
 
         if self.sampling == 'monthly':
-           omega = 2 * np.pi / self.frequency
+            omega = 2 * np.pi / self.frequency
         elif self.sampling == 'daily':
             omega = 2 * np.pi / self.frequency
 

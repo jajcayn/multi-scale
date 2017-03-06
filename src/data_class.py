@@ -368,8 +368,10 @@ class DataField:
                 for row in reader:
                     i += 1
                     if i == 16 + offset_in_file: # line with location
-                        country = filter(None, row[1].split(" "))[0].lower()
-                        station = row[0].split(" ")[-1].lower()
+                        c_list = filter(None, row[1].split(" "))
+                        del c_list[-2:]
+                        country = ' '.join(c_list).lower()
+                        station = ' '.join(row[0].split(" ")[7:]).lower()
                         self.location = station.title() + ', ' + country.title()
                     if i > 20 + offset_in_file: # actual data - len(row) = 5 as STAID, SOUID, DATE, TG, Q_TG
                         staid = int(row[0])
@@ -560,15 +562,33 @@ class DataField:
                 lon_ndx = np.arange(len(self.lons))
             
             if apply_to_data:
-                d = self.data
-                d = d[..., lat_ndx, :]
-                self.data = d[..., lon_ndx]
-                self.lats = self.lats[lat_ndx]
-                self.lons = self.lons[lon_ndx]
-                if self.data_mask is not None:
-                    d = self.data_mask
+                if self.data.ndim >= 3:
+                    d = self.data.copy()
                     d = d[..., lat_ndx, :]
-                    self.data_mask = d[..., lon_ndx]
+                    self.data = d[..., lon_ndx].copy()
+                    self.lats = self.lats[lat_ndx]
+                    self.lons = self.lons[lon_ndx]
+                    if self.data_mask is not None:
+                        d = self.data_mask
+                        d = d[..., lat_ndx, :]
+                        self.data_mask = d[..., lon_ndx]
+                elif self.data.ndim == 2: # multiple stations data
+                    d = self.data.copy()
+                    d = d[:, lat_ndx]
+                    self.lons = self.lons[lat_ndx]
+                    self.lats = self.lats[lat_ndx]
+                    if lons is not None:
+                        if lons[0] < lons[1]:
+                            lon_ndx = np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= lons[1]))[0]
+                        elif lons[0] > lons[1]:
+                            l1 = list(np.nonzero(np.logical_and(self.lons >= lons[0], self.lons <= 360))[0])
+                            l2 = list(np.nonzero(np.logical_and(self.lons >= 0, self.lons <= lons[1]))[0])
+                            lon_ndx = np.array(l1 + l2)
+                    else:
+                        lon_ndx = np.arange(len(self.lons))
+                    self.data = d[:, lon_ndx].copy()
+                    self.lons = self.lons[lon_ndx]
+                    self.lats = self.lats[lon_ndx]
 
                 if np.any(np.isnan(self.data)):
                     self.nans = True
@@ -788,7 +808,7 @@ class DataField:
         Returns the index in data shifted by month.
         """
         
-        dt = date.fromordinal(self.time[current_idx])
+        dt = date.fromordinal(np.int(self.time[current_idx]))
         if dt.month < 12:
             mi = dt.month + 1
             y = dt.year
@@ -1230,7 +1250,8 @@ class DataField:
                 return False
 
         else:
-            print("No NaNs in the data, nothing happened!")
+            pass
+            # print("No NaNs in the data, nothing happened!")
 
 
 
@@ -1548,7 +1569,7 @@ class DataField:
 
         import wavelet_analysis as wvlt
 
-        i, j, s0, data, flag, amp_to_data, k0, cont_ph = a
+        i, j, s0, omega, data, flag, amp_to_data, k0, cont_ph, ph_flucts = a
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
         phase = np.arctan2(np.imag(wave), np.real(wave))[0, :]
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))[0, :]
@@ -1561,6 +1582,11 @@ class DataField:
             for t in range(phase.shape[0] - 1):
                 if np.abs(phase[t+1] - phase[t]) > 1:
                     phase[t+1: ] += 2 * np.pi
+        if ph_flucts:
+            ph0 = phase[0]
+            for t in range(phase.shape[0]):
+                phase[t] -= (ph0 + omega*t)
+        
         ret = [phase, amplitude]
         if flag:
             ret.append(wave)
@@ -1695,9 +1721,13 @@ class DataField:
             elif pool is not None:
                 map_func = pool.map
 
-            if self.data.ndim > 1:
+            if self.data.ndim > 2:
                 num_lats = self.lats.shape[0]
                 num_lons = self.lons.shape[0]
+            elif self.data.ndim == 2: # lot of station data
+                num_lats = self.lats.shape[0]
+                num_lons = 1
+                self.data = self.data[:, :, np.newaxis]
             else:
                 num_lats = 1
                 num_lons = 1
@@ -1737,7 +1767,8 @@ class DataField:
 
 
     def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, 
-                    regress_amp_to_data = False, k0 = 6., cut_time = False, continuous_phase = False):
+                    regress_amp_to_data = False, k0 = 6., cut_time = False, continuous_phase = False, 
+                    phase_fluct = False):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years, or days.
@@ -1782,7 +1813,11 @@ class DataField:
         fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
         per = period * y # frequency of interest
         self.frequency = per
+        self.omega = 2*np.pi / (y*period)
         s0 = per / fourier_factor # get scale
+
+        if phase_fluct:
+            continuous_phase = True
 
         if ts is None:
             if pool is None:
@@ -1790,9 +1825,13 @@ class DataField:
             elif pool is not None:
                 map_func = pool.map
 
-            if self.data.ndim > 1:
+            if self.data.ndim > 2:
                 num_lats = self.lats.shape[0]
                 num_lons = self.lons.shape[0]
+            elif self.data.ndim == 2: # lot of station data
+                num_lats = self.lats.shape[0]
+                num_lons = 1
+                self.data = self.data[:, :, np.newaxis]
             else:
                 num_lats = 1
                 num_lons = 1
@@ -1803,7 +1842,7 @@ class DataField:
             if save_wave:
                 self.wave = np.zeros_like(self.data, dtype = np.complex64)
 
-            job_args = [ (i, j, s0, self.data[:, i, j], save_wave, regress_amp_to_data, k0, continuous_phase) for i in range(num_lats) for j in range(num_lons) ]
+            job_args = [ (i, j, s0, self.omega, self.data[:, i, j], save_wave, regress_amp_to_data, k0, continuous_phase, phase_fluct) for i in range(num_lats) for j in range(num_lons) ]
             job_result = map_func(self._get_oscillatory_modes, job_args)
             del job_args
             for i, j, res in job_result:
@@ -1821,6 +1860,8 @@ class DataField:
 
             self.data = np.squeeze(self.data)
             self.phase = np.squeeze(self.phase) if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
+            if cut is not None and phase_fluct:
+                self.phase -= self.phase[0, ...]
             self.amplitude = np.squeeze(self.amplitude) if cut is None else np.squeeze(self.amplitude[to_cut:-to_cut, ...])
             if save_wave:
                 self.wave = np.squeeze(self.wave) if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
@@ -1834,8 +1875,8 @@ class DataField:
 
 
 
-    def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, tit = None, 
-                        symm = True, whole_world = True, log = None, fname = None):
+    def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, station_data = False, tit = None, 
+                        symm = True, whole_world = True, log = None, fname = None, plot_station_points = False):
         """
         Simple plot of the geo data using the Robinson projection for whole world
         or Mercator projection for local plots.
@@ -1866,17 +1907,38 @@ class DataField:
                 field = np.mean(self.data[:, lvl, ...], axis = 0)
                 title = ("%s at %d level: temporal mean" % (self.var_name.upper(), lvl))
 
-        if field_to_plot is not None:
+        if field_to_plot is not None and not station_data:
             if field_to_plot.ndim == 2 and field_to_plot.shape[0] == self.lats.shape[0] and field_to_plot.shape[1] == self.lons.shape[0]:
                 field = field_to_plot
                 title = ("Some field you should know")
             else:
                 raise Exception("field_to_plot has to have shape as lats x lons saved in the data class!")
 
+        if station_data:
+            if field_to_plot.ndim != 1:
+                raise Exception("Station data must be passed as time x station!")
+
+            import scipy.interpolate as si
+            # 0.1 by 0.1 grid
+            lats_stations = np.arange(self.lats.min(), self.lats.max()+0.1, 0.1)
+            lons_stations = np.arange(self.lons.min(), self.lons.max()+0.3, 0.3)
+            grid_lat, grid_lon = np.meshgrid(lats_stations, lons_stations, indexing = 'ij') # final grids
+            points = np.zeros((self.lons.shape[0], 2))
+            points[:, 0] = self.lats
+            points[:, 1] = self.lons
+            field = si.griddata(points, field_to_plot, (grid_lat, grid_lon), method = 'nearest')
+
+            title = ("Some interpolated field you should know from station data")
+
+
         # set up figure
         plt.figure(figsize=(20,10))
-        lat_ndx = np.argsort(self.lats)
-        lats = self.lats[lat_ndx]
+        if not station_data:
+            lat_ndx = np.argsort(self.lats)
+            lats = self.lats[lat_ndx]
+        else:
+            lat_ndx = np.argsort(lats_stations)
+            lats = lats_stations[lat_ndx]
         field = field[lat_ndx, :]
 
         # set up projections
@@ -1884,7 +1946,10 @@ class DataField:
             data = np.zeros((field.shape[0], field.shape[1] + 1))
             data[:, :-1] = field
             data[:, -1] = data[:, 0]
-            llons = self.lons.tolist()
+            if not station_data:
+                llons = self.lons.tolist()
+            else:
+                llons = lons_stations.tolist()
             llons.append(360)
             lons = np.array(llons)
             m = Basemap(projection = 'robin', lon_0 = 0, resolution='c')
@@ -1895,7 +1960,10 @@ class DataField:
             m.drawmeridians(np.arange(-180, 180, 60), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
 
         else:
-            lons = self.lons.copy()
+            if not station_data:
+                lons = self.lons.copy()
+            else:
+                lons = lons_stations.copy()
             data = field.copy()
 
             # if not monotonic
@@ -1930,11 +1998,17 @@ class DataField:
             cs = m.contourf(x, y, data, norm = colors.LogNorm(vmin = min, vmax = max), levels = levels, cmap = plt.get_cmap('jet'))
         else:
             levels = np.linspace(min, max, 41)
-            if not self.check_NaNs_only_spatial():
+            if not self.check_NaNs_only_spatial() and not station_data:
                 data = np.ma.array(data, mask = np.isnan(data))
                 cs = m.pcolormesh(x, y, data, vmin = levels[0], vmax = levels[-1], cmap = plt.get_cmap('jet'))
             else:
                 cs = m.contourf(x, y, data, levels = levels, cmap = plt.get_cmap('jet'))
+
+        # draw stations if station data
+        if station_data and plot_station_points:
+            for lat, lon in zip(self.lats, self.lons):
+                x, y = m(lon, lat)
+                m.plot(x, y, 'ko', markersize = 3)
         
         # colorbar
         cbar = plt.colorbar(cs, ticks = levels[::4], pad = 0.07, shrink = 0.8, fraction = 0.05)
