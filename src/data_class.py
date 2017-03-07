@@ -1876,7 +1876,8 @@ class DataField:
 
 
     def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, station_data = False, tit = None, 
-                        symm = True, whole_world = True, log = None, fname = None, plot_station_points = False):
+                        symm = True, whole_world = True, log = None, fname = None, plot_station_points = False, 
+                        colormesh = False):
         """
         Simple plot of the geo data using the Robinson projection for whole world
         or Mercator projection for local plots.
@@ -1998,7 +1999,7 @@ class DataField:
             cs = m.contourf(x, y, data, norm = colors.LogNorm(vmin = min, vmax = max), levels = levels, cmap = plt.get_cmap('jet'))
         else:
             levels = np.linspace(min, max, 41)
-            if not self.check_NaNs_only_spatial() and not station_data:
+            if colormesh:
                 data = np.ma.array(data, mask = np.isnan(data))
                 cs = m.pcolormesh(x, y, data, vmin = levels[0], vmax = levels[-1], cmap = plt.get_cmap('jet'))
             else:
