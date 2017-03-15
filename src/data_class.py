@@ -1569,7 +1569,7 @@ class DataField:
 
         import wavelet_analysis as wvlt
 
-        i, j, s0, omega, data, flag, amp_to_data, k0, cont_ph, ph_flucts = a
+        i, j, s0, data, flag, amp_to_data, k0, cont_ph, cut = a
         wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
         phase = np.arctan2(np.imag(wave), np.real(wave))[0, :]
         amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))[0, :]
@@ -1578,14 +1578,14 @@ class DataField:
             fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
             m, c = np.linalg.lstsq(fit_x, data)[0]
             amplitude = m * amplitude + c
+        if cut is not None:
+            phase = phase[cut:-cut]
+            amplitude = amplitude[cut:-cut]
+            wave = wave[cut:-cut]
         if cont_ph:
             for t in range(phase.shape[0] - 1):
                 if np.abs(phase[t+1] - phase[t]) > 1:
                     phase[t+1: ] += 2 * np.pi
-        if ph_flucts:
-            ph0 = phase[0]
-            for t in range(phase.shape[0]):
-                phase[t] -= (ph0 + omega*t)
         
         ret = [phase, amplitude]
         if flag:
@@ -1600,7 +1600,7 @@ class DataField:
         Helper function for parametric phase.
         """
 
-        i, j, freq, data, window, flag, save_wave, cont_ph = a
+        i, j, freq, data, window, flag, save_wave, cont_ph, cut = a
         half_length = int(np.floor(data.shape[0]/2))
         upper_bound = half_length + 1 if data.shape[0] & 0x1 else half_length
         # center data to zero mean (NOT climatologically)
@@ -1636,6 +1636,9 @@ class DataField:
         sxo = np.dot(so, y) / window
         phio = np.angle(cxo - 1j*sxo)
         iphase[:half_window] = np.angle(np.exp(1j*(np.arange(-half_window, 0, 1)*freq + phio)))
+        if cut is not None:
+            iphase = iphase[cut:-cut]
+            z = z[cut:-cut]
         if cont_ph:
             for t in range(iphase.shape[0] - 1):
                 if np.abs(iphase[t+1] - iphase[t]) > 1:
@@ -1643,8 +1646,10 @@ class DataField:
         if flag:
             sinusoid = np.arange(-half_length, upper_bound)*freq + phi
             sinusoid = np.angle(np.exp(1j*sinusoid))
+            if cut is not None:
+                sinusoid = sinusoid[cut:-cut]
             iphase = np.angle(np.exp(1j*(iphase - sinusoid)))
-            # iphase -= iphase[0]
+            iphase -= iphase[0]
 
         ret = [iphase]
         if save_wave:
@@ -1733,11 +1738,17 @@ class DataField:
                 num_lons = 1
                 self.data = self.data[:, np.newaxis, np.newaxis]
 
-            self.phase = np.zeros_like(self.data)
-            if save_wave:
-                self.wave = np.zeros_like(self.data)
+            if cut is not None:
+                to_cut = int(y*cut)
+            else:
+                to_cut = None
 
-            job_args = [ (i, j, self.frequency, self.data[:, i, j].copy(), window, phase_fluct, save_wave, continuous_phase) for i in range(num_lats) for j in range(num_lons) ]
+            self.phase = np.zeros_like(self.data) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims())
+            if save_wave:
+                self.wave = np.zeros_like(self.data, dtype = np.complex64) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims(), dtype = np.complex64)
+
+
+            job_args = [ (i, j, self.frequency, self.data[:, i, j].copy(), window, phase_fluct, save_wave, continuous_phase, to_cut) for i in range(num_lats) for j in range(num_lons) ]
             job_result = map_func(self._get_parametric_phase, job_args)
             del job_args
             for i, j, res in job_result:
@@ -1747,22 +1758,17 @@ class DataField:
 
             del job_result
 
-            if cut is not None:
-                to_cut = int(y*cut)
-                if cut_time:
-                    self.time = self.time[to_cut:-to_cut]
+            if cut_time and cut is not None:
+                self.time = self.time[to_cut:-to_cut]
 
             self.data = np.squeeze(self.data)
-            self.phase = np.squeeze(self.phase) if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
+            self.phase = np.squeeze(self.phase)# if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
             if save_wave:
-                self.wave = np.squeeze(self.wave) if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
+                self.wave = np.squeeze(self.wave)# if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
             
         else:
-            res = self._get_oscillatory_modes([0, 0, self.frequency, ts.copy(), window, phase_fluct, save_wave])[-1]
-            if cut is not None:
-                return [i[0, to_cut:-to_cut] for i in res]
-            else:
-                return [i[0, :] for i in res]
+            res = self._get_oscillatory_modes([0, 0, self.frequency, ts.copy(), window, phase_fluct, save_wave, continuous_phase, to_cut])[-1]
+            return [i[0, :] for i in res]
 
 
 
@@ -1837,12 +1843,17 @@ class DataField:
                 num_lons = 1
                 self.data = self.data[:, np.newaxis, np.newaxis]
 
-            self.phase = np.zeros_like(self.data)
-            self.amplitude = np.zeros_like(self.data)
-            if save_wave:
-                self.wave = np.zeros_like(self.data, dtype = np.complex64)
+            if cut is not None:
+                to_cut = int(y*cut)
+            else:
+                to_cut = None
 
-            job_args = [ (i, j, s0, self.omega, self.data[:, i, j], save_wave, regress_amp_to_data, k0, continuous_phase, phase_fluct) for i in range(num_lats) for j in range(num_lons) ]
+            self.phase = np.zeros_like(self.data) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims())
+            self.amplitude = np.zeros_like(self.data) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims())
+            if save_wave:
+                self.wave = np.zeros_like(self.data, dtype = np.complex64) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims(), dtype = np.complex64)
+
+            job_args = [ (i, j, s0, self.data[:, i, j], save_wave, regress_amp_to_data, k0, continuous_phase, to_cut) for i in range(num_lats) for j in range(num_lons) ]
             job_result = map_func(self._get_oscillatory_modes, job_args)
             del job_args
             for i, j, res in job_result:
@@ -1853,25 +1864,25 @@ class DataField:
 
             del job_result
 
-            if cut is not None:
-                to_cut = int(y*cut)
-                if cut_time:
-                    self.time = self.time[to_cut:-to_cut]
+            if cut is not None and cut_time:
+                self.time = self.time[to_cut:-to_cut]
 
             self.data = np.squeeze(self.data)
-            self.phase = np.squeeze(self.phase) if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
-            if cut is not None and phase_fluct:
-                self.phase -= self.phase[0, ...]
-            self.amplitude = np.squeeze(self.amplitude) if cut is None else np.squeeze(self.amplitude[to_cut:-to_cut, ...])
+            if phase_fluct:
+                ph0 = self.phase[0, ...]
+                sin = np.arange(0, self.phase.shape[0])[:, np.newaxis, np.newaxis] * self.omega + ph0
+                self.phase -= sin
+                self.phase = np.squeeze(self.phase)
+            else:
+                self.phase = np.squeeze(self.phase)
+            self.amplitude = np.squeeze(self.amplitude)
             if save_wave:
-                self.wave = np.squeeze(self.wave) if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
+                self.wave = np.squeeze(self.wave)
         
         else:
-            res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave, regress_amp_to_data, k0])[-1]
-            if cut is not None:
-                return [i[0, to_cut:-to_cut] for i in res]
-            else:
-                return [i[0, :] for i in res]
+            res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave, regress_amp_to_data, k0, continuous_phase, to_cut])[-1]
+            # add phase fluct!!!
+            return [i[0, :] for i in res]
 
 
 
@@ -2028,7 +2039,7 @@ class DataField:
 
         
         
-def load_station_data(filename, start_date, end_date, anom, to_monthly = False, dataset = 'ECA-station'):
+def load_station_data(filename, start_date, end_date, anom, to_monthly = False, dataset = 'ECA-station', offset = 1):
     """
     Data loader for station data.
     """
@@ -2040,7 +2051,7 @@ def load_station_data(filename, start_date, end_date, anom, to_monthly = False, 
         g = DataField(data_folder = path)
     else:
         g = DataField()
-    g.load_station_data(name, dataset, print_prog = False)
+    g.load_station_data(name, dataset, print_prog = False, offset_in_file = offset)
     print("** loaded")
     g.select_date(start_date, end_date)
     if anom:
