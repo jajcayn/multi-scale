@@ -1229,7 +1229,7 @@ class DataField:
 
 
 
-    def check_NaNs_only_spatial(self):
+    def check_NaNs_only_spatial(self, field = None):
         """
         Returns True if the NaNs contained in the data are of spatial nature, e.g.
         masked land from sea dataset and so on.
@@ -1237,14 +1237,15 @@ class DataField:
         E.g. with spatial NaNs, the PCA could be still done, when filtering out the NaNs.
         """
 
-        if self.nans:
+        if self.nans or field is not None:
+            field = self.data.copy() if field is None else field
             cnt = 0
-            nangrid0 = np.isnan(self.data[0, ...])
-            for t in range(1, self.time.shape[0]):
-                if np.all(nangrid0 == np.isnan(self.data[t, ...])):
+            nangrid0 = np.isnan(field[0, ...])
+            for t in range(1, field.shape[0]):
+                if np.all(nangrid0 == np.isnan(field[t, ...])):
                     cnt += 1
 
-            if self.time.shape[0] - cnt == 1:
+            if field.shape[0] - cnt == 1:
                 return True
             else:
                 return False
@@ -1263,8 +1264,8 @@ class DataField:
         Mask is saved for internal purposes (e.g. PCA) but also returned.
         """
 
-        if self.nans:
-            if self.check_NaNs_only_spatial():
+        if (field is None and self.nans) or (field is not None and np.any(np.isnan(field))):
+            if self.check_NaNs_only_spatial(field = field):
                 d = self.data.copy() if field is None else field
                 d = self.flatten_field(f = d)
                 mask = np.isnan(d)
@@ -1319,7 +1320,7 @@ class DataField:
 
             # reshape field so the first axis is temporal and second is combined spatial
             # if nans, filter-out
-            if self.nans:
+            if (self.nans and field is None) or (field is not None and np.any(np.isnan(field))):
                 d = self.filter_out_NaNs(field)[0]
             else:
                 if field is None:
@@ -1570,28 +1571,34 @@ class DataField:
         import wavelet_analysis as wvlt
 
         i, j, s0, data, flag, amp_to_data, k0, cont_ph, cut = a
-        wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
-        phase = np.arctan2(np.imag(wave), np.real(wave))[0, :]
-        amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))[0, :]
-        if amp_to_data:
-            reconstruction = amplitude * np.cos(phase)
-            fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
-            m, c = np.linalg.lstsq(fit_x, data)[0]
-            amplitude = m * amplitude + c
-        if cut is not None:
-            phase = phase[cut:-cut]
-            amplitude = amplitude[cut:-cut]
-            wave = wave[cut:-cut]
-        if cont_ph:
-            for t in range(phase.shape[0] - 1):
-                if np.abs(phase[t+1] - phase[t]) > 1:
-                    phase[t+1: ] += 2 * np.pi
-        
-        ret = [phase, amplitude]
-        if flag:
-            ret.append(wave)
+        if not np.any(np.isnan(data)):
+            wave, _, _, _ = wvlt.continous_wavelet(data, 1, True, wvlt.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0)
+            phase = np.arctan2(np.imag(wave), np.real(wave))[0, :]
+            amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))[0, :]
+            if amp_to_data:
+                reconstruction = amplitude * np.cos(phase)
+                fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
+                m, c = np.linalg.lstsq(fit_x, data)[0]
+                amplitude = m * amplitude + c
+            if cut is not None:
+                phase = phase[cut:-cut]
+                amplitude = amplitude[cut:-cut]
+                wave = wave[cut:-cut]
+            if cont_ph:
+                for t in range(phase.shape[0] - 1):
+                    if np.abs(phase[t+1] - phase[t]) > 1:
+                        phase[t+1: ] += 2 * np.pi
+            
+            ret = [phase, amplitude]
+            if flag:
+                ret.append(wave)
 
-        return i, j, ret
+            return i, j, ret
+        else:
+            if flag:
+                return i, j, [np.nan, np.nan, np.nan]
+            else:
+                return i, j, [np.nan, np.nan]
 
 
 
@@ -1601,61 +1608,69 @@ class DataField:
         """
 
         i, j, freq, data, window, flag, save_wave, cont_ph, cut = a
-        half_length = int(np.floor(data.shape[0]/2))
-        upper_bound = half_length + 1 if data.shape[0] & 0x1 else half_length
-        # center data to zero mean (NOT climatologically)
-        data -= np.mean(data, axis = 0)
-        # compute smoothing wave from signal
-        c = np.cos(np.arange(-half_length, upper_bound, 1) * freq)
-        s = np.sin(np.arange(-half_length, upper_bound, 1) * freq)
-        cx = np.dot(c, data) / data.shape[0]
-        sx = np.dot(s, data) / data.shape[0]
-        mx = np.sqrt(cx**2 + sx**2)
-        phi = np.angle(cx - 1j*sx)
-        z = mx * np.cos(np.arange(-half_length, upper_bound, 1) * freq + phi)
-
-        # iterate with window
-        iphase = np.zeros_like(data)
-        half_window = int(np.floor(window/2))
-        upper_bound_window = half_window + 1 if window & 0x1 else half_window
-        co = np.cos(np.arange(-half_window, upper_bound_window, 1) *freq)
-        so = np.sin(np.arange(-half_window, upper_bound_window, 1) *freq)
         
-        for shift in range(0, data.shape[0] - window + 1):
-            y = data[shift:shift + window].copy()
+        if not np.any(np.isnan(data)):
+            half_length = int(np.floor(data.shape[0]/2))
+            upper_bound = half_length + 1 if data.shape[0] & 0x1 else half_length
+            # center data to zero mean (NOT climatologically)
+            data -= np.mean(data, axis = 0)
+            # compute smoothing wave from signal
+            c = np.cos(np.arange(-half_length, upper_bound, 1) * freq)
+            s = np.sin(np.arange(-half_length, upper_bound, 1) * freq)
+            cx = np.dot(c, data) / data.shape[0]
+            sx = np.dot(s, data) / data.shape[0]
+            mx = np.sqrt(cx**2 + sx**2)
+            phi = np.angle(cx - 1j*sx)
+            z = mx * np.cos(np.arange(-half_length, upper_bound, 1) * freq + phi)
+
+            # iterate with window
+            iphase = np.zeros_like(data)
+            half_window = int(np.floor(window/2))
+            upper_bound_window = half_window + 1 if window & 0x1 else half_window
+            co = np.cos(np.arange(-half_window, upper_bound_window, 1) *freq)
+            so = np.sin(np.arange(-half_window, upper_bound_window, 1) *freq)
+            
+            for shift in range(0, data.shape[0] - window + 1):
+                y = data[shift:shift + window].copy()
+                y -= np.mean(y)
+                cxo = np.dot(co, y) / window
+                sxo = np.dot(so, y) / window
+                phio = np.angle(cxo - 1j*sxo)
+                iphase[shift+half_window] = phio
+
+            iphase[shift+half_window+1:] = np.angle(np.exp(1j*(np.arange(1, upper_bound_window) * freq + phio)))
+            y = data[:window].copy()
             y -= np.mean(y)
             cxo = np.dot(co, y) / window
             sxo = np.dot(so, y) / window
             phio = np.angle(cxo - 1j*sxo)
-            iphase[shift+half_window] = phio
-
-        iphase[shift+half_window+1:] = np.angle(np.exp(1j*(np.arange(1, upper_bound_window) * freq + phio)))
-        y = data[:window].copy()
-        y -= np.mean(y)
-        cxo = np.dot(co, y) / window
-        sxo = np.dot(so, y) / window
-        phio = np.angle(cxo - 1j*sxo)
-        iphase[:half_window] = np.angle(np.exp(1j*(np.arange(-half_window, 0, 1)*freq + phio)))
-        if cut is not None:
-            iphase = iphase[cut:-cut]
-            z = z[cut:-cut]
-        if cont_ph:
-            for t in range(iphase.shape[0] - 1):
-                if np.abs(iphase[t+1] - iphase[t]) > 1:
-                    iphase[t+1: ] += 2 * np.pi
-        if flag:
-            sinusoid = np.arange(-half_length, upper_bound)*freq + phi
-            sinusoid = np.angle(np.exp(1j*sinusoid))
+            iphase[:half_window] = np.angle(np.exp(1j*(np.arange(-half_window, 0, 1)*freq + phio)))
             if cut is not None:
-                sinusoid = sinusoid[cut:-cut]
-            iphase = np.angle(np.exp(1j*(iphase - sinusoid)))
-            iphase -= iphase[0]
+                iphase = iphase[cut:-cut]
+                z = z[cut:-cut]
+            if cont_ph:
+                for t in range(iphase.shape[0] - 1):
+                    if np.abs(iphase[t+1] - iphase[t]) > 1:
+                        iphase[t+1: ] += 2 * np.pi
+            if flag:
+                sinusoid = np.arange(-half_length, upper_bound)*freq + phi
+                sinusoid = np.angle(np.exp(1j*sinusoid))
+                if cut is not None:
+                    sinusoid = sinusoid[cut:-cut]
+                iphase = np.angle(np.exp(1j*(iphase - sinusoid)))
+                iphase -= iphase[0]
 
-        ret = [iphase]
-        if save_wave:
-            ret.append(z)
+            ret = [iphase]
+            if save_wave:
+                ret.append(z)
 
-        return i, j, ret
+            return i, j, ret
+        
+        else:
+            if save_wave:
+                return i, j, [np.nan, np.nan]
+            else:
+                return i, j, [np.nan]
 
 
 
@@ -1673,7 +1688,8 @@ class DataField:
 
 
     def get_parametric_phase(self, period, window, period_unit = 'y', cut = 1, ts = None, pool = None, 
-                                    phase_fluct = False, save_wave = False, cut_time = False, continuous_phase = False):
+                                    phase_fluct = False, save_wave = False, cut_time = False, 
+                                    continuous_phase = False, cut_data = False):
         """
         Computes phase of analytic signal using parametric method.
         Period is frequency in years, or days.
@@ -1721,10 +1737,6 @@ class DataField:
         window = int(y*window)
 
         if ts is None:
-            if pool is None:
-                map_func = map
-            elif pool is not None:
-                map_func = pool.map
 
             if self.data.ndim > 2:
                 num_lats = self.lats.shape[0]
@@ -1749,8 +1761,13 @@ class DataField:
 
 
             job_args = [ (i, j, self.frequency, self.data[:, i, j].copy(), window, phase_fluct, save_wave, continuous_phase, to_cut) for i in range(num_lats) for j in range(num_lons) ]
-            job_result = map_func(self._get_parametric_phase, job_args)
+            
+            if pool is None:
+                job_result = map(self._get_parametric_phase, job_args)
+            elif pool is not None:
+                job_result = pool.map(self._get_parametric_phase, job_args)
             del job_args
+            
             for i, j, res in job_result:
                 self.phase[:, i, j] = res[0]
                 if save_wave:
@@ -1760,6 +1777,8 @@ class DataField:
 
             if cut_time and cut is not None:
                 self.time = self.time[to_cut:-to_cut]
+            if cut is not None and cut_data:
+                self.data = self.data[to_cut:-to_cut, ...]
 
             self.data = np.squeeze(self.data)
             self.phase = np.squeeze(self.phase)# if cut is None else np.squeeze(self.phase[to_cut:-to_cut, ...])
@@ -1774,7 +1793,7 @@ class DataField:
 
     def wavelet(self, period, period_unit = 'y', cut = 1, ts = None, pool = None, save_wave = False, 
                     regress_amp_to_data = False, k0 = 6., cut_time = False, continuous_phase = False, 
-                    phase_fluct = False):
+                    phase_fluct = False, cut_data = False):
         """
         Permforms wavelet transformation on data.
         Period is central wavelet period in years, or days.
@@ -1826,10 +1845,6 @@ class DataField:
             continuous_phase = True
 
         if ts is None:
-            if pool is None:
-                map_func = map
-            elif pool is not None:
-                map_func = pool.map
 
             if self.data.ndim > 2:
                 num_lats = self.lats.shape[0]
@@ -1854,8 +1869,13 @@ class DataField:
                 self.wave = np.zeros_like(self.data, dtype = np.complex64) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims(), dtype = np.complex64)
 
             job_args = [ (i, j, s0, self.data[:, i, j], save_wave, regress_amp_to_data, k0, continuous_phase, to_cut) for i in range(num_lats) for j in range(num_lons) ]
-            job_result = map_func(self._get_oscillatory_modes, job_args)
+            
+            if pool is None:
+                job_result = map(self._get_oscillatory_modes, job_args)
+            elif pool is not None:
+                job_result = pool.map(self._get_oscillatory_modes, job_args)
             del job_args
+            
             for i, j, res in job_result:
                 self.phase[:, i, j] = res[0]
                 self.amplitude[:, i, j] = res[1]
@@ -1866,6 +1886,9 @@ class DataField:
 
             if cut is not None and cut_time:
                 self.time = self.time[to_cut:-to_cut]
+
+            if cut is not None and cut_data:
+                self.data = self.data[to_cut:-to_cut, ...]
 
             self.data = np.squeeze(self.data)
             if phase_fluct:
