@@ -1043,25 +1043,28 @@ class DataField:
 
 
 
-    def smoothing_running_avg(self, points, cut_edges = False, use_to_data = False):
+    def smoothing_running_avg(self, points, cut_edges = False, use_to_data = False, ts = None):
         """
         Smoothing of time series using running average over points.
         If use_to_data is False, returns the data, otherwise rewrites the data in class.
         """
 
+        if ts is None:
+            ts = self.data.copy()
+
         if cut_edges:
-            d = np.zeros(([self.data.shape[0] - points + 1] + list(self.data.shape[1:])))
+            d = np.zeros(([ts.shape[0] - points + 1] + list(ts.shape[1:])))
         else:
-            d = np.zeros_like(self.data)
+            d = np.zeros_like(ts)
             window = points//2
         
         for i in range(d.shape[0]):
             if cut_edges:
-                d[i, ...] = np.nanmean(self.data[i : i+points, ...], axis = 0)
+                d[i, ...] = np.nanmean(ts[i : i+points, ...], axis = 0)
             else:
-                d[i, ...] = np.nanmean(self.data[max(i-window,1) : min(i+window,d.shape[0]), ...], axis = 0)
+                d[i, ...] = np.nanmean(ts[max(i-window,1) : min(i+window,d.shape[0]), ...], axis = 0)
 
-        if use_to_data:
+        if use_to_data and ts is None:
             self.data = d.copy()
             if cut_edges:
                 if points % 2 == 1:
@@ -1928,6 +1931,8 @@ class DataField:
         from matplotlib import colors
 
         # set up field to plot
+        if field_to_plot is None and self.var_name is None:
+            self.var_name = 'unknown'
         if self.data.ndim == 3:
             field = self.data[t, ...]
             title = ("%s: %d. point -- %s" % (self.var_name.upper(), t, self.get_date_from_ndx(t)))
@@ -2480,6 +2485,7 @@ def load_ERSST_data(path, start_date, end_date, lats = None, lons = None, anom =
         time[n:Ndays_i + n] = g.time
         n += Ndays_i
     g = DataField(data = data, lons = glist[0].lons, lats = glist[0].lats, time = time)
+    g.var_name = 'SST'
     del glist
 
     g.select_date(start_date, end_date)
