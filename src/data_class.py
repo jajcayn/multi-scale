@@ -450,6 +450,55 @@ class DataField:
 
 
 
+    def get_sliding_window_indexes(self, window_length, window_shift, unit = 'm', return_half_dates = False):
+        """
+        Returns list of indices for sliding window analysis.
+        If return_half_dates is True, also returns dates in the middle of the interval for reference.
+        """
+
+        from dateutil.relativedelta import relativedelta
+
+        if unit == 'm':
+            length = relativedelta(months = +window_length)
+            shift = relativedelta(months = +window_shift)
+        elif unit == 'd':
+            length = relativedelta(days = +window_length)
+            shift = relativedelta(days = +window_shift)
+        elif unit == 'y':
+            length = relativedelta(years = +window_length)
+            shift = relativedelta(years = +window_shift)
+        else:
+            raise Exception("Unknown time unit! Please, use one of the 'd', 'm', 'y'!")
+
+        ndxs = []
+        if return_half_dates:
+            half_dates = []
+        window_start = self.get_date_from_ndx(0)
+        window_end = window_start + length
+        while window_end <= self.get_date_from_ndx(-1):
+            ndx = self.select_date(window_start, window_end, apply_to_data = False)
+            ndxs.append(ndx)
+            if return_half_dates:
+                half_dates.append(window_start + (window_end - window_start) / 2)
+            window_start += shift
+            window_end = window_start + length
+
+        # add last
+        ndxs.append(self.select_date(window_start, window_end, apply_to_data = False))
+        if return_half_dates:
+            half_dates.append(window_start + (self.get_date_from_ndx(-1) - window_start) / 2)
+
+        if np.sum(ndxs[-1]) != np.sum(ndxs[-2]):
+            print("**WARNING: last sliding window is shorter than others! (%d vs. %d in others)" 
+                % (np.sum(ndxs[-1]), np.sum(ndxs[-2])))
+
+        if return_half_dates:
+            return ndxs, half_dates
+        else:
+            return ndxs
+
+
+
     def create_time_array(self, date_from, sampling = 'm'):
         """
         Creates time array for already saved data in 'self.data'.
@@ -2149,7 +2198,7 @@ def load_ERA_data_daily(filename, varname, start_date, end_date, lats, lons, ano
             g = DataField(data_folder = path)
         else:
             g = DataField()
-        g.load(name, varname, dataset = 'ERA-40', print_prog = False)
+        g.load(name, varname, dataset = 'ERA', print_prog = False)
     
     # if in more files, find them all and load them
     else:
@@ -2171,7 +2220,7 @@ def load_ERA_data_daily(filename, varname, start_date, end_date, lats, lons, ano
             raise Exception('Check your files and enter correct number of files you want to load.')
         for f in fnames:
             g = DataField(data_folder = path + '/')                
-            g.load(f, varname, dataset = 'ERA-40', print_prog = False)
+            g.load(f, varname, dataset = 'ERA', print_prog = False)
             Ndays += g.time.shape[0]
             glist.append(g)
             
