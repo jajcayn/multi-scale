@@ -25,7 +25,8 @@ class ssa_class():
 
 
 
-    def _shift(self, arr, n, order = 'forward'):
+    @staticmethod
+    def _shift(arr, n, order = 'forward'):
         """
         Helper function for time embedding. 
         """

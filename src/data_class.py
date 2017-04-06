@@ -320,7 +320,8 @@ class DataField:
 
 
 
-    def _parse_time_units(self, time_string):
+    @staticmethod
+    def _parse_time_units(time_string):
         """
         Parses time units from netCDF file, returns date since the record.
         """
@@ -1127,6 +1128,52 @@ class DataField:
 
 
 
+    def plot_welch_spectrum(self, ts = None, log = True):
+        """
+        Estimates power spectrum using Welch method.
+        Using scipy.signal.welch
+        if ts is None, plots spectrum of the data.
+        ts should have same sampling frequency as data!
+        y axis is log by default, if log is True, also x axis is log.
+        """
+
+        from scipy.signal import welch
+        import matplotlib.pyplot as plt
+
+        delta = self.time[1] - self.time[0]
+        if delta == 1:
+            # daily time series
+            fs = 1./86400 # Hz
+            max_x = 365.25//2
+        elif abs(delta - 30) < 3.0:
+            # monthly time series
+            fs = 1./2.628e+6
+            max_x = 12/2
+        elif abs(delta - 365) < 2.0:
+            # yearly time series
+            fs = 1./3.154e+7
+            max_x = 0.5
+
+        plt.figure(figsize = (15,7))
+        if ts is None and self.data.ndim > 1:
+            raise Exception("Specify ts for which the spectrum will be plotted!")
+        ts = ts if ts is not None else self.data.copy()
+        f, Pxx_spec = welch(ts, fs, 'flattop', 1024, scaling = 'spectrum')
+        f *= 3.154e+7
+        if log:
+            plt.loglog(f, np.sqrt(Pxx_spec))
+            plt.xlabel('FREQUENCY [log 1/year]', size = 25)
+        else:
+            plt.semilogy(f, np.sqrt(Pxx_spec))
+            plt.xlabel('FREQUENCY [1/year]', size = 25)
+        plt.xlim([0, max_x])
+        plt.ylabel('LINEAR SPECTRUM [rms]', size = 25)
+        plt.show()
+
+
+
+
+
     def temporal_filter(self, cutoff, btype, order = 2, cut = 1, pool = None, cut_time = False):
         """
         Filters data in temporal sense.
@@ -1615,7 +1662,8 @@ class DataField:
 
 
 
-    def _get_oscillatory_modes(self, a):
+    @staticmethod
+    def _get_oscillatory_modes(a):
         """
         Helper function for wavelet.
         """
@@ -1654,7 +1702,8 @@ class DataField:
 
 
 
-    def _get_parametric_phase(self, a):
+    @staticmethod
+    def _get_parametric_phase(a):
         """
         Helper function for parametric phase.
         """
@@ -1726,7 +1775,8 @@ class DataField:
 
 
 
-    def _get_filtered_data(self, arg):
+    @staticmethod
+    def _get_filtered_data(arg):
         """
         Helper function for temporal filtering.
         """
