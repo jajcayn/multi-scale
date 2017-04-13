@@ -1128,7 +1128,7 @@ class DataField:
 
 
 
-    def plot_FFT_spectrum(self, ts = None, log = True):
+    def plot_FFT_spectrum(self, ts = None, log = True, vlines = np.arange(1,11)):
         """
         Estimates power spectrum using Welch method.
         if ts is None, plots spectrum of the data.
@@ -1164,7 +1164,6 @@ class DataField:
         else:
             plt.plot(freqs, 20*np.log10(fft), linewidth = 0.8)
             plt.xlabel('FREQUENCY [1/year]', size = 25)
-        vlines = np.arange(1,11)
         for vline in vlines:
             plt.axvline(1./vline, 0, 1, linestyle = ':',linewidth = 0.6, color = "#333333")
         plt.xlim([freqs[0], freqs[-1]])
@@ -1492,7 +1491,7 @@ class DataField:
 
 
         
-    def anomalise(self, base_period = None):
+    def anomalise(self, base_period = None, ts = None):
         """
         Removes the seasonal/yearly cycle from the data.
         If base_period is None, the seasonal cycle is relative to whole period,
@@ -1500,13 +1499,13 @@ class DataField:
         """
         
         delta = self.time[1] - self.time[0]
-        seasonal_mean = np.zeros_like(self.data)
+        seasonal_mean = np.zeros_like(self.data) if ts is None else np.zeros_like(ts)
         
         if base_period is None:
             ndx = np.arange(self.time.shape[0])
         else:
             ndx = np.logical_and(self.time >= base_period[0].toordinal(), self.time <= base_period[1].toordinal())
-        d = self.data.copy()
+        d = self.data.copy() if ts is None else ts
         t = self.time.copy()
         self.time = self.time[ndx]
 
@@ -1525,7 +1524,10 @@ class DataField:
                     if np.sum(sel_avg) == 0:
                         continue
                     seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
-                    self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
+                    if ts is None:
+                        self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
+                    else:
+                        ts[sel_data, ...] -= seasonal_mean[sel_data, ...]
         elif abs(delta - 30) < 3.0:
             # monthly data
             _, mon_avg, _ = self.extract_day_month_year()
@@ -1538,7 +1540,10 @@ class DataField:
                 if np.sum(sel_avg) == 0:
                     continue
                 seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
-                self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
+                if ts is None:
+                    self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
+                else:
+                    ts[sel_data, ...] -= seasonal_mean[sel_data, ...]
         else:
             raise Exception('Unknown temporal sampling in the field.')
 
@@ -1846,6 +1851,11 @@ class DataField:
         self.frequency = 2*np.pi / (y*period) # frequency of interest
         window = int(y*window)
 
+        if cut is not None:
+            to_cut = int(y*cut)
+        else:
+            to_cut = None
+
         if ts is None:
 
             if self.data.ndim > 2:
@@ -1859,11 +1869,6 @@ class DataField:
                 num_lats = 1
                 num_lons = 1
                 self.data = self.data[:, np.newaxis, np.newaxis]
-
-            if cut is not None:
-                to_cut = int(y*cut)
-            else:
-                to_cut = None
 
             self.phase = np.zeros_like(self.data) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims())
             if save_wave:
@@ -1896,8 +1901,8 @@ class DataField:
                 self.wave = np.squeeze(self.wave)# if cut is None else np.squeeze(self.wave[to_cut:-to_cut, ...])
             
         else:
-            res = self._get_oscillatory_modes([0, 0, self.frequency, ts.copy(), window, phase_fluct, save_wave, continuous_phase, to_cut])[-1]
-            return [i[0, :] for i in res]
+            res = self._get_parametric_phase([0, 0, self.frequency, ts.copy(), window, phase_fluct, save_wave, continuous_phase, to_cut])[-1]
+            return res
 
 
 
@@ -1954,6 +1959,11 @@ class DataField:
         if phase_fluct:
             continuous_phase = True
 
+        if cut is not None:
+            to_cut = int(y*cut)
+        else:
+            to_cut = None
+
         if ts is None:
 
             if self.data.ndim > 2:
@@ -1967,11 +1977,6 @@ class DataField:
                 num_lats = 1
                 num_lons = 1
                 self.data = self.data[:, np.newaxis, np.newaxis]
-
-            if cut is not None:
-                to_cut = int(y*cut)
-            else:
-                to_cut = None
 
             self.phase = np.zeros_like(self.data) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims())
             self.amplitude = np.zeros_like(self.data) if cut is None else np.zeros([self.data.shape[0] - 2*to_cut] + self.get_spatial_dims())
@@ -2015,7 +2020,7 @@ class DataField:
         else:
             res = self._get_oscillatory_modes([0, 0, s0, ts, save_wave, regress_amp_to_data, k0, continuous_phase, to_cut])[-1]
             # add phase fluct!!!
-            return [i[0, :] for i in res]
+            return res
 
 
 
