@@ -128,8 +128,8 @@ for i, ndx in zip(range(len(ndxs)), ndxs):
 ## COMPUTE FOR SURRS
 pool = Pool(20)
 args = [(prg_surr, ndxs, mean, var, trend, SEASON) for i in range(NUM_SURRS)]
-results = pool.map(_get_surrs_stats, args)
-# print _get_surrs_stats(args[0])
+# results = pool.map(_get_surrs_stats, args)
+print _get_surrs_stats(args[0])
 amp_windows_surrs = np.zeros((NUM_SURRS, n_windows))
 effect_windows_surrs = np.zeros((NUM_SURRS, n_windows))
 mean_amp_windows_surrs = np.zeros((NUM_SURRS, n_windows))
