@@ -1128,53 +1128,53 @@ class DataField:
 
 
 
-    def plot_welch_spectrum(self, ts = None, log = True):
+    def plot_FFT_spectrum(self, ts = None, log = True):
         """
         Estimates power spectrum using Welch method.
-        Using scipy.signal.welch
         if ts is None, plots spectrum of the data.
         ts should have same sampling frequency as data!
         y axis is log by default, if log is True, also x axis is log.
         """
 
-        from scipy.signal import welch
         import matplotlib.pyplot as plt
 
         delta = self.time[1] - self.time[0]
         if delta == 1:
             # daily time series
             fs = 1./86400 # Hz
-            max_x = 365.25//2
         elif abs(delta - 30) < 3.0:
             # monthly time series
             fs = 1./2.628e+6
-            max_x = 12/2
         elif abs(delta - 365) < 2.0:
             # yearly time series
             fs = 1./3.154e+7
-            max_x = 0.5
 
         plt.figure(figsize = (15,7))
-        if ts is None and self.data.ndim > 1:
-            raise Exception("Specify ts for which the spectrum will be plotted!")
         ts = ts if ts is not None else self.data.copy()
-        f, Pxx_spec = welch(ts, fs, 'flattop', 1024, scaling = 'spectrum')
-        f *= 3.154e+7
+        if isinstance(ts, list):
+            ts = np.array(ts).T
+        if ts.ndim > 2:
+            ts = ts.reshape([ts.shape[0], np.prod(ts.shape[1:])])
+        fft = np.abs(np.fft.rfft(ts, axis = 0))
+        freqs = np.fft.rfftfreq(ts.shape[0], d = 1./fs)
+        freqs *= 3.154e+7
         if log:
-            plt.loglog(f, np.sqrt(Pxx_spec))
+            plt.semilogx(freqs, 20*np.log10(fft), linewidth = 0.8) # in dB hopefully...
             plt.xlabel('FREQUENCY [log 1/year]', size = 25)
         else:
-            plt.semilogy(f, np.sqrt(Pxx_spec))
+            plt.plot(freqs, 20*np.log10(fft), linewidth = 0.8)
             plt.xlabel('FREQUENCY [1/year]', size = 25)
-        plt.xlim([0, max_x])
-        plt.ylabel('LINEAR SPECTRUM [rms]', size = 25)
+        vlines = np.arange(1,11)
+        for vline in vlines:
+            plt.axvline(1./vline, 0, 1, linestyle = ':',linewidth = 0.6, color = "#333333")
+        plt.xlim([freqs[0], freqs[-1]])
+        plt.ylabel('FFT SPECTRUM [dB]', size = 25)
         plt.show()
 
 
 
-
-
-    def temporal_filter(self, cutoff, btype, order = 2, cut = 1, pool = None, cut_time = False):
+    def temporal_filter(self, cutoff, btype, ftype = 'butter', order = 2, cut = 1, pool = None, cut_time = False,
+        rp = None, rs = None):
         """
         Filters data in temporal sense.
         Uses Butterworth filter of order order.
@@ -1186,9 +1186,15 @@ class DataField:
         cutoff:
             for low/high pass one frequency in months
             for band* list of frequencies in months
+        ftype:
+            butter - for Butterworth filter
+            cheby1 - for Chebyshev type I filter
+            cheby2 - for Chebyshev type II filter
+            ellip - for Cauer/elliptic filter
+            bessel - for Bessel/Thomson filter
         """
 
-        from scipy.signal import butter
+        from scipy.signal import iirfilter
 
         delta = self.time[1] - self.time[0]
         if delta == 1:
@@ -1197,10 +1203,12 @@ class DataField:
             y = 365.25
         elif abs(delta - 30) < 3.0:
             # monthly time series
-            fs = 1./2.628e+6
+            fs = 1./2.628e+6 # Hz
             y = 12
 
         nyq = 0.5 * fs # Nyquist frequency
+        if 'cheby' in ftype or 'ellip' == ftype:
+            rp = rp if rp is not None else 60
 
         if type(cutoff) == list and btype in ['bandpass', 'bandstop']:
             low = cutoff[0] if cutoff[0] > cutoff[1] else cutoff[1]
@@ -1208,10 +1216,10 @@ class DataField:
             low = 1./(low*2.628e+6) # in months
             high = 1./(high*2.628e+6)
             # get coefficients
-            b, a = butter(order, [low/nyq, high/nyq], btype = btype)
+            b, a = iirfilter(order, [low/nyq, high/nyq], rp = rp, rs = rs, btype = btype, analog = False, ftype = ftype)
         elif btype in ['lowpass', 'highpass']:
             cutoff = 1./(cutoff*2.628e+6)
-            b, a = butter(order, cutoff/nyq, btype = btype)
+            b, a = iirfilter(order, cutoff/nyq, rp = rp, rs = rs, btype = btype, analog = False, ftype = ftype)
         else:
             raise Exception("For band filter cutoff must be a list of [low,high] for low/high-pass cutoff must be a integer!")
 
