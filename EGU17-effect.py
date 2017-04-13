@@ -12,7 +12,7 @@ def get_equidistant_bins(bins = 8):
 
 mons = {1: 'J', 2: 'F', 3: 'M', 4: 'A', 5: 'M', 6: 'J', 7: 'J', 8: 'A', 9: 'S', 10: 'O', 11: 'N', 12: 'D'}
 
-NUM_SURRS = 1000
+NUM_SURRS = 10000
 WINDOW_LENGTH = 36 # years
 # SEASON = [9,10,11]
 SEASON = None
@@ -126,7 +126,7 @@ for i, ndx in zip(range(len(ndxs)), ndxs):
 
 
 ## COMPUTE FOR SURRS
-pool = Pool(6)
+pool = Pool(20)
 args = [(prg_surr, ndxs, mean, var, trend, SEASON) for i in range(NUM_SURRS)]
 results = pool.map(_get_surrs_stats, args)
 # print _get_surrs_stats(args[0])
