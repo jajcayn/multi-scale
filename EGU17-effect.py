@@ -33,6 +33,7 @@ def _get_surrs_stats(a):
     # create surrs
     sg.construct_fourier_surrogates_spatial()
     sg.add_seasonality(mean, var, trend)
+    time_copy = sg.time.copy()
 
     ## COMPUTE FOR SURRS
     annual_phase, annual_amp = sg.wavelet(1, 'y', cut = 4, ts = sg.get_surr(), cut_time = False, cut_data = False, 
@@ -77,6 +78,8 @@ def _get_surrs_stats(a):
         effect_windows[i] = cond_means_temp[:, 0].max() - cond_means_temp[:, 0].min()
         mean_amp_windows[i] = np.mean(amplitude[ndx])
         mean_ampAAC_windows[i] = np.mean(amplitudeAACreg[ndx])
+
+    sg.time = time_copy.copy()
 
     return (amp_windows, effect_windows, mean_amp_windows, mean_ampAAC_windows)
 
@@ -128,8 +131,7 @@ for i, ndx in zip(range(len(ndxs)), ndxs):
 ## COMPUTE FOR SURRS
 pool = Pool(20)
 args = [(prg_surr, ndxs, mean, var, trend, SEASON) for i in range(NUM_SURRS)]
-# results = pool.map(_get_surrs_stats, args)
-print _get_surrs_stats(args[0])
+results = pool.map(_get_surrs_stats, args)
 amp_windows_surrs = np.zeros((NUM_SURRS, n_windows))
 effect_windows_surrs = np.zeros((NUM_SURRS, n_windows))
 mean_amp_windows_surrs = np.zeros((NUM_SURRS, n_windows))
