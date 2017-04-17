@@ -67,9 +67,9 @@ def _get_surrs_stats(a):
 
     for i, ndx in zip(range(len(ndxs)), ndxs):
         cond_means_temp = np.zeros((8,2))
-        data_temp = prg.data[ndx].copy()
+        data_temp = sg.surr_data[ndx].copy()
         amp_temp = annual_amp[ndx].copy()
-        phase_temp = prg.phase[ndx].copy()
+        phase_temp = sg.phase[ndx].copy()
         for j in range(cond_means_temp.shape[0]): # get conditional means for current phase range
             effect_ndx = ((phase_temp >= bins[j]) & (phase_temp <= bins[j+1]))
             cond_means_temp[j, 0] = np.mean(data_temp[effect_ndx])
@@ -146,7 +146,7 @@ for res,i in zip(results, range(len(results))):
 import cPickle
 
 with open("PRG-8yr-effect-linear-nonlinear-%d-FTsurrs.bin" % (NUM_SURRS), 'wb') as f:
-    cPickle.dump({'amp_windows' : amp_windows_surrs, 'effect_windows' : effect_windows,
+    cPickle.dump({'amp_windows' : amp_windows, 'effect_windows' : effect_windows,
         'mean_amp_windows' : mean_amp_windows, 'mean_ampAAC_windows' : mean_ampAAC_windows,
         'amp_windows_surrs' : amp_windows_surrs, 'effect_windows_surrs' : effect_windows_surrs,
         'mean_amp_windows_surrs' : mean_amp_windows_surrs, 'mean_ampAAC_windows_surrs' : mean_ampAAC_windows_surrs},
