@@ -69,7 +69,7 @@ def _get_surrs_stats(a):
         cond_means_temp = np.zeros((8,2))
         data_temp = sg.surr_data[ndx].copy()
         amp_temp = annual_amp[ndx].copy()
-        phase_temp = sg.phase[ndx].copy()
+        phase_temp = phase[ndx].copy()
         for j in range(cond_means_temp.shape[0]): # get conditional means for current phase range
             effect_ndx = ((phase_temp >= bins[j]) & (phase_temp <= bins[j+1]))
             cond_means_temp[j, 0] = np.mean(data_temp[effect_ndx])
