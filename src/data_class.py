@@ -407,14 +407,18 @@ class DataField:
 
 
 
-    def copy(self):
+    def copy(self, temporal_ndx = None):
         """
         Returns a copy of DataField with data, lats, lons and time fields.
+        If temporal_ndx is not None, copies only selected temporal part of data.
         """
 
         copied = DataField()
         copied.data = self.data.copy()
         copied.time = self.time.copy()
+        if temporal_ndx is not None:
+            copied.data = copied.data[temporal_ndx]
+            copied.time = copied.time[temporal_ndx]
 
         if self.lats is not None:
             copied.lats = self.lats.copy()
@@ -422,6 +426,20 @@ class DataField:
             copied.lons = self.lons.copy()
         if self.location is not None:
             copied.location = self.location
+        if self.missing is not None:
+            copied.missing = self.missing.copy()
+            if temporal_ndx is not None:
+                copied.missing = copied.missing[temporal_ndx]
+        if self.station_id is not None:
+            copied.station_id = self.station_id
+        if self.station_elev is not None:
+            copied.station_elev = self.station_elev
+        if self.var_name is not None:
+            copied.var_name = self.var_name
+        if self.cos_weights is not None:
+            copied.cos_weights = self.cos_weights
+        if self.data_mask is not None:
+            copied.data_mask = self.data_mask
         
         copied.nans = self.nans
 
