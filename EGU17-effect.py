@@ -62,92 +62,97 @@ WINDOW_LENGTH = 36 # years
 SEASON = [12,1,2]
 # SEASON = None
 # param_window = 32 # years
+SEASONS = [[3,4,5], [6,7,8], [9,10,11], [12, 1, 2]]
+
+for SEASON in SEASONS:
+
+    print ''.join([mons[s] for s in SEASON])
 
 # prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
     # anom = False, offset = 1)
-prg = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
-    anom = False, offset = 1)
+    prg = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
+        anom = False, offset = 1)
 
-bins = get_equidistant_bins()
+    bins = get_equidistant_bins()
 
-ndxs, dates = prg.get_sliding_window_indexes(window_length = WINDOW_LENGTH, window_shift = 1, unit = 'y', return_half_dates = True)
-n_windows = len(ndxs)
-amp_windows = np.zeros((n_windows))
-effect_windows = np.zeros((n_windows))
-mean_amp_windows = np.zeros((n_windows))
-mean_ampAAC_windows = np.zeros((n_windows))
-amp_windows_surrs = np.zeros((NUM_SURRS, n_windows))
-effect_windows_surrs = np.zeros((NUM_SURRS, n_windows))
-mean_amp_windows_surrs = np.zeros((NUM_SURRS, n_windows))
-mean_ampAAC_windows_surrs = np.zeros((NUM_SURRS, n_windows))
+    ndxs, dates = prg.get_sliding_window_indexes(window_length = WINDOW_LENGTH, window_shift = 1, unit = 'y', return_half_dates = True)
+    n_windows = len(ndxs)
+    amp_windows = np.zeros((n_windows))
+    effect_windows = np.zeros((n_windows))
+    mean_amp_windows = np.zeros((n_windows))
+    mean_ampAAC_windows = np.zeros((n_windows))
+    amp_windows_surrs = np.zeros((NUM_SURRS, n_windows))
+    effect_windows_surrs = np.zeros((NUM_SURRS, n_windows))
+    mean_amp_windows_surrs = np.zeros((NUM_SURRS, n_windows))
+    mean_ampAAC_windows_surrs = np.zeros((NUM_SURRS, n_windows))
 
-for i, ndx in zip(range(len(ndxs)), ndxs):
-    # copy part of data
-    prg_temp = prg.copy(temporal_ndx = ndx)
+    for i, ndx in zip(range(len(ndxs)), ndxs):
+        # copy part of data
+        prg_temp = prg.copy(temporal_ndx = ndx)
 
-    # get ready for surrs
-    mean, var, trend = prg_temp.get_seasonality(detrend = True)
-    prg_surr = SurrogateField()
-    prg_surr.copy_field(prg_temp)
-    prg_temp.return_seasonality(mean, var, trend)
+        # get ready for surrs
+        mean, var, trend = prg_temp.get_seasonality(detrend = True)
+        prg_surr = SurrogateField()
+        prg_surr.copy_field(prg_temp)
+        prg_temp.return_seasonality(mean, var, trend)
 
-    ## COMPUTE FOR DATA
-    prg_temp.wavelet(1, 'y', cut = 1, cut_time = False, cut_data = False, regress_amp_to_data = True)
-    annual_amp = prg_temp.amplitude.copy()
-    annual_phase = prg_temp.phase.copy()
+        ## COMPUTE FOR DATA
+        prg_temp.wavelet(1, 'y', cut = 1, cut_time = False, cut_data = False, regress_amp_to_data = True)
+        annual_amp = prg_temp.amplitude.copy()
+        annual_phase = prg_temp.phase.copy()
 
-    prg_temp.anomalise()
-    prg_temp.wavelet(8, 'y', cut = 1, cut_time = False, cut_data = False, regress_amp_to_data = True, continuous_phase = False)
-    amplitude = prg_temp.amplitude.copy()
-    prg_temp.wavelet(8, 'y', cut = 1, cut_time = True, cut_data = True, regress_amp_to_data = False, continuous_phase = False)
-    amplitudeAACreg = prg_temp.amplitude.copy()
+        prg_temp.anomalise()
+        prg_temp.wavelet(8, 'y', cut = 1, cut_time = False, cut_data = False, regress_amp_to_data = True, continuous_phase = False)
+        amplitude = prg_temp.amplitude.copy()
+        prg_temp.wavelet(8, 'y', cut = 1, cut_time = True, cut_data = True, regress_amp_to_data = False, continuous_phase = False)
+        amplitudeAACreg = prg_temp.amplitude.copy()
 
-    m, c, r, p, std_err = sts.linregress(amplitudeAACreg*np.cos(prg_temp.phase), annual_amp*np.cos(annual_phase))
-    amplitudeAACreg = m*amplitudeAACreg + c
+        m, c, r, p, std_err = sts.linregress(amplitudeAACreg*np.cos(prg_temp.phase), annual_amp*np.cos(annual_phase))
+        amplitudeAACreg = m*amplitudeAACreg + c
 
-    if SEASON is not None:
-        ndx_season = prg_temp.select_months(SEASON, apply_to_data = True)
-        annual_amp = annual_amp[ndx_season]
-        amplitude = amplitude[ndx_season]
-        amplitudeAACreg = amplitudeAACreg[ndx_season]
-        prg_temp.phase = prg_temp.phase[ndx_season]
+        if SEASON is not None:
+            ndx_season = prg_temp.select_months(SEASON, apply_to_data = True)
+            annual_amp = annual_amp[ndx_season]
+            amplitude = amplitude[ndx_season]
+            amplitudeAACreg = amplitudeAACreg[ndx_season]
+            prg_temp.phase = prg_temp.phase[ndx_season]
 
-    cond_means_temp = np.zeros((8,2))
-    for j in range(cond_means_temp.shape[0]): # get conditional means for current phase range
-        effect_ndx = ((prg_temp.phase >= bins[j]) & (prg_temp.phase <= bins[j+1]))
-        cond_means_temp[j, 0] = np.mean(prg_temp.data[effect_ndx])
-        cond_means_temp[j, 1] = np.mean(annual_amp[effect_ndx])
-    amp_windows[i] = cond_means_temp[:, 1].max() - cond_means_temp[:, 1].min()
-    effect_windows[i] = cond_means_temp[:, 0].max() - cond_means_temp[:, 0].min()
-    mean_amp_windows[i] = np.mean(amplitude)
-    mean_ampAAC_windows[i] = np.mean(amplitudeAACreg)
+        cond_means_temp = np.zeros((8,2))
+        for j in range(cond_means_temp.shape[0]): # get conditional means for current phase range
+            effect_ndx = ((prg_temp.phase >= bins[j]) & (prg_temp.phase <= bins[j+1]))
+            cond_means_temp[j, 0] = np.mean(prg_temp.data[effect_ndx])
+            cond_means_temp[j, 1] = np.mean(annual_amp[effect_ndx])
+        amp_windows[i] = cond_means_temp[:, 1].max() - cond_means_temp[:, 1].min()
+        effect_windows[i] = cond_means_temp[:, 0].max() - cond_means_temp[:, 0].min()
+        mean_amp_windows[i] = np.mean(amplitude)
+        mean_ampAAC_windows[i] = np.mean(amplitudeAACreg)
 
-    ## COMPUTE FOR SURRS
-    pool = Pool(20)
-    args = [(prg_surr, ndx, mean, var, trend, SEASON) for _ in range(NUM_SURRS)]
-    results = pool.map(_get_surrs_stats, args)
-    for res, j in zip(results, range(len(results))):
-        amp_windows_surrs[j, i] = res[0]
-        effect_windows_surrs[j, i] = res[1]
-        mean_amp_windows_surrs[j, i] = res[2]
-        mean_ampAAC_windows_surrs[j, i] = res[3]
+        ## COMPUTE FOR SURRS
+        pool = Pool(20)
+        args = [(prg_surr, ndx, mean, var, trend, SEASON) for _ in range(NUM_SURRS)]
+        results = pool.map(_get_surrs_stats, args)
+        for res, j in zip(results, range(len(results))):
+            amp_windows_surrs[j, i] = res[0]
+            effect_windows_surrs[j, i] = res[1]
+            mean_amp_windows_surrs[j, i] = res[2]
+            mean_ampAAC_windows_surrs[j, i] = res[3]
 
-    pool.close()
-    pool.join()
+        pool.close()
+        pool.join()
 
 
-## SAVE RESULTS
-import cPickle
-if SEASON is None:
-    fname = "PRG-8yr-effect-linear-nonlinear-%d-FTsurrs.bin" % (NUM_SURRS)
-else:
-    fname = "PRG-8yr-effect-linear-nonlinear%s-%d-FTsurrs.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
-with open(fname, 'wb') as f:
-    cPickle.dump({'amp_windows' : amp_windows, 'effect_windows' : effect_windows,
-        'mean_amp_windows' : mean_amp_windows, 'mean_ampAAC_windows' : mean_ampAAC_windows,
-        'amp_windows_surrs' : amp_windows_surrs, 'effect_windows_surrs' : effect_windows_surrs,
-        'mean_amp_windows_surrs' : mean_amp_windows_surrs, 'mean_ampAAC_windows_surrs' : mean_ampAAC_windows_surrs},
-         f, protocol = cPickle.HIGHEST_PROTOCOL)
+    ## SAVE RESULTS
+    import cPickle
+    if SEASON is None:
+        fname = "PRG-8yr-effect-linear-nonlinear-%d-FTsurrs.bin" % (NUM_SURRS)
+    else:
+        fname = "PRG-8yr-effect-linear-nonlinear%s-%d-FTsurrs.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
+    with open(fname, 'wb') as f:
+        cPickle.dump({'amp_windows' : amp_windows, 'effect_windows' : effect_windows,
+            'mean_amp_windows' : mean_amp_windows, 'mean_ampAAC_windows' : mean_ampAAC_windows,
+            'amp_windows_surrs' : amp_windows_surrs, 'effect_windows_surrs' : effect_windows_surrs,
+            'mean_amp_windows_surrs' : mean_amp_windows_surrs, 'mean_ampAAC_windows_surrs' : mean_ampAAC_windows_surrs},
+             f, protocol = cPickle.HIGHEST_PROTOCOL)
 
 
 # # l1, = plt.plot(effect_windows, linewidth = 2., color = "#1f77b4")
