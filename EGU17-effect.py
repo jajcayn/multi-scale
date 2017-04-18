@@ -33,7 +33,7 @@ def _get_surrs_stats(a):
     amplitudeAACreg = m*amplitudeAACreg + c
 
     if SEASON is not None:
-        ndx_season = sg.select_months(SEASON, apply_to_data = True)
+        ndx_season = sg.select_months(SEASON, apply_to_data = False)
         annual_amp = annual_amp[ndx_season]
         amplitude = amplitude[ndx_season]
         amplitudeAACreg = amplitudeAACreg[ndx_season]
