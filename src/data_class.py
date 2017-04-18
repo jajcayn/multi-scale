@@ -428,8 +428,6 @@ class DataField:
             copied.location = self.location
         if self.missing is not None:
             copied.missing = self.missing.copy()
-            if temporal_ndx is not None:
-                copied.missing = copied.missing[temporal_ndx]
         if self.station_id is not None:
             copied.station_id = self.station_id
         if self.station_elev is not None:

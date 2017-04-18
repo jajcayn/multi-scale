@@ -63,10 +63,10 @@ WINDOW_LENGTH = 36 # years
 SEASON = None
 # param_window = 32 # years
 
-# prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
-    # anom = False, offset = 1)
-prg = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
+prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
     anom = False, offset = 1)
+# prg = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
+    # anom = False, offset = 1)
 
 bins = get_equidistant_bins()
 
