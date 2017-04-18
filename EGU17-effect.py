@@ -59,8 +59,8 @@ mons = {1: 'J', 2: 'F', 3: 'M', 4: 'A', 5: 'M', 6: 'J', 7: 'J', 8: 'A', 9: 'S', 
 
 NUM_SURRS = 10000
 WINDOW_LENGTH = 36 # years
-# SEASON = [9,10,11]
-SEASON = None
+SEASON = [12,1,2]
+# SEASON = None
 # param_window = 32 # years
 
 # prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
@@ -138,7 +138,11 @@ for i, ndx in zip(range(len(ndxs)), ndxs):
 
 ## SAVE RESULTS
 import cPickle
-with open("PRG-8yr-effect-linear-nonlinear-%d-FTsurrs.bin" % (NUM_SURRS), 'wb') as f:
+if SEASON is None:
+    fname = "PRG-8yr-effect-linear-nonlinear-%d-FTsurrs.bin" % (NUM_SURRS)
+else:
+    fname = "PRG-8yr-effect-linear-nonlinear%s-%d-FTsurrs.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
+with open(fname, 'wb') as f:
     cPickle.dump({'amp_windows' : amp_windows, 'effect_windows' : effect_windows,
         'mean_amp_windows' : mean_amp_windows, 'mean_ampAAC_windows' : mean_ampAAC_windows,
         'amp_windows_surrs' : amp_windows_surrs, 'effect_windows_surrs' : effect_windows_surrs,
