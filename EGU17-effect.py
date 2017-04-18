@@ -1,7 +1,7 @@
 import numpy as np
 from src.data_class import load_station_data
 from datetime import date
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 import scipy.stats as sts
 from src.surrogates import SurrogateField
 from multiprocessing import Pool
