@@ -124,10 +124,9 @@ for i, ndx in zip(range(len(ndxs)), ndxs):
 
     ## COMPUTE FOR SURRS
     pool = Pool(20)
-    args = [(prg_surr, ndx, mean, var, trend, SEASON) for i in range(NUM_SURRS)]
+    args = [(prg_surr, ndx, mean, var, trend, SEASON) for _ in range(NUM_SURRS)]
     results = pool.map(_get_surrs_stats, args)
-
-    for res,j in zip(results, range(len(results))):
+    for res, j in zip(results, range(len(results))):
         amp_windows_surrs[j, i] = res[0]
         effect_windows_surrs[j, i] = res[1]
         mean_amp_windows_surrs[j, i] = res[2]
