@@ -57,7 +57,7 @@ def _get_surrs_stats(a):
 
 mons = {1: 'J', 2: 'F', 3: 'M', 4: 'A', 5: 'M', 6: 'J', 7: 'J', 8: 'A', 9: 'S', 10: 'O', 11: 'N', 12: 'D'}
 
-NUM_SURRS = 10000
+NUM_SURRS = 1000
 WINDOW_LENGTH = 36 # years
 SEASON = [12,1,2]
 # SEASON = None
@@ -144,9 +144,9 @@ for SEASON in SEASONS:
     ## SAVE RESULTS
     import cPickle
     if SEASON is None:
-        fname = "PRG-8yr-effect-linear-nonlinear-%d-FTsurrs.bin" % (NUM_SURRS)
+        fname = "PRG-8yr-effect-linear-nonlinear-%d-AAFTsurrs.bin" % (NUM_SURRS)
     else:
-        fname = "PRG-8yr-effect-linear-nonlinear%s-%d-FTsurrs.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
+        fname = "PRG-8yr-effect-linear-nonlinear%s-%d-AAFTsurrs.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
     with open(fname, 'wb') as f:
         cPickle.dump({'amp_windows' : amp_windows, 'effect_windows' : effect_windows,
             'mean_amp_windows' : mean_amp_windows, 'mean_ampAAC_windows' : mean_ampAAC_windows,
