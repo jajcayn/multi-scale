@@ -68,8 +68,8 @@ for SEASON in SEASONS:
 
     print ''.join([mons[s] for s in SEASON]) if SEASON is not None else 'overall'
 
-# prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
-    # anom = False, offset = 1)
+    # prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
+        # anom = False, offset = 1)
     prg = load_station_data('../data/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
         anom = False, offset = 1)
 

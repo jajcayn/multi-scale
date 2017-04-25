@@ -341,7 +341,7 @@ def _compute_IAAFT_surrogates(a):
     R = _compute_AAFT_surrogates([None, None, None, data, angle])[-1]
 
     # iterate
-    for i in range(n_iters):
+    for _ in range(n_iters):
         r_fft = np.fft.rfft(R, axis = 0)
         r_phases = r_fft / np.abs(r_fft)
 
