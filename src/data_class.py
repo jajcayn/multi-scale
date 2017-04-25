@@ -2042,7 +2042,7 @@ class DataField:
 
     def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, station_data = False, tit = None, 
                         symm = True, whole_world = True, log = None, fname = None, plot_station_points = False, 
-                        colormesh = False):
+                        colormesh = False, cmap = None, vminmax = None):
         """
         Simple plot of the geo data using the Robinson projection for whole world
         or Mercator projection for local plots.
@@ -2051,7 +2051,10 @@ class DataField:
         if mean is True, plots the temporal mean.
         to render different field than self.data, enter 2d field of the same shape.
         log is either None or base.
+        cmap defaults to 'viridis' if None.
         if fname is None, shows the plot, otherwise saves it to the given filename.
+        vminmax is either tuple of (min, max) to plot, or if None, it is determined
+        from the data
         """
 
         import matplotlib.pyplot as plt
@@ -2143,8 +2146,11 @@ class DataField:
                     llcrnrlon = lons[0], urcrnrlon = lons[-1],
                     resolution = 'i')
 
-            m.drawparallels(np.arange(int(lats[0]), int(lats[-1]), 10), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
-            m.drawmeridians(np.arange(int(lons[0]), int(lons[-1]), 20), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
+            # parallels and meridians to plot
+            draw_lats = np.arange(np.around(lats[0]/5, decimals = 0)*5, np.around(lats[-1]/5, decimals = 0)*5, 10)
+            draw_lons = np.arange(np.around(lons[0]/5, decimals = 0)*5, np.around(lons[-1]/5, decimals = 0)*5, 20)
+            m.drawparallels(draw_lats, linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
+            m.drawmeridians(draw_lons, linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
             
 
         m.drawcoastlines(linewidth = 2, color = "#333333")
@@ -2152,8 +2158,8 @@ class DataField:
     
         x, y = m(*np.meshgrid(lons, lats))
         
-        max = np.nanmax(data)
-        min  = np.nanmin(data)
+        max = np.nanmax(data) if vminmax is None else vminmax[1]
+        min = np.nanmin(data) if vminmax is None else vminmax[0]
         if symm:
             if np.abs(max) > np.abs(min):
                 min = -max
@@ -2161,16 +2167,17 @@ class DataField:
                 max = -min
 
         # draw contours
+        cmap = plt.get_cmap(cmap) if cmap is not None else plt.get_cmap('viridis')
         if log is not None:
             levels = np.logspace(np.log10(min)/np.log10(log), np.log10(max)/np.log10(log), 41)
-            cs = m.contourf(x, y, data, norm = colors.LogNorm(vmin = min, vmax = max), levels = levels, cmap = plt.get_cmap('jet'))
+            cs = m.contourf(x, y, data, norm = colors.LogNorm(vmin = min, vmax = max), levels = levels, cmap = cmap)
         else:
             levels = np.linspace(min, max, 41)
             if colormesh:
                 data = np.ma.array(data, mask = np.isnan(data))
-                cs = m.pcolormesh(x, y, data, vmin = levels[0], vmax = levels[-1], cmap = plt.get_cmap('jet'))
+                cs = m.pcolormesh(x, y, data, vmin = levels[0], vmax = levels[-1], cmap = cmap)
             else:
-                cs = m.contourf(x, y, data, levels = levels, cmap = plt.get_cmap('jet'))
+                cs = m.contourf(x, y, data, levels = levels, cmap = cmap)
 
         # draw stations if station data
         if station_data and plot_station_points:

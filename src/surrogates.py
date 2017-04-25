@@ -256,6 +256,37 @@ def _compute_FT_surrogates(a):
     ft_surr = np.fft.irfft(cxf, n = data.shape[0], axis = 0)
     
     return (i, j, lev, ft_surr)
+
+
+
+def _compute_AAFT_surrogates(a):
+    i, j, lev, data, angle = a
+
+    # create Gaussian data
+    gaussian = np.random.randn(data.shape[0])
+    gaussian.sort(axis = 0)
+
+    # rescale data
+    ranks = data.argsort(axis = 0).argsort(axis = 0)
+    rescaled_data = gaussian[ranks]
+
+    # transform the time series to Fourier domain
+    xf = np.fft.rfft(rescaled_data, axis = 0)
+     
+    # randomise the time series with random phases     
+    cxf = xf * np.exp(1j * angle)
+    
+    # return randomised time series in time domain
+    ft_surr = np.fft.irfft(cxf, n = data.shape[0], axis = 0)
+
+    # rescale back to amplitude distribution of original data
+    sorted_original = data.copy()
+    sorted_original.sort(axis = 0)
+    ranks = ft_surr.argsort(axis = 0).argsort(axis = 0)
+
+    rescaled_data = sorted_original[ranks]
+    
+    return (i, j, lev, rescaled_data)
     
 
 
@@ -551,6 +582,64 @@ class SurrogateField(DataField):
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
+
+
+
+    def construct_amplitude_adjusted_fourier_surrogates(self, preserve_corrs = False, pool = None):
+        """
+        Constructs Fourier Transform (FT) surrogates (independent realizations which preserve
+        linear structure but not covariance structure - shuffles also along spatial dimensions)
+        (should be also used with station data which has only temporal dimension)
+        """
+        
+        if self.data is not None:
+
+            np.random.seed()
+            
+            if pool is None:
+                map_func = map
+            else:
+                map_func = pool.map
+                
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+                if self.data.ndim == 4:
+                    num_levels = self.data.shape[1]
+                else:
+                    num_levels = 1
+                    self.data = self.data[:, np.newaxis, :, :]
+            else:
+                num_lats = 1
+                num_lons = 1
+                num_levels = 1
+                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
+            
+            # same as above except generate random angles along all dimensions of input data
+            a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
+            if not preserve_corrs:
+                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_levels, num_lats, num_lons))
+                angle[0, ...] = 0
+                job_data = [ (i, j, lev, self.data[:, lev, i, j], angle[:, lev, i, j]) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            else:
+                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0],))
+                angle[0] = 0
+                job_data = [ (i, j, lev, self.data[:, lev, i, j], angle) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            del a
+            
+            job_results = map_func(_compute_AAFT_surrogates, job_data)
+            
+            self.surr_data = np.zeros_like(self.data)
+            
+            for i, j, lev, surr in job_results:
+                self.surr_data[:, lev, i, j] = surr
+                
+            # squeeze single-dimensional entries (e.g. station data)
+            self.surr_data = np.squeeze(self.surr_data)
+            self.data = np.squeeze(self.data)
+            
+        else:
+            raise Exception("No data to randomise in the field. First you must copy some DataField.")
     
         
         
@@ -702,7 +791,7 @@ class SurrogateField(DataField):
 
     def amplitude_adjust_surrogates(self, mean, var, trend, pool = None):
         """
-        Performs so-called amplitude adjustment to already created surrogate data. 
+        Performs amplitude adjustment to already created surrogate data. 
         """
 
         if self.surr_data is not None and self.data is not None:

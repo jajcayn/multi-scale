@@ -13,7 +13,7 @@ def get_equidistant_bins(bins = 8):
 def _get_surrs_stats(a):
     sg, ndx, mean, var, trend, SEASON = a
     # create surrs
-    sg.construct_fourier_surrogates_spatial()
+    sg.construct_amplitude_adjusted_fourier_surrogates()
     sg.add_seasonality(mean, var, trend)
     time_copy = sg.time.copy()
 
@@ -62,11 +62,11 @@ WINDOW_LENGTH = 36 # years
 SEASON = [12,1,2]
 # SEASON = None
 # param_window = 32 # years
-SEASONS = [[3,4,5], [6,7,8], [9,10,11], [12, 1, 2]]
+SEASONS = [None, [3,4,5], [6,7,8], [9,10,11], [12, 1, 2]]
 
 for SEASON in SEASONS:
 
-    print ''.join([mons[s] for s in SEASON])
+    print ''.join([mons[s] for s in SEASON]) if SEASON is not None else 'overall'
 
 # prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
     # anom = False, offset = 1)
