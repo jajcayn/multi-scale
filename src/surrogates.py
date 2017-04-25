@@ -172,6 +172,45 @@ def get_single_FT_surrogate(ts, seed = None):
 
 
 
+def get_single_AAFT_surrogate(ts, seed = None):
+    """
+    Returns single amplitude adjusted FT surrogate.
+    Seed / integer : when None, random seed, else fixed seed (e.g. for multivariate AAFT surrogates).
+    """
+
+    if seed is None:
+        np.random.seed()
+    else:
+        np.random.seed(seed)
+
+    xf = np.fft.rfft(ts, axis = 0)
+    angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
+    del xf
+
+    return _compute_AAFT_surrogates([None, None, None, ts, angle])[-1]
+
+
+
+def get_single_IAAFT_surrogate(ts, n_iterations = 10, seed = None):
+    """
+    Returns single iterative amplitude adjusted FT surrogate.
+    n_iterations - number of iterations of the algorithm.
+    Seed / integer : when None, random seed, else fixed seed (e.g. for multivariate IAAFT surrogates).
+    """
+
+    if seed is None:
+        np.random.seed()
+    else:
+        np.random.seed(seed)
+
+    xf = np.fft.rfft(ts, axis = 0)
+    angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
+    del xf
+
+    return _compute_IAAFT_surrogates([None, None, None, n_iterations, ts, angle])[-1]
+
+
+
 def get_single_MF_surrogate(ts, randomise_from_scale = 2, seed = None):
     """
     Returns single 1D multifractal surrogate.
@@ -287,9 +326,34 @@ def _compute_AAFT_surrogates(a):
     rescaled_data = sorted_original[ranks]
     
     return (i, j, lev, rescaled_data)
+
+
+
+def _compute_IAAFT_surrogates(a):
+    i, j, lev, n_iters, data, angle = a
+
+    xf = np.fft.rfft(data, axis = 0)
+    xf_amps = np.abs(xf)
+    sorted_original = data.copy()
+    sorted_original.sort(axis = 0)
+
+    # starting point
+    R = _compute_AAFT_surrogates([None, None, None, data, angle])[-1]
+
+    # iterate
+    for i in range(n_iters):
+        r_fft = np.fft.rfft(R, axis = 0)
+        r_phases = r_fft / np.abs(r_fft)
+
+        s = np.fft.irfft(xf_amps * r_phases, n = data.shape[0], axis = 0)
+
+        ranks = s.argsort(axis = 0).argsort(axis = 0)
+        R = sorted_original[ranks]
+
+    return (i, j, lev, R)
+
+
     
-
-
 def _compute_MF_surrogates(a):
     import pywt
     
@@ -587,9 +651,7 @@ class SurrogateField(DataField):
 
     def construct_amplitude_adjusted_fourier_surrogates(self, preserve_corrs = False, pool = None):
         """
-        Constructs Fourier Transform (FT) surrogates (independent realizations which preserve
-        linear structure but not covariance structure - shuffles also along spatial dimensions)
-        (should be also used with station data which has only temporal dimension)
+        Constructs amplitude adjusted Fourier Transform (AAFT) surrogates.
         """
         
         if self.data is not None:
@@ -642,7 +704,63 @@ class SurrogateField(DataField):
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
     
         
+    
+    def construct_iterative_amplitude_adjusted_fourier_surrogates(self, n_iterations = 10, preserve_corrs = False, pool = None):
+        """
+        Constructs iterative amplitude adjusted Fourier Transform (AAFT) surrogates.
+        """
         
+        if self.data is not None:
+
+            np.random.seed()
+            
+            if pool is None:
+                map_func = map
+            else:
+                map_func = pool.map
+                
+            if self.data.ndim > 1:
+                num_lats = self.lats.shape[0]
+                num_lons = self.lons.shape[0]
+                if self.data.ndim == 4:
+                    num_levels = self.data.shape[1]
+                else:
+                    num_levels = 1
+                    self.data = self.data[:, np.newaxis, :, :]
+            else:
+                num_lats = 1
+                num_lons = 1
+                num_levels = 1
+                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
+            
+            # same as above except generate random angles along all dimensions of input data
+            a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
+            if not preserve_corrs:
+                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_levels, num_lats, num_lons))
+                angle[0, ...] = 0
+                job_data = [ (i, j, lev, n_iterations, self.data[:, lev, i, j], angle[:, lev, i, j]) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            else:
+                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0],))
+                angle[0] = 0
+                job_data = [ (i, j, lev, n_iterations, self.data[:, lev, i, j], angle) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            del a
+            
+            job_results = map_func(_compute_IAAFT_surrogates, job_data)
+            
+            self.surr_data = np.zeros_like(self.data)
+            
+            for i, j, lev, surr in job_results:
+                self.surr_data[:, lev, i, j] = surr
+                
+            # squeeze single-dimensional entries (e.g. station data)
+            self.surr_data = np.squeeze(self.surr_data)
+            self.data = np.squeeze(self.data)
+            
+        else:
+            raise Exception("No data to randomise in the field. First you must copy some DataField.")    
+    
+
+
     def construct_multifractal_surrogates(self, pool = None, randomise_from_scale = 2):
         """
         Constructs multifractal surrogates (independent shuffling of the scale-specific coefficients,
