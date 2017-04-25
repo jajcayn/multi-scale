@@ -13,7 +13,7 @@ def get_equidistant_bins(bins = 8):
 def _get_surrs_stats(a):
     sg, ndx, mean, var, trend, SEASON = a
     # create surrs
-    sg.construct_amplitude_adjusted_fourier_surrogates()
+    sg.construct_iterative_amplitude_adjusted_fourier_surrogates()
     sg.add_seasonality(mean, var, trend)
     time_copy = sg.time.copy()
 
@@ -144,9 +144,9 @@ for SEASON in SEASONS:
     ## SAVE RESULTS
     import cPickle
     if SEASON is None:
-        fname = "PRG-8yr-effect-linear-nonlinear-%d-AAFTsurrs.bin" % (NUM_SURRS)
+        fname = "PRG-8yr-effect-linear-nonlinear-%d-IAAFTsurrs.bin" % (NUM_SURRS)
     else:
-        fname = "PRG-8yr-effect-linear-nonlinear%s-%d-AAFTsurrs.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
+        fname = "PRG-8yr-effect-linear-nonlinear%s-%d-IAAFTsurrs.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
     with open(fname, 'wb') as f:
         cPickle.dump({'amp_windows' : amp_windows, 'effect_windows' : effect_windows,
             'mean_amp_windows' : mean_amp_windows, 'mean_ampAAC_windows' : mean_ampAAC_windows,
