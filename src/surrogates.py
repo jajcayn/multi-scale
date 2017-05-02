@@ -187,7 +187,7 @@ def get_single_AAFT_surrogate(ts, seed = None):
     angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
     del xf
 
-    return _compute_AAFT_surrogates([None, None, None, ts, angle])[-1]
+    return _compute_AAFT_surrogates([None, ts, angle])[-1]
 
 
 
@@ -207,7 +207,7 @@ def get_single_IAAFT_surrogate(ts, n_iterations = 10, seed = None):
     angle = np.random.uniform(0, 2 * np.pi, (xf.shape[0],))
     del xf
 
-    return _compute_IAAFT_surrogates([None, None, None, n_iterations, ts, angle])[-1]
+    return _compute_IAAFT_surrogates([ None, n_iterations, ts, angle])[-1]
 
 
 
@@ -217,7 +217,7 @@ def get_single_MF_surrogate(ts, randomise_from_scale = 2, seed = None):
     Seed / integer : when None, random seed, else fixed seed (e.g. for multivariate MF surrogates).
     """
 
-    return _compute_MF_surrogates([None, None, None, ts, randomise_from_scale, seed])[-1]
+    return _compute_MF_surrogates([None, ts, randomise_from_scale, seed])[-1]
 
 
 
@@ -231,11 +231,11 @@ def get_single_AR_surrogate(ts, order_range = [1,1], seed = None):
     Seed / integer : when None, random seed, else fixed seed (e.g. for multivariate AR surrogates).
     """
 
-    _, _, _, order, res = _prepare_AR_surrogates([None, None, None, order_range, 'sbc', ts])
+    _, order, res = _prepare_AR_surrogates([None, order_range, 'sbc', ts])
     num_ts = ts.shape[0] - order.order()
     res = res[:num_ts, 0]
 
-    surr = _compute_AR_surrogates([None, None, None, res, order, num_ts, seed])[-1]
+    surr = _compute_AR_surrogates([None, res, order, num_ts, seed])[-1]
 
     if np.diff(order_range) == 0:
         return surr
@@ -249,13 +249,13 @@ def amplitude_adjust_single_surrogate(ts, surr, mean = 0, var = 1, trend = None)
     Returns amplitude adjusted surrogate.
     """
 
-    return _create_amplitude_adjusted_surrogates([None, None, None, ts, surr, mean, var, trend])[-1]
+    return _create_amplitude_adjusted_surrogates([None, ts, surr, mean, var, trend])[-1]
 
 
 
 def _prepare_AR_surrogates(a):
     from var_model import VARModel
-    i, j, lev, order_range, crit, ts = a
+    i, order_range, crit, ts = a
     if not np.any(np.isnan(ts)):
         v = VARModel()
         v.estimate(ts, order_range, True, crit, None)
@@ -263,12 +263,12 @@ def _prepare_AR_surrogates(a):
     else:
         v = None
         r = np.nan
-    return (i, j, lev, v, r) 
+    return (i, v, r) 
     
     
     
 def _compute_AR_surrogates(a):
-    i, j, lev, res, model, num_tm_s, seed = a
+    i, res, model, num_tm_s, seed = a
     r = np.zeros((num_tm_s, 1), dtype = np.float64)       
     if not np.all(np.isnan(res)):
         ndx = np.argsort(np.random.uniform(size = (num_tm_s,)))
@@ -278,12 +278,12 @@ def _compute_AR_surrogates(a):
     else:
         ar_surr = np.nan
         
-    return (i, j, lev, ar_surr)
+    return (i, ar_surr)
     
     
     
 def _compute_FT_surrogates(a):
-    i, j, lev, data, angle = a
+    i, data, angle = a
             
     # transform the time series to Fourier domain
     xf = np.fft.rfft(data, axis = 0)
@@ -294,12 +294,12 @@ def _compute_FT_surrogates(a):
     # return randomised time series in time domain
     ft_surr = np.fft.irfft(cxf, n = data.shape[0], axis = 0)
     
-    return (i, j, lev, ft_surr)
+    return (i, ft_surr)
 
 
 
 def _compute_AAFT_surrogates(a):
-    i, j, lev, data, angle = a
+    i, data, angle = a
 
     # create Gaussian data
     gaussian = np.random.randn(data.shape[0])
@@ -325,12 +325,12 @@ def _compute_AAFT_surrogates(a):
 
     rescaled_data = sorted_original[ranks]
     
-    return (i, j, lev, rescaled_data)
+    return (i, rescaled_data)
 
 
 
 def _compute_IAAFT_surrogates(a):
-    i, j, lev, n_iters, data, angle = a
+    i, n_iters, data, angle = a
 
     xf = np.fft.rfft(data, axis = 0)
     xf_amps = np.abs(xf)
@@ -350,14 +350,14 @@ def _compute_IAAFT_surrogates(a):
         ranks = s.argsort(axis = 0).argsort(axis = 0)
         R = sorted_original[ranks]
 
-    return (i, j, lev, R)
+    return (i, R)
 
 
     
 def _compute_MF_surrogates(a):
     import pywt
     
-    i, l, lev, ts, randomise_from_scale, seed = a
+    i, ts, randomise_from_scale, seed = a
 
     if seed is None:
         np.random.seed()
@@ -424,12 +424,12 @@ def _compute_MF_surrogates(a):
     else:
         mf_surr = np.nan
         
-    return (i, l, lev, mf_surr)
+    return (i, mf_surr)
 
 
 
 def _create_amplitude_adjusted_surrogates(a):
-    i, j, lev, d, surr, m, v, t = a
+    i, d, surr, m, v, t = a
     data = d.copy()
     
     if not np.all(np.isnan(data)):
@@ -450,7 +450,7 @@ def _create_amplitude_adjusted_surrogates(a):
     else:
         aa_surr = np.nan
 
-    return (i, j, lev, aa_surr)
+    return (i, aa_surr)
 
 
 
@@ -462,9 +462,9 @@ class SurrogateField(DataField):
     
     def __init__(self, data = None):
         DataField.__init__(self)
-        self.surr_data = None
+        self.data = None
         self.model_grid = None
-        self.data = data
+        self.original_data = data
         
 
         
@@ -473,7 +473,7 @@ class SurrogateField(DataField):
         Makes a copy of another DataField
         """
         
-        self.data = field.data.copy()
+        self.original_data = field.data.copy()
         if field.lons is not None:
             self.lons = field.lons.copy()
         else:
@@ -492,11 +492,11 @@ class SurrogateField(DataField):
         and optionally detrended data.
         """
         
-        if self.surr_data is not None:
+        if self.data is not None:
             if trend is not None:
-                self.surr_data += trend
-            self.surr_data *= var
-            self.surr_data += mean
+                self.data += trend
+            self.data *= var
+            self.data += mean
         else:
             raise Exception("Surrogate data has not been created yet.")
             
@@ -508,11 +508,11 @@ class SurrogateField(DataField):
         multiple surrogate construction.
         """        
         
-        if self.surr_data is not None:
-            self.surr_data -= mean
-            self.surr_data /= var
+        if self.data is not None:
+            self.data -= mean
+            self.data /= var
             if trend is not None:
-                self.surr_data -= trend
+                self.data -= trend
         else:
             raise Exception("Surrogate data has not been created yet.")
 
@@ -523,9 +523,9 @@ class SurrogateField(DataField):
         Centers the surrogate data to zero mean and unit variance.
         """
 
-        if self.surr_data is not None:
-            self.surr_data -= np.nanmean(self.surr_data, axis = 0)
-            self.surr_data /= np.nanstd(self.surr_data, axis = 0, ddof = 1)
+        if self.data is not None:
+            self.data -= np.nanmean(self.data, axis = 0)
+            self.data /= np.nanstd(self.data, axis = 0, ddof = 1)
         else:
             raise Exception("Surrogate data has not been created yet.")
         
@@ -536,20 +536,32 @@ class SurrogateField(DataField):
         Returns the surrogate data
         """
         
-        if self.surr_data is not None:
-            return self.surr_data.copy()
+        if self.data is not None:
+            return self.data.copy()
         else:
             raise Exception("Surrogate data has not been created yet.")
         
 
 
-    def construct_fourier_surrogates(self, pool = None):
+    def construct_fourier_surrogates(self, algorithm = 'FT', pool = None, preserve_corrs = False, n_iterations = 10):
         """
-        Constructs Fourier Transform (FT) surrogates (independent realizations which preserve
-        linear structure and covariance structure)
+        Constructs Fourier Transform (FT) surrogates - shuffles angle in Fourier space of the original data.
+        algorithm:
+            FT - basic FT surrogates [1]
+            AAFT - amplitude adjusted FT surrogates [2]
+            IAAFT - iterative amplitude adjusted FT surrogates [3]
+        pool:
+            instance of multiprocessing's pool in order to exploit multithreading for high-dimensional data
+        preserve_corrs:
+            bool, whether to preserve covariance structure in spatially distributed data
+        n_iterations:
+            int, only when algorithm = IAAFT, number of iterations
         """
+
+        if algorithm not in ['FT', 'AAFT', 'IAAFT']:
+            raise Exception("Unknown algorithm type, please use 'FT', 'AAFT' or 'IAAFT'.")
         
-        if self.data is not None:
+        if self.original_data is not None:
 
             np.random.seed()
             
@@ -557,209 +569,61 @@ class SurrogateField(DataField):
                 map_func = map
             else:
                 map_func = pool.map
+
+            if algorithm == 'FT':
+                surr_func = _compute_FT_surrogates
+            elif algorithm == 'AAFT':
+                surr_func = _compute_AAFT_surrogates
+            elif algorithm == 'IAAFT':
+                surr_func = _compute_IAAFT_surrogates
                 
-            if self.data.ndim > 1:
-                num_lats = self.lats.shape[0]
-                num_lons = self.lons.shape[0]
-                if self.data.ndim == 4:
-                    num_levels = self.data.shape[1]
-                else:
-                    num_levels = 1
-                    self.data = self.data[:, np.newaxis, :, :]
+            if self.original_data.ndim > 1:
+                orig_shape = self.original_data.shape
+                self.original_data = np.reshape(self.original_data, (self.original_data.shape[0], np.prod(orig_shape[1:])))
             else:
-                num_lats = 1
-                num_lons = 1
-                num_levels = 1
-                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
+                orig_shape = None
+                self.original_data = self.original_data[:, np.newaxis]
                 
             # generate uniformly distributed random angles
-            a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
-            angle = np.random.uniform(0, 2 * np.pi, (a.shape[0],))
+            a = np.fft.rfft(np.random.rand(self.original_data.shape[0]), axis = 0)
+            if preserve_corrs:
+                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0],))
+                # set the slowest frequency to zero, i.e. not to be randomised
+                angle[0] = 0
+                del a
+                if algorithm == 'IAAFT':
+                    job_data = [ (i, n_iterations, self.original_data[:, i], angle) for i in range(self.original_data.shape[1]) ]    
+                else:
+                    job_data = [ (i, self.original_data[:, i], angle) for i in range(self.original_data.shape[1]) ]
+            else:
+                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], self.original_data.shape[1]))
+                angle[0, ...] = 0
+                del a
+                if algorithm == 'IAAFT':
+                    job_data = [ (i, n_iterations, self.original_data[:, i], angle[:, i]) for i in range(self.original_data.shape[1]) ]
+                else:
+                    job_data = [ (i, self.original_data[:, i], angle[:, i]) for i in range(self.original_data.shape[1]) ]
             
-            # set the slowest frequency to zero, i.e. not to be randomised
-            angle[0] = 0
-            del a
+            job_results = map_func(surr_func, job_data)
             
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], angle) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
-            job_results = map_func(_compute_FT_surrogates, job_data)
+            self.data = np.zeros_like(self.original_data)
             
-            self.surr_data = np.zeros_like(self.data)
-            
-            for i, j, lev, surr in job_results:
-                self.surr_data[:, lev, i, j] = surr
+            for i, surr in job_results:
+                self.data[:, i] = surr
                 
             # squeeze single-dimensional entries (e.g. station data)
-            self.surr_data = np.squeeze(self.surr_data)
             self.data = np.squeeze(self.data)
+            self.original_data = np.squeeze(self.original_data)
+
+            # reshape back to original shape
+            if orig_shape is not None:
+                self.data = np.reshape(self.data, orig_shape)
+                self.original_data = np.reshape(self.original_data, orig_shape)
            
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
-        
-        
-        
-    def construct_fourier_surrogates_spatial(self, pool = None):
-        """
-        Constructs Fourier Transform (FT) surrogates (independent realizations which preserve
-        linear structure but not covariance structure - shuffles also along spatial dimensions)
-        (should be also used with station data which has only temporal dimension)
-        """
-        
-        if self.data is not None:
 
-            np.random.seed()
             
-            if pool is None:
-                map_func = map
-            else:
-                map_func = pool.map
-                
-            if self.data.ndim > 1:
-                num_lats = self.lats.shape[0]
-                num_lons = self.lons.shape[0]
-                if self.data.ndim == 4:
-                    num_levels = self.data.shape[1]
-                else:
-                    num_levels = 1
-                    self.data = self.data[:, np.newaxis, :, :]
-            else:
-                num_lats = 1
-                num_lons = 1
-                num_levels = 1
-                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
-            
-            # same as above except generate random angles along all dimensions of input data
-            a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
-            angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_levels, num_lats, num_lons))
-            angle[0, ...] = 0
-            del a
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], angle[:, lev, i, j]) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
-            job_results = map_func(_compute_FT_surrogates, job_data)
-            
-            self.surr_data = np.zeros_like(self.data)
-            
-            for i, j, lev, surr in job_results:
-                self.surr_data[:, lev, i, j] = surr
-                
-            # squeeze single-dimensional entries (e.g. station data)
-            self.surr_data = np.squeeze(self.surr_data)
-            self.data = np.squeeze(self.data)
-            
-        else:
-            raise Exception("No data to randomise in the field. First you must copy some DataField.")
-
-
-
-    def construct_amplitude_adjusted_fourier_surrogates(self, preserve_corrs = False, pool = None):
-        """
-        Constructs amplitude adjusted Fourier Transform (AAFT) surrogates.
-        """
-        
-        if self.data is not None:
-
-            np.random.seed()
-            
-            if pool is None:
-                map_func = map
-            else:
-                map_func = pool.map
-                
-            if self.data.ndim > 1:
-                num_lats = self.lats.shape[0]
-                num_lons = self.lons.shape[0]
-                if self.data.ndim == 4:
-                    num_levels = self.data.shape[1]
-                else:
-                    num_levels = 1
-                    self.data = self.data[:, np.newaxis, :, :]
-            else:
-                num_lats = 1
-                num_lons = 1
-                num_levels = 1
-                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
-            
-            # same as above except generate random angles along all dimensions of input data
-            a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
-            if not preserve_corrs:
-                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_levels, num_lats, num_lons))
-                angle[0, ...] = 0
-                job_data = [ (i, j, lev, self.data[:, lev, i, j], angle[:, lev, i, j]) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
-            else:
-                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0],))
-                angle[0] = 0
-                job_data = [ (i, j, lev, self.data[:, lev, i, j], angle) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
-            del a
-            
-            job_results = map_func(_compute_AAFT_surrogates, job_data)
-            
-            self.surr_data = np.zeros_like(self.data)
-            
-            for i, j, lev, surr in job_results:
-                self.surr_data[:, lev, i, j] = surr
-                
-            # squeeze single-dimensional entries (e.g. station data)
-            self.surr_data = np.squeeze(self.surr_data)
-            self.data = np.squeeze(self.data)
-            
-        else:
-            raise Exception("No data to randomise in the field. First you must copy some DataField.")
-    
-        
-    
-    def construct_iterative_amplitude_adjusted_fourier_surrogates(self, n_iterations = 10, preserve_corrs = False, pool = None):
-        """
-        Constructs iterative amplitude adjusted Fourier Transform (AAFT) surrogates.
-        """
-        
-        if self.data is not None:
-
-            np.random.seed()
-            
-            if pool is None:
-                map_func = map
-            else:
-                map_func = pool.map
-                
-            if self.data.ndim > 1:
-                num_lats = self.lats.shape[0]
-                num_lons = self.lons.shape[0]
-                if self.data.ndim == 4:
-                    num_levels = self.data.shape[1]
-                else:
-                    num_levels = 1
-                    self.data = self.data[:, np.newaxis, :, :]
-            else:
-                num_lats = 1
-                num_lons = 1
-                num_levels = 1
-                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
-            
-            # same as above except generate random angles along all dimensions of input data
-            a = np.fft.rfft(np.random.rand(self.data.shape[0]), axis = 0)
-            if not preserve_corrs:
-                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0], num_levels, num_lats, num_lons))
-                angle[0, ...] = 0
-                job_data = [ (i, j, lev, n_iterations, self.data[:, lev, i, j], angle[:, lev, i, j]) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
-            else:
-                angle = np.random.uniform(0, 2 * np.pi, (a.shape[0],))
-                angle[0] = 0
-                job_data = [ (i, j, lev, n_iterations, self.data[:, lev, i, j], angle) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
-            del a
-            
-            job_results = map_func(_compute_IAAFT_surrogates, job_data)
-            
-            self.surr_data = np.zeros_like(self.data)
-            
-            for i, j, lev, surr in job_results:
-                self.surr_data[:, lev, i, j] = surr
-                
-            # squeeze single-dimensional entries (e.g. station data)
-            self.surr_data = np.squeeze(self.surr_data)
-            self.data = np.squeeze(self.data)
-            
-        else:
-            raise Exception("No data to randomise in the field. First you must copy some DataField.")    
-    
-
 
     def construct_multifractal_surrogates(self, pool = None, randomise_from_scale = 2):
         """
@@ -772,38 +636,36 @@ class SurrogateField(DataField):
 
         import pywt
         
-        if self.data is not None:
+        if self.original_data is not None:
 
             if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
             
-            if self.data.ndim > 1:
-                num_lats = self.lats.shape[0]
-                num_lons = self.lons.shape[0]
-                if self.data.ndim == 4:
-                    num_levels = self.data.shape[1]
-                else:
-                    num_levels = 1
-                    self.data = self.data[:, np.newaxis, :, :]
+            if self.original_data.ndim > 1:
+                orig_shape = self.original_data.shape
+                self.original_data = np.reshape(self.original_data, (self.original_data.shape[0], np.prod(orig_shape[1:])))
             else:
-                num_lats = 1
-                num_lons = 1
-                num_levels = 1
-                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
+                orig_shape = None
+                self.original_data = self.original_data[:, np.newaxis]
             
-            self.surr_data = np.zeros_like(self.data)
+            self.data = np.zeros_like(self.original_data)
 
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], randomise_from_scale, None) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, self.original_data[:, i], randomise_from_scale, None) for i in range(self.original_data.shape[1]) ]
             job_results = map_func(_compute_MF_surrogates, job_data)
             
-            for i, j, lev, surr in job_results:
-                self.surr_data[:, lev, i, j] = surr
+            for i, surr in job_results:
+                self.data[:, i] = surr
             
             # squeeze single-dimensional entries (e.g. station data)
-            self.surr_data = np.squeeze(self.surr_data)
             self.data = np.squeeze(self.data)
+            self.original_data = np.squeeze(self.original_data)
+
+            # reshape back to original shape
+            if orig_shape is not None:
+                self.data = np.reshape(self.data, orig_shape)
+                self.original_data = np.reshape(self.original_data, orig_shape)
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
@@ -816,50 +678,49 @@ class SurrogateField(DataField):
         the residuals. Adapted from script by Vejmelka -- https://github.com/vejmelkam/ndw-climate
         """
         
-        if self.data is not None:
+        if self.original_data is not None:
             
             if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
                 
-            if self.data.ndim > 1:
-                num_lats = self.lats.shape[0]
-                num_lons = self.lons.shape[0]
-                if self.data.ndim == 4:
-                    num_levels = self.data.shape[1]
-                else:
-                    num_levels = 1
-                    self.data = self.data[:, np.newaxis, :, :]
+            if self.original_data.ndim > 1:
+                orig_shape = self.original_data.shape
+                self.original_data = np.reshape(self.original_data, (self.original_data.shape[0], np.prod(orig_shape[1:])))
             else:
-                num_lats = 1
-                num_lons = 1
-                num_levels = 1
-                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
+                orig_shape = None
+                self.original_data = self.original_data[:, np.newaxis]
             num_tm = self.time.shape[0]
                 
-            job_data = [ (i, j, lev, order_range, crit, self.data[:, lev, i, j]) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, order_range, crit, self.original_data[:, i]) for i in range(self.original_data.shape[1]) ]
             job_results = map_func(_prepare_AR_surrogates, job_data)
             max_ord = 0
             for r in job_results:
-                if r[3] is not None and r[3].order() > max_ord:
-                    max_ord = r[3].order()
+                if r[1] is not None and r[1].order() > max_ord:
+                    max_ord = r[1].order()
             num_tm_s = num_tm - max_ord
             
-            self.model_grid = np.zeros((num_levels, num_lats, num_lons), dtype = np.object)
-            self.residuals = np.zeros((num_tm_s, num_levels, num_lats, num_lons), dtype = np.float64)
+            self.model_grid = np.zeros((np.prod(orig_shape[1:]),), dtype = np.object)
+            self.residuals = np.zeros((num_tm_s, np.prod(orig_shape[1:])), dtype = np.float64)
     
-            for i, j, lev, v, r in job_results:
-                self.model_grid[lev, i, j] = v
+            for i, v, r in job_results:
+                self.model_grid[i] = v
                 if v is not None:
-                    self.residuals[:, lev, i, j] = r[:num_tm_s, 0]
+                    self.residuals[:, i] = r[:num_tm_s, 0]
                 else:
-                    self.residuals[:, lev, i, j] = np.nan
+                    self.residuals[:, i] = np.nan
     
             self.max_ord = max_ord
             
-            self.data = np.squeeze(self.data)
+            self.original_data = np.squeeze(self.original_data)
             self.residuals = np.squeeze(self.residuals)
+
+            # reshape back to original shape
+            if orig_shape is not None:
+                self.original_data = np.reshape(self.original_data, orig_shape)
+                self.model_grid = np.reshape(self.model_grid, list(orig_shape[1:]))
+                self.residuals = np.reshape(self.residuals, [num_tm_s] + list(orig_shape[1:]))
             
         else:
             raise Exception("No data to randomise in the field. First you must copy some DataField.")
@@ -879,31 +740,39 @@ class SurrogateField(DataField):
             else:
                 map_func = pool.map
             
-            if self.data.ndim > 1:
-                num_lats = self.lats.shape[0]
-                num_lons = self.lons.shape[0]
-                if self.data.ndim == 4:
-                    num_levels = self.data.shape[1]
-                else:
-                    num_levels = 1
+             if self.original_data.ndim > 1:
+                orig_shape = self.original_data.shape
+                self.original_data = np.reshape(self.original_data, (self.original_data.shape[0], np.prod(orig_shape[1:])))
+                self.model_grid = np.reshape(self.model_grid, np.prod(self.model_grid.shape))
+                self.residuals = np.reshape(self.residuals, (self.residuals.shape[0], np.prod(orig_shape[1:])))
             else:
-                num_lats = 1
-                num_lons = 1
-                num_levels = 1
+                orig_shape = None
+                self.original_data = self.original_data[:, np.newaxis]
+                self.model_grid = self.model_grid[:, np.newaxis]
+                self.residuals = self.residuals[:, np.newaxis]
             num_tm_s = self.time.shape[0] - self.max_ord
             
-            job_data = [ (i, j, lev, self.residuals[:, lev, i, j], self.model_grid[lev, i, j], num_tm_s, None) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i,  self.residuals[:, i], self.model_grid[i], num_tm_s, None) for i in range(self.original_data.shape[1]) ]
             job_results = map_func(_compute_AR_surrogates, job_data)
             
-            self.surr_data = np.zeros((num_tm_s, num_levels, num_lats, num_lons))
+            self.data = np.zeros((num_tm_s, self.original_data.shape[1]))
             
-            for i, j, lev, surr in job_results:
-                self.surr_data[:, lev, i, j] = surr
+            for i, surr in job_results:
+                self.data[:, i] = surr
                     
-            self.surr_data = np.squeeze(self.surr_data)
+            self.data = np.squeeze(self.data)
+            self.original_data = np.squeeze(self.original_data)
+            self.residuals = np.squeeze(self.residuals)
+
+            # reshape back to original shape
+            if orig_shape is not None:
+                self.original_data = np.reshape(self.original_data, orig_shape)
+                self.model_grid = np.reshape(self.model_grid, list(orig_shape[1:]))
+                self.residuals = np.reshape(self.residuals, [num_tm_s] + list(orig_shape[1:]))
+                self.data = np.reshape(self.data, [num_tm_s] + list(orig_shape[1:]))
 
         else:
-           raise Exception("The AR(k) model is not simulated yet. First prepare surrogates!") 
+           raise Exception("The AR(k) model is not simulated yet. First, prepare surrogates!") 
 
 
 
@@ -912,43 +781,46 @@ class SurrogateField(DataField):
         Performs amplitude adjustment to already created surrogate data. 
         """
 
-        if self.surr_data is not None and self.data is not None:
+        if self.data is not None and self.original_data is not None:
 
             if pool is None:
                 map_func = map
             else:
                 map_func = pool.map
-
-
-            if self.data.ndim > 1:
-                num_lats = self.lats.shape[0]
-                num_lons = self.lons.shape[0]
-                if self.data.ndim == 4:
-                    num_levels = self.data.shape[1]
-                else:
-                    num_levels = 1
-                    self.data = self.data[:, np.newaxis, :, :]
-                    self.surr_data = self.surr_data[:, np.newaxis, :, :]
+            
+            if self.original_data.ndim > 1:
+                orig_shape = self.original_data.shape
+                self.original_data = np.reshape(self.original_data, (self.original_data.shape[0], np.prod(orig_shape[1:])))
+                self.data = np.reshape(self.data, (self.data.shape[0], np.prod(orig_shape[1:])))
+                mean = np.reshape(mean, (mean.shape[0], np.prod(orig_shape[1:])))
+                var = np.reshape(var, (var.shape[0], np.prod(orig_shape[1:])))
+                trend = np.reshape(trend, (trend.shape[0], np.prod(orig_shape[1:])))
             else:
-                num_lats = 1
-                num_lons = 1
-                num_levels = 1
-                self.data = self.data[:, np.newaxis, np.newaxis, np.newaxis]
-                self.surr_data = self.surr_data[:, np.newaxis, np.newaxis, np.newaxis]
+                orig_shape = None
+                self.original_data = self.original_data[:, np.newaxis]
+                self.data = self.data[:, np.newaxis]
+                mean = mean[:, np.newaxis]
+                var = var[:, np.newaxis]
+                trend = trend[:, np.newaxis]
                 
-            old_shape = self.surr_data.shape
+            old_shape = self.data.shape
 
-            job_data = [ (i, j, lev, self.data[:, lev, i, j], self.surr_data[:, lev, i, j], mean, var, trend) for lev in range(num_levels) for i in range(num_lats) for j in range(num_lons) ]
+            job_data = [ (i, self.original_data[:, i], self.data[:, i], mean[:, i], var[:, i], trend[:, i]) for i in range(self.original_data.shape[1]) ]
             job_results = map_func(_create_amplitude_adjusted_surrogates, job_data)
 
-            self.surr_data = np.zeros(old_shape)
+            self.data = np.zeros(old_shape)
 
-            for i, j, lev, AAsurr in job_results:
-                self.surr_data[:, lev, i, j] = AAsurr
+            for i, AAsurr in job_results:
+                self.data[:, i] = AAsurr
 
             # squeeze single-dimensional entries (e.g. station data)
-            self.surr_data = np.squeeze(self.surr_data)
             self.data = np.squeeze(self.data)
+            self.original_data = np.squeeze(self.original_data)
+
+            # reshape back to original shape
+            if orig_shape is not None:
+                self.original_data = np.reshape(self.original_data, orig_shape)
+                self.data = np.reshape(self.data, [self.data.shape[0]] + list(orig_shape[1:]))
 
         else:
             raise Exception("No surrogate data or/and no data in the field. "

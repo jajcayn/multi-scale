@@ -15,51 +15,51 @@ n_windows = len(ndxs)
 
 ndx = prg.select_date(date(1989, 1, 1), date(2016, 4, 30), apply_to_data = False)
 
-prg_temp = prg.copy(temporal_ndx = ndx)
-print prg_temp.get_date_from_ndx(0), prg_temp.get_date_from_ndx(-1)
-prg_temp.wavelet(1, 'y', cut = 4, cut_time = False, cut_data = False, regress_amp_to_data = True)
-annual_amp = prg_temp.amplitude.copy()
-annual_phase = prg_temp.phase.copy()
-sat_data = prg_temp.data[int(4*365.25):-int(4*365.25)].copy()
+# prg_temp = prg.copy(temporal_ndx = ndx)
+# print prg_temp.get_date_from_ndx(0), prg_temp.get_date_from_ndx(-1)
+# prg_temp.wavelet(1, 'y', cut = 4, cut_time = False, cut_data = False, regress_amp_to_data = True)
+# annual_amp = prg_temp.amplitude.copy()
+# annual_phase = prg_temp.phase.copy()
+# sat_data = prg_temp.data[int(4*365.25):-int(4*365.25)].copy()
 
-prg_temp.anomalise()
-prg_temp.wavelet(8, 'y', cut = 4, cut_time = False, cut_data = False, regress_amp_to_data = True, continuous_phase = False)
-amplitude = prg_temp.amplitude.copy()
-prg_temp.wavelet(8, 'y', cut = 4, cut_time = True, cut_data = True, regress_amp_to_data = False, continuous_phase = False)
-# amplitudeAACreg = prg_temp.amplitude.copy()
+# prg_temp.anomalise()
+# prg_temp.wavelet(8, 'y', cut = 4, cut_time = False, cut_data = False, regress_amp_to_data = True, continuous_phase = False)
+# amplitude = prg_temp.amplitude.copy()
+# prg_temp.wavelet(8, 'y', cut = 4, cut_time = True, cut_data = True, regress_amp_to_data = False, continuous_phase = False)
+# # amplitudeAACreg = prg_temp.amplitude.copy()
 
-# m, c, r, p, std_err = sts.linregress(amplitudeAACreg*np.cos(prg_temp.phase), annual_amp*np.cos(annual_phase))
-# amplitudeAACreg = m*amplitudeAACreg + c
-# c = np.mean(sat_data, axis = 0)
-# c = 0
+# # m, c, r, p, std_err = sts.linregress(amplitudeAACreg*np.cos(prg_temp.phase), annual_amp*np.cos(annual_phase))
+# # amplitudeAACreg = m*amplitudeAACreg + c
+# # c = np.mean(sat_data, axis = 0)
+# # c = 0
 
-recon1y = annual_amp*np.cos(annual_phase)
-m, c, r, p, std_err = sts.linregress(recon1y, sat_data)
-recon1y = m*recon1y + c
-annual_amp = m*annual_amp + c
+# recon1y = annual_amp*np.cos(annual_phase)
+# m, c, r, p, std_err = sts.linregress(recon1y, sat_data)
+# recon1y = m*recon1y + c
+# annual_amp = m*annual_amp + c
 
-recon8y = amplitude*np.cos(prg_temp.phase)
-m, c, r, p, std_err = sts.linregress(recon8y, prg_temp.data)
-recon8y = m*recon8y + c
+# recon8y = amplitude*np.cos(prg_temp.phase)
+# m, c, r, p, std_err = sts.linregress(recon8y, prg_temp.data)
+# recon8y = m*recon8y + c
 
 
-# plt.figure(figsize = (15, 8))
-# plt.gca().spines['top'].set_visible(False)
-# plt.gca().spines['right'].set_visible(False)
-# plt.gca().spines['bottom'].set_visible(False)
-# plt.gca().spines['left'].set_visible(False)
-# plt.plot(prg_temp.data, linewidth = 0.7, color = "#BCBCBC")
-# # plt.plot(recon1y, linewidth = 1.4, color = "#424242")
-# plt.plot(annual_amp, linestyle = "-", linewidth = 2.2, color = "#3299BB")
-# plt.xticks(np.arange(0, sat_data.shape[0], int(2*365.25)), np.arange(prg_temp.get_date_from_ndx(0).year, 
-#     prg_temp.get_date_from_ndx(-1).year, 2), rotation = 30, size = 20)
-# plt.ylabel("$^{\circ}$C", size = 24)
-# plt.yticks(size = 20)
+# # plt.figure(figsize = (15, 8))
+# # plt.gca().spines['top'].set_visible(False)
+# # plt.gca().spines['right'].set_visible(False)
+# # plt.gca().spines['bottom'].set_visible(False)
+# # plt.gca().spines['left'].set_visible(False)
+# # plt.plot(prg_temp.data, linewidth = 0.7, color = "#BCBCBC")
+# # # plt.plot(recon1y, linewidth = 1.4, color = "#424242")
+# # plt.plot(annual_amp, linestyle = "-", linewidth = 2.2, color = "#3299BB")
+# # plt.xticks(np.arange(0, sat_data.shape[0], int(2*365.25)), np.arange(prg_temp.get_date_from_ndx(0).year, 
+# #     prg_temp.get_date_from_ndx(-1).year, 2), rotation = 30, size = 20)
+# # plt.ylabel("$^{\circ}$C", size = 24)
+# # plt.yticks(size = 20)
 
-def get_equidistant_bins(bins = 8):
-    return np.array(np.linspace(-np.pi, np.pi, bins+1))
+# def get_equidistant_bins(bins = 8):
+#     return np.array(np.linspace(-np.pi, np.pi, bins+1))
 
-bins = get_equidistant_bins()
+# bins = get_equidistant_bins()
 
 # plt.twinx()
 # plt.gca().spines['top'].set_visible(False)
@@ -132,7 +132,7 @@ bins = get_equidistant_bins()
 
 import cPickle
 
-for which in ['']:
+for which in ['', 'JJA', 'DJF']:
 
     with open("PRG-8yr-effect-linear-nonlinear%s-10000-FTsurrs.bin" % (which), "rb") as f:
         raw = cPickle.load(f)
@@ -174,9 +174,12 @@ for which in ['']:
     plt.xticks(np.arange(0, len(ndxs), 12), [d.year for d in dates[0::12]], rotation = 30, size = 20)
     plt.yticks(size = 20)
     plt.ylabel("$^{\circ}$C", size = 24)
-    plt.ylim([0, 2.5])
+    if which == '':
+        plt.ylim([0, 2.5])
+    else:
+        plt.ylim([0, 6])
     plt.text(len(ndxs)//2, 5.7, which, horizontalalignment = 'center', verticalalignment = 'center', size = 24)
     # plt.show()
-    plt.savefig("PRG-SATA%seffect.pdf" % (which), bbox_inches = 'tight')
+    plt.savefig("plots/egu17/PRG-SATA%seffect-FT.png" % (which), bbox_inches = 'tight')
 
 
