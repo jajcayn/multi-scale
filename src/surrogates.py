@@ -740,7 +740,7 @@ class SurrogateField(DataField):
             else:
                 map_func = pool.map
             
-             if self.original_data.ndim > 1:
+            if self.original_data.ndim > 1:
                 orig_shape = self.original_data.shape
                 self.original_data = np.reshape(self.original_data, (self.original_data.shape[0], np.prod(orig_shape[1:])))
                 self.model_grid = np.reshape(self.model_grid, np.prod(self.model_grid.shape))
