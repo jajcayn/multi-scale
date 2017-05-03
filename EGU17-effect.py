@@ -13,7 +13,7 @@ def get_equidistant_bins(bins = 8):
 def _get_surrs_stats(a):
     sg, ndx, mean, var, trend, SEASON = a
     # create surrs
-    sg.construct_iterative_amplitude_adjusted_fourier_surrogates()
+    sg.construct_fourier_surrogates(algorithm = 'AAFT')
     sg.add_seasonality(mean, var, trend)
     time_copy = sg.time.copy()
 
@@ -21,12 +21,12 @@ def _get_surrs_stats(a):
     annual_phase, annual_amp = sg.wavelet(1, 'y', cut = 1, ts = sg.get_surr(), cut_time = False, cut_data = False, 
         regress_amp_to_data = True)
 
-    sg.anomalise(ts = sg.surr_data)
+    sg.anomalise()
     phase, amplitude = sg.wavelet(8, 'y', cut = 1, ts = sg.get_surr(), cut_time = False, cut_data = False, 
         regress_amp_to_data = True, continuous_phase = False)
     _, amplitudeAACreg = sg.wavelet(8, 'y', cut = 1, ts = sg.get_surr(), cut_time = True, cut_data = True, 
         regress_amp_to_data = False, continuous_phase = False)
-    sg.surr_data = sg.surr_data[int(1*365.25):-int(1*365.25)]
+    # sg.surr_data = sg.surr_data[int(1*365.25):-int(1*365.25)]
     sg.time = sg.time[int(1*365.25):-int(1*365.25)]
 
     m, c, r, p, std_err = sts.linregress(amplitudeAACreg*np.cos(phase), annual_amp*np.cos(annual_phase))
@@ -41,15 +41,17 @@ def _get_surrs_stats(a):
         sg.surr_data = sg.surr_data[ndx_season]
     bins = get_equidistant_bins()
 
-    cond_means_temp = np.zeros((8,2))
+    cond_means_temp = np.zeros((8,4))
     for j in range(cond_means_temp.shape[0]): # get conditional means for current phase range
         effect_ndx = ((phase >= bins[j]) & (phase <= bins[j+1]))
         cond_means_temp[j, 0] = np.mean(sg.surr_data[effect_ndx])
         cond_means_temp[j, 1] = np.mean(annual_amp[effect_ndx])
+        cond_means_temp[j, 2] = np.mean(amplitude[effect_ndx])
+        cond_means_temp[j, 3] = np.mean(amplitudeAACreg[effect_ndx])
     amp_windows = cond_means_temp[:, 1].max() - cond_means_temp[:, 1].min()
     effect_windows = cond_means_temp[:, 0].max() - cond_means_temp[:, 0].min()
-    mean_amp_windows = np.mean(amplitude)
-    mean_ampAAC_windows = np.mean(amplitudeAACreg)
+    mean_amp_windows = cond_means_temp[:, 2].max() - cond_means_temp[:, 2].min()
+    mean_ampAAC_windows = cond_means_temp[:, 3].max() - cond_means_temp[:, 3].min()
 
     sg.time = time_copy.copy()
 
@@ -59,7 +61,7 @@ mons = {1: 'J', 2: 'F', 3: 'M', 4: 'A', 5: 'M', 6: 'J', 7: 'J', 8: 'A', 9: 'S', 
 
 NUM_SURRS = 1000
 WINDOW_LENGTH = 36 # years
-SEASON = [12,1,2]
+# SEASON = [12,1,2]
 # SEASON = None
 # param_window = 32 # years
 SEASONS = [None, [3,4,5], [6,7,8], [9,10,11], [12, 1, 2]]
@@ -117,15 +119,17 @@ for SEASON in SEASONS:
             amplitudeAACreg = amplitudeAACreg[ndx_season]
             prg_temp.phase = prg_temp.phase[ndx_season]
 
-        cond_means_temp = np.zeros((8,2))
+        cond_means_temp = np.zeros((8,4))
         for j in range(cond_means_temp.shape[0]): # get conditional means for current phase range
             effect_ndx = ((prg_temp.phase >= bins[j]) & (prg_temp.phase <= bins[j+1]))
             cond_means_temp[j, 0] = np.mean(prg_temp.data[effect_ndx])
             cond_means_temp[j, 1] = np.mean(annual_amp[effect_ndx])
+            cond_means_temp[j, 2] = np.mean(amplitude[effect_ndx])
+            cond_means_temp[j, 3] = np.mean(amplitudeAACreg[effect_ndx])
         amp_windows[i] = cond_means_temp[:, 1].max() - cond_means_temp[:, 1].min()
         effect_windows[i] = cond_means_temp[:, 0].max() - cond_means_temp[:, 0].min()
-        mean_amp_windows[i] = np.mean(amplitude)
-        mean_ampAAC_windows[i] = np.mean(amplitudeAACreg)
+        mean_amp_windows[i] = cond_means_temp[:, 2].max() - cond_means_temp[:, 2].min()
+        mean_ampAAC_windows[i] = cond_means_temp[:, 3].max() - cond_means_temp[:, 3].min()
 
         ## COMPUTE FOR SURRS
         pool = Pool(20)
@@ -144,9 +148,9 @@ for SEASON in SEASONS:
     ## SAVE RESULTS
     import cPickle
     if SEASON is None:
-        fname = "PRG-8yr-effect-linear-nonlinear-%d-IAAFTsurrs.bin" % (NUM_SURRS)
+        fname = "PRG-8yr-effect-linear-nonlinear-%d-AAFTsurrs-all-windows.bin" % (NUM_SURRS)
     else:
-        fname = "PRG-8yr-effect-linear-nonlinear%s-%d-IAAFTsurrs.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
+        fname = "PRG-8yr-effect-linear-nonlinear%s-%d-AAFTsurrs-all-windows.bin" % (''.join([mons[s] for s in SEASON]), NUM_SURRS)
     with open(fname, 'wb') as f:
         cPickle.dump({'amp_windows' : amp_windows, 'effect_windows' : effect_windows,
             'mean_amp_windows' : mean_amp_windows, 'mean_ampAAC_windows' : mean_ampAAC_windows,

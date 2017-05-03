@@ -338,7 +338,7 @@ def _compute_IAAFT_surrogates(a):
     sorted_original.sort(axis = 0)
 
     # starting point
-    R = _compute_AAFT_surrogates([None, None, None, data, angle])[-1]
+    R = _compute_AAFT_surrogates([None, data, angle])[-1]
 
     # iterate
     for _ in range(n_iters):
