@@ -33,12 +33,12 @@ def _get_surrs_stats(a):
     amplitudeAACreg = m*amplitudeAACreg + c
 
     if SEASON is not None:
-        ndx_season = sg.select_months(SEASON, apply_to_data = False)
+        ndx_season = sg.select_months(SEASON, apply_to_data = True)
         annual_amp = annual_amp[ndx_season]
         amplitude = amplitude[ndx_season]
         amplitudeAACreg = amplitudeAACreg[ndx_season]
         phase = phase[ndx_season]
-        sg.surr_data = sg.surr_data[ndx_season]
+        # sg.data = sg.data[ndx_season]
     bins = get_equidistant_bins()
 
     cond_means_temp = np.zeros((8,4))
