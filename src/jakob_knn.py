@@ -1,7 +1,6 @@
 import numpy as np
 from scipy import special, spatial
-from mutual_information import knn_cond_mutual_information
-
+from mutual_information import knn_cond_mutual_information, get_time_series_condition
 
 class Chain_of_Rosslers():
 
@@ -35,7 +34,7 @@ class Chain_of_Rosslers():
         self.solution_full = sol.copy()
 
         # subsample
-        sol = sol[::dt_sam//dt]
+        sol = sol[::np.int(dt_sam//dt)]
 
         return sol
 
@@ -128,14 +127,18 @@ def _get_nearest_neighbors(array, xyz, k, standardize=True):
 
 # ja = []
 # jak = []
+# ks = np.power(2, np.arange(1, 9))
+# print ks
 
-# for k in range(2,20):
+# x, y, z = 
+
+# for k in ks:
 #   print k
 #   ja.append(knn_cond_mutual_information(a[:, 0], a[:, 1], [a[:, 2], a[:, 3], a[:, 4]], k = k, standardize = True, dualtree = True))
 #   jak.append(_estimate_cmi_knn(a[:, :5], k = k, xyz = np.array([0, 1, 2, 2, 2]), standardize = True))
 
 # import matplotlib.pyplot as plt
-# plt.plot(ja, label = "ja")
-# plt.plot(jak, label = "jakob")
+# plt.plot(ks, ja, 'o-', label = "ja")
+# plt.plot(ks, jak, 'v-', label = "jakob")
 # plt.legend()
 # plt.show()

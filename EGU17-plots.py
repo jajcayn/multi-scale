@@ -134,7 +134,7 @@ import cPickle
 
 for which in ['', 'JJA', 'DJF']:
 
-    with open("PRG-8yr-effect-linear-nonlinear%s-10000-FTsurrs.bin" % (which), "rb") as f:
+    with open("PRG-8yr-effect-linear-nonlinear%s-1000-AAFTsurrs-all-windows.bin" % (which), "rb") as f:
         raw = cPickle.load(f)
 
     print raw.keys()
@@ -180,6 +180,6 @@ for which in ['', 'JJA', 'DJF']:
         plt.ylim([0, 6])
     plt.text(len(ndxs)//2, 5.7, which, horizontalalignment = 'center', verticalalignment = 'center', size = 24)
     # plt.show()
-    plt.savefig("plots/egu17/PRG-SATA%seffect-FT.png" % (which), bbox_inches = 'tight')
+    plt.savefig("plots/egu17/PRG-SATA%seffect-AAFT-all-windows.png" % (which), bbox_inches = 'tight')
 
 

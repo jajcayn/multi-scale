@@ -1144,7 +1144,7 @@ class DataField:
 
 
 
-    def plot_FFT_spectrum(self, ts = None, log = True, vlines = np.arange(1,11)):
+    def plot_FFT_spectrum(self, ts = None, log = True, vlines = np.arange(1,11), fname = None):
         """
         Estimates power spectrum using Welch method.
         if ts is None, plots spectrum of the data.
@@ -1166,6 +1166,9 @@ class DataField:
             fs = 1./3.154e+7
 
         plt.figure(figsize = (15,7))
+        plt.gca().spines['top'].set_visible(False)
+        plt.gca().spines['right'].set_visible(False)
+        plt.gca().spines['left'].set_visible(False)
         ts = ts if ts is not None else self.data.copy()
         if isinstance(ts, list):
             ts = np.array(ts).T
@@ -1184,7 +1187,10 @@ class DataField:
             plt.axvline(1./vline, 0, 1, linestyle = ':',linewidth = 0.6, color = "#333333")
         plt.xlim([freqs[0], freqs[-1]])
         plt.ylabel('FFT SPECTRUM [dB]', size = 25)
-        plt.show()
+        if fname is None:
+            plt.show()
+        else:
+            plt.savefig(fname, bbox_inches = 'tight')
 
 
 
@@ -2042,7 +2048,7 @@ class DataField:
 
     def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, station_data = False, tit = None, 
                         symm = True, whole_world = True, log = None, fname = None, plot_station_points = False, 
-                        colormesh = False, cmap = None, vminmax = None):
+                        colormesh = False, cmap = None, vminmax = None, levels = 40, cbar_label = None):
         """
         Simple plot of the geo data using the Robinson projection for whole world
         or Mercator projection for local plots.
@@ -2169,10 +2175,10 @@ class DataField:
         # draw contours
         cmap = plt.get_cmap(cmap) if cmap is not None else plt.get_cmap('viridis')
         if log is not None:
-            levels = np.logspace(np.log10(min)/np.log10(log), np.log10(max)/np.log10(log), 41)
+            levels = np.logspace(np.log10(min)/np.log10(log), np.log10(max)/np.log10(log), levels+1)
             cs = m.contourf(x, y, data, norm = colors.LogNorm(vmin = min, vmax = max), levels = levels, cmap = cmap)
         else:
-            levels = np.linspace(min, max, 41)
+            levels = np.linspace(min, max, levels+1)
             if colormesh:
                 data = np.ma.array(data, mask = np.isnan(data))
                 cs = m.pcolormesh(x, y, data, vmin = levels[0], vmax = levels[-1], cmap = cmap)
@@ -2188,6 +2194,8 @@ class DataField:
         # colorbar
         cbar = plt.colorbar(cs, ticks = levels[::4], pad = 0.07, shrink = 0.8, fraction = 0.05)
         cbar.ax.set_yticklabels(np.around(levels[::4], decimals = 2))
+        if cbar_label is not None:
+            cbar.set_label(cbar_label, rotation = 90, size = 27)
 
         if tit is None:
             plt.title(title, size = 30)

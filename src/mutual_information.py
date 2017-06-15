@@ -65,6 +65,7 @@ def get_time_series_condition(ts, tau = 1, reversed = False, dim_of_condition = 
 
     if phase_diff:
         y = y - z[0]
+        y[y < -np.pi] += 2*np.pi
 
     return (x, y, z)
 
