@@ -4,6 +4,7 @@ import src.wavelet_analysis as wvlt
 from datetime import datetime
 import src.mutual_information as MI
 import scipy.stats as st
+import scipy.signal as ss
 
 import multiprocessing as mp
 from time import sleep
@@ -185,8 +186,6 @@ class ScaleSpecificNetwork(DataField):
 
 
     def get_hilbert_phase_amp(self, period, width, cut = 1, pool = None):
-
-        import scipy.signal as ss
 
         self.temporal_filter(cutoff = [period - width//2, period + width//2], btype = 'bandpass', ftype = 'butter', order = 5, cut = cut, pool = pool)
 
