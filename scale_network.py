@@ -17,6 +17,16 @@ def _filtered_data(a):
     return i, j, amp * np.cos(ph)
 
 
+def _hilb_data(a):
+
+    i, j, ts = a
+    hilb = ss.hilbert(ts)
+    phase = np.arctan2(np.imag(hilb), np.real(hilb))
+    amplitude = np.sqrt(np.power(np.real(hilb),2) + np.power(np.imag(hilb),2))
+
+    return i, j, phase, amplitude
+
+
 def _get_phase_coherence(a):
     """
     Gets mean phase coherence for given data.
@@ -174,6 +184,31 @@ class ScaleSpecificNetwork(DataField):
         del job_result
 
 
+    def get_hilbert_phase_amp(self, period, width, cut = 1, pool = None):
+
+        import scipy.signal as ss
+
+        self.temporal_filter(cutoff = [period - width//2, period + width//2], btype = 'bandpass', ftype = 'butter', order = 5, cut = cut, pool = pool)
+
+        if pool is None:
+            map_func = map
+        elif pool is not None:
+            map_func = pool.map
+
+        self.phase = np.zeros_like(self.filtered_data)
+        self.amplitude = np.zeros_like(self.filtered_data)
+
+        job_args = [ (i, j, self.filtered_data[:, i, j]) for i in range(self.num_lats) for j in range(self.num_lons) ]
+        job_result = map_func(_hilb_data, job_args)
+        del job_args
+
+        for i, j ph, amp in job_result:
+            self.phase[:, i, j] = ph
+            self.amplitude[:, i, j] = amp
+
+        del job_result
+
+
 
     def get_continuous_phase(self, pool = None):
         """
@@ -229,7 +264,7 @@ class ScaleSpecificNetwork(DataField):
         self.get_continuous_phase(pool = pool)
 
         if self.sampling == 'monthly':
-            omega = 2 * np.pi / self.frequency
+           omega = 2 * np.pi / self.frequency
         elif self.sampling == 'daily':
             omega = 2 * np.pi / self.frequency
 

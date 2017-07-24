@@ -1718,7 +1718,7 @@ class DataField:
             if cut is not None:
                 phase = phase[cut:-cut]
                 amplitude = amplitude[cut:-cut]
-                wave = wave[cut:-cut]
+                wave = wave[0, cut:-cut]
             if cont_ph:
                 for t in range(phase.shape[0] - 1):
                     if np.abs(phase[t+1] - phase[t]) > 1:
