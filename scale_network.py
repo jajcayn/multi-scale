@@ -202,7 +202,7 @@ class ScaleSpecificNetwork(DataField):
         job_result = map_func(_hilb_data, job_args)
         del job_args
 
-        for i, j ph, amp in job_result:
+        for i, j, ph, amp in job_result:
             self.phase[:, i, j] = ph
             self.amplitude[:, i, j] = amp
 
