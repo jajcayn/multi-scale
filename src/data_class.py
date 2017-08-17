@@ -539,6 +539,8 @@ class DataField:
         elif sampling in ['1h', '6h', '12h']:
             hourly_data = int(sampling[:-1])
             timedelta = relativedelta(hours = +hourly_data)
+        elif sampling == 'y':
+            timedelta = relativedelta(years = +1)
         else:
             raise Exception("Unknown sampling.")
 

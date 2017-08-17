@@ -10,10 +10,26 @@ WINDOW_LENGTH = 36 # years
 prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
     anom = False, offset = 1)
 
-ndxs, dates = prg.get_sliding_window_indexes(window_length = WINDOW_LENGTH, window_shift = 1, unit = 'y', return_half_dates = True)
-n_windows = len(ndxs)
+print prg.data.shape, prg.get_date_from_ndx(0), prg.get_date_from_ndx(-1)
+print prg.data.max(), prg.data.min()
 
-ndx = prg.select_date(date(1989, 1, 1), date(2016, 4, 30), apply_to_data = False)
+prg.get_monthly_data()
+
+import csv
+f = open("PRG-Klementinum-monthly.txt", "w")
+writer = csv.writer(f, delimiter = ' ')
+for i in range(prg.data.shape[0]):
+    row = []
+    date = prg.get_date_from_ndx(i)
+    row = [date.year, date.month, "%.2f" % prg.data[i]]
+    writer.writerow(row)
+
+f.close()
+
+# ndxs, dates = prg.get_sliding_window_indexes(window_length = WINDOW_LENGTH, window_shift = 1, unit = 'y', return_half_dates = True)
+# n_windows = len(ndxs)
+
+# ndx = prg.select_date(date(1989, 1, 1), date(2016, 4, 30), apply_to_data = False)
 
 # prg_temp = prg.copy(temporal_ndx = ndx)
 # print prg_temp.get_date_from_ndx(0), prg_temp.get_date_from_ndx(-1)
@@ -130,56 +146,56 @@ ndx = prg.select_date(date(1989, 1, 1), date(2016, 4, 30), apply_to_data = False
 # # plt.show()
 # plt.savefig("PRG-bins.eps", bbox_inches = 'tight')
 
-import cPickle
+# import cPickle
 
-for which in ['', 'JJA', 'DJF']:
+# for which in ['', 'JJA', 'DJF']:
 
-    with open("PRG-8yr-effect-linear-nonlinear%s-1000-AAFTsurrs-all-windows.bin" % (which), "rb") as f:
-        raw = cPickle.load(f)
+#     with open("PRG-8yr-effect-linear-nonlinear%s-1000-AAFTsurrs-all-windows.bin" % (which), "rb") as f:
+#         raw = cPickle.load(f)
 
-    print raw.keys()
+#     print raw.keys()
 
-    # nonlinear = raw['amp_windows']
-    # linear = raw['mean_ampAAC_windows']
-    # nonlinear_surrs = raw['amp_windows_surrs']
-    # linear_surrs = raw['mean_ampAAC_windows_surrs']
+#     # nonlinear = raw['amp_windows']
+#     # linear = raw['mean_ampAAC_windows']
+#     # nonlinear_surrs = raw['amp_windows_surrs']
+#     # linear_surrs = raw['mean_ampAAC_windows_surrs']
 
-    # import scipy.stats as sts
-    # print sts.pearsonr(nonlinear, linear)
+#     # import scipy.stats as sts
+#     # print sts.pearsonr(nonlinear, linear)
 
-    nonlinear = raw['effect_windows']
-    linear = raw['mean_amp_windows']
-    nonlinear_surrs = raw['effect_windows_surrs']
-    linear_surrs = raw['mean_amp_windows_surrs']
+#     nonlinear = raw['effect_windows']
+#     linear = raw['mean_amp_windows']
+#     nonlinear_surrs = raw['effect_windows_surrs']
+#     linear_surrs = raw['mean_amp_windows_surrs']
 
-    # print sts.pearsonr(nonlinear, linear)
+#     # print sts.pearsonr(nonlinear, linear)
 
 
 
-    plt.figure(figsize = (15,8))
-    plt.gca().spines['top'].set_visible(False)
-    plt.gca().spines['right'].set_visible(False)
-    plt.gca().spines['bottom'].set_visible(False)
-    plt.gca().spines['left'].set_visible(False)
-    plt.plot(nonlinear, linewidth = 2., color = "#3299BB")
-    plt.plot(np.percentile(nonlinear_surrs, q = 95, axis = 0), linewidth = 0.8, color = "#84C2D6")
-    plt.plot(np.percentile(nonlinear_surrs, q = 5, axis = 0), linewidth = 0.8, color = "#84C2D6")
-    plt.fill_between(np.arange(0, nonlinear.shape[0]), np.percentile(nonlinear_surrs, q = 5, axis = 0), 
-        np.percentile(nonlinear_surrs, q = 95, axis = 0), color = "#84C2D6", alpha = 0.5)
-    plt.plot(linear, linewidth = 1.6, color = "#FF9900")
-    plt.plot(np.percentile(linear_surrs, q = 95, axis = 0), linewidth = 0.8, color = "#FFC266")
-    plt.plot(np.percentile(linear_surrs, q = 5, axis = 0), linewidth = 0.8, color = "#FFC266")
-    plt.fill_between(np.arange(0, nonlinear.shape[0]), np.percentile(linear_surrs, q = 5, axis = 0), 
-        np.percentile(linear_surrs, q = 95, axis = 0), color = "#FFC266", alpha = 0.5)
-    plt.xticks(np.arange(0, len(ndxs), 12), [d.year for d in dates[0::12]], rotation = 30, size = 20)
-    plt.yticks(size = 20)
-    plt.ylabel("$^{\circ}$C", size = 24)
-    if which == '':
-        plt.ylim([0, 2.5])
-    else:
-        plt.ylim([0, 6])
-    plt.text(len(ndxs)//2, 5.7, which, horizontalalignment = 'center', verticalalignment = 'center', size = 24)
-    # plt.show()
-    plt.savefig("plots/egu17/PRG-SATA%seffect-AAFT-all-windows.png" % (which), bbox_inches = 'tight')
+#     plt.figure(figsize = (15,8))
+#     plt.gca().spines['top'].set_visible(False)
+#     plt.gca().spines['right'].set_visible(False)
+#     plt.gca().spines['bottom'].set_visible(False)
+#     plt.gca().spines['left'].set_visible(False)
+#     plt.plot(nonlinear, linewidth = 2., color = "#3299BB")
+#     plt.plot(np.percentile(nonlinear_surrs, q = 95, axis = 0), linewidth = 0.8, color = "#84C2D6")
+#     plt.plot(np.percentile(nonlinear_surrs, q = 5, axis = 0), linewidth = 0.8, color = "#84C2D6")
+#     plt.fill_between(np.arange(0, nonlinear.shape[0]), np.percentile(nonlinear_surrs, q = 5, axis = 0), 
+#         np.percentile(nonlinear_surrs, q = 95, axis = 0), color = "#84C2D6", alpha = 0.5)
+#     plt.plot(linear, linewidth = 1.6, color = "#FF9900")
+#     plt.plot(np.percentile(linear_surrs, q = 95, axis = 0), linewidth = 0.8, color = "#FFC266")
+#     plt.plot(np.percentile(linear_surrs, q = 5, axis = 0), linewidth = 0.8, color = "#FFC266")
+#     plt.fill_between(np.arange(0, nonlinear.shape[0]), np.percentile(linear_surrs, q = 5, axis = 0), 
+#         np.percentile(linear_surrs, q = 95, axis = 0), color = "#FFC266", alpha = 0.5)
+#     plt.xticks(np.arange(0, len(ndxs), 12), [d.year for d in dates[0::12]], rotation = 30, size = 20)
+#     plt.yticks(size = 20)
+#     plt.ylabel("$^{\circ}$C", size = 24)
+#     if which == '':
+#         plt.ylim([0, 2.5])
+#     else:
+#         plt.ylim([0, 6])
+#     plt.text(len(ndxs)//2, 5.7, which, horizontalalignment = 'center', verticalalignment = 'center', size = 24)
+#     # plt.show()
+#     plt.savefig("plots/egu17/PRG-SATA%seffect-AAFT-all-windows.png" % (which), bbox_inches = 'tight')
 
 
