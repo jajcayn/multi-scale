@@ -1197,7 +1197,7 @@ class DataField:
 
 
     def temporal_filter(self, cutoff, btype, ftype = 'butter', order = 2, cut = 1, pool = None, cut_time = False,
-        rp = None, rs = None):
+        rp = None, rs = None, cut_data = False):
         """
         Filters data in temporal sense.
         Uses Butterworth filter of order order.
@@ -1215,6 +1215,7 @@ class DataField:
             cheby2 - for Chebyshev type II filter
             ellip - for Cauer/elliptic filter
             bessel - for Bessel/Thomson filter
+        cut in years
         """
 
         from scipy.signal import iirfilter
@@ -1273,6 +1274,8 @@ class DataField:
             to_cut = int(y*cut)
             if cut_time:
                 self.time = self.time[to_cut:-to_cut]
+            if cut_data:
+                self.data = self.data[to_cut:-to_cut]
 
         self.data = np.squeeze(self.data)
         self.filtered_data = np.squeeze(self.filtered_data) if cut is None else np.squeeze(self.filtered_data[to_cut:-to_cut, ...])
@@ -2195,7 +2198,7 @@ class DataField:
         
         # colorbar
         cbar = plt.colorbar(cs, ticks = levels[::4], pad = 0.07, shrink = 0.8, fraction = 0.05)
-        cbar.ax.set_yticklabels(np.around(levels[::4], decimals = 2))
+        cbar.ax.set_yticklabels(np.around(levels[::4], decimals = 2), size = 20)
         if cbar_label is not None:
             cbar.set_label(cbar_label, rotation = 90, size = 27)
 
