@@ -90,7 +90,7 @@ class DataField:
     temporal dimension and location specification.
     """
     
-    def __init__(self, data_folder = '', data = None, lons = None, lats = None, time = None):
+    def __init__(self, data_folder = '', data = None, lons = None, lats = None, time = None, verbose = False):
         """
         Initializes either an empty data set or with given values.
         """
@@ -108,6 +108,7 @@ class DataField:
         self.nans = False
         self.cos_weights = None
         self.data_mask = None
+        self.verbose = verbose
 
 
 
@@ -393,7 +394,7 @@ class DataField:
             if print_prog:
                 print("Station data from %s saved to structure. Shape of the data is %s" % (self.location, str(self.data.shape)))
                 print("Time stamp saved to structure as ordinal values where Jan 1 of year 1 is 1")
-            if self.missing.shape[0] != 0:
+            if self.missing.shape[0] != 0 and self.verbose:
                 print("** WARNING: There were some missing values! To be precise, %d missing values were found!" % (self.missing.shape[0]))
                   
                   
@@ -445,7 +446,7 @@ class DataField:
                                             
                     
                     
-    def select_date(self, date_from, date_to, apply_to_data = True):
+    def select_date(self, date_from, date_to, apply_to_data = True, exclusive = True):
         """
         Selects the date range - date_from is inclusive, date_to is exclusive. Input is date(year, month, day).
         """
@@ -453,7 +454,10 @@ class DataField:
         d_start = date_from.toordinal()
         d_to = date_to.toordinal()
         
-        ndx = np.logical_and(self.time >= d_start, self.time < d_to)
+        if exclusive:
+            ndx = np.logical_and(self.time >= d_start, self.time < d_to)
+        else:
+            ndx = np.logical_and(self.time >= d_start, self.time <= d_to)
         if apply_to_data:
             self.time = self.time[ndx] # slice time stamp
             self.data = self.data[ndx, ...] # slice data
@@ -505,7 +509,7 @@ class DataField:
         if return_half_dates:
             half_dates.append(window_start + (self.get_date_from_ndx(-1) - window_start) / 2)
 
-        if np.sum(ndxs[-1]) != np.sum(ndxs[-2]):
+        if np.sum(ndxs[-1]) != np.sum(ndxs[-2]) and self.verbose:
             print("**WARNING: last sliding window is shorter than others! (%d vs. %d in others)" 
                 % (np.sum(ndxs[-1]), np.sum(ndxs[-2])))
 
@@ -1615,7 +1619,7 @@ class DataField:
                     seasonal_mean[sel_data, ...] = np.nanmean(d[sel_avg, ...], axis = 0)
                     self.data[sel_data, ...] -= seasonal_mean[sel_data, ...]
                     seasonal_var[sel_data, ...] = np.nanstd(d[sel_data, ...], axis = 0, ddof = 1)
-                    if np.any(seasonal_var[sel_data, ...] == 0.0):
+                    if np.any(seasonal_var[sel_data, ...] == 0.0) and self.verbose:
                         print('**WARNING: some zero standard deviations found for date %d.%d' % (di, mi))
                         seasonal_var[seasonal_var == 0.0] = 1.0
                     self.data[sel_data, ...] /= seasonal_var[sel_data, ...]
@@ -1665,14 +1669,19 @@ class DataField:
 
 
 
-    def center_data(self, var = False):
+    def center_data(self, var = False, return_fields = False):
         """
         Centers data time series to zero mean and unit variance (without respect for the seasons or temporal sampling). 
         """
 
-        self.data -= np.nanmean(self.data, axis = 0)
+        mean = np.nanmean(self.data, axis = 0)
+        self.data -= mean
         if var:
-            self.data /= np.nanstd(self.data, axis = 0, ddof = 1) 
+            var = np.nanstd(self.data, axis = 0, ddof = 1)
+            self.data /= var 
+
+        if return_fields:
+            return mean if var is False else (mean, var)
 
 
 
@@ -2053,7 +2062,8 @@ class DataField:
 
     def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, station_data = False, tit = None, 
                         symm = True, whole_world = True, log = None, fname = None, plot_station_points = False, 
-                        colormesh = False, cmap = None, vminmax = None, levels = 40, cbar_label = None):
+                        colormesh = False, cmap = None, vminmax = None, levels = 40, cbar_label = None, 
+                        subplot = False):
         """
         Simple plot of the geo data using the Robinson projection for whole world
         or Mercator projection for local plots.
@@ -2114,7 +2124,16 @@ class DataField:
 
 
         # set up figure
-        plt.figure(figsize=(20,10))
+        if not subplot:
+            plt.figure(figsize=(20,10))
+            size_parallels = 20
+            size_cbarlabel = 27
+            size_title = 30
+        else:
+            size_parallels = 12
+            size_cbarlabel = 16
+            size_title = 19
+
         if not station_data:
             lat_ndx = np.argsort(self.lats)
             lats = self.lats[lat_ndx]
@@ -2138,8 +2157,8 @@ class DataField:
             
             data, lons = shiftgrid(180., data, lons, start = False)
 
-            m.drawparallels(np.arange(-90, 90, 30), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
-            m.drawmeridians(np.arange(-180, 180, 60), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
+            m.drawparallels(np.arange(-90, 90, 30), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = size_parallels)
+            m.drawmeridians(np.arange(-180, 180, 60), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = size_parallels)
 
         else:
             if not station_data:
@@ -2160,8 +2179,8 @@ class DataField:
             # parallels and meridians to plot
             draw_lats = np.arange(np.around(lats[0]/5, decimals = 0)*5, np.around(lats[-1]/5, decimals = 0)*5, 10)
             draw_lons = np.arange(np.around(lons[0]/5, decimals = 0)*5, np.around(lons[-1]/5, decimals = 0)*5, 20)
-            m.drawparallels(draw_lats, linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = 20)
-            m.drawmeridians(draw_lons, linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = 20)
+            m.drawparallels(draw_lats, linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = size_parallels)
+            m.drawmeridians(draw_lons, linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = size_parallels)
             
 
         m.drawcoastlines(linewidth = 2, color = "#333333")
@@ -2198,19 +2217,20 @@ class DataField:
         
         # colorbar
         cbar = plt.colorbar(cs, ticks = levels[::4], pad = 0.07, shrink = 0.8, fraction = 0.05)
-        cbar.ax.set_yticklabels(np.around(levels[::4], decimals = 2), size = 20)
+        cbar.ax.set_yticklabels(np.around(levels[::4], decimals = 2), size = size_parallels)
         if cbar_label is not None:
-            cbar.set_label(cbar_label, rotation = 90, size = 27)
+            cbar.set_label(cbar_label, rotation = 90, size = size_cbarlabel)
 
         if tit is None:
-            plt.title(title, size = 30)
+            plt.title(title, size = size_title)
         else:
-            plt.title(tit, size = 30)
+            plt.title(tit, size = size_title)
 
-        if fname is None:
-            plt.show()
-        else:
-            plt.savefig(fname, bbox_inches = 'tight')
+        if not subplot:
+            if fname is None:
+                plt.show()
+            else:
+                plt.savefig(fname, bbox_inches = 'tight')
 
 
         
