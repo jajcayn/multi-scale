@@ -89,8 +89,9 @@ to_do_periods = [4, 6, 11, 15]
 for period in to_do_periods:
     print("computing phase conditioned on NAO")
     nao_phase = load_NAOindex_wavelet_phase(date(1950,1,1), date(2014,1,1), period, False)
-    net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 'air', 
-                                    date(1950,1,1), date(2014,1,1), None, None, 0, 'monthly', anom=False)
+    net = ScaleSpecificNetwork('/home/nikola/Work/phd/data/air.mon.mean.levels.nc', 
+                                    'air', date(1950,1,1), date(2014,1,1), None, None, 
+                                    level = 0, dataset="NCEP", sampling='monthly', anom=False)
     pool = Pool(WORKERS)             
     net.wavelet(period, period_unit="y", pool=pool, cut=2)
     print("wavelet on data done")
