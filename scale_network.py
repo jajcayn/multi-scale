@@ -1,8 +1,8 @@
 import numpy as np
-from src.data_class import DataField
-import src.wavelet_analysis as wvlt
+from pyclits.geofield import DataField
+import pyclits.wavelet_analysis as wvlt
 from datetime import datetime
-import src.mutual_information as MI
+import pyclits.mutual_inf as MI
 import scipy.stats as st
 import scipy.signal as ss
 

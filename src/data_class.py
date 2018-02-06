@@ -4,11 +4,12 @@ created on Jan 29, 2014
 @author: Nikola Jajcay, jajcay(at)cs.cas.cz
 based on class by Martin Vejmelka -- https://github.com/vejmelkam/ndw-climate --
 
-last update on Jan 19, 2017
+last update on Sep 19, 2017
 """
 
 import numpy as np
 from datetime import date, timedelta, datetime
+from dateutil.relativedelta import relativedelta
 import csv
 from os.path import split
 import os
@@ -530,8 +531,6 @@ class DataField:
             'xh' where x = {1, 6, 12} for sub-daily.
         """
 
-        from dateutil.relativedelta import relativedelta
-
         if 'm' in sampling:
             if 'm' != sampling:
                 n_months = int(sampling[:-1])
@@ -744,7 +743,7 @@ class DataField:
         Returns a grid with scaling weights based on cosine of latitude.
         """
         
-        if np.all(self.cos_weights) is not None:
+        if (np.all(self.cos_weights) is not None) and (self.cos_weights.shape == self.get_spatial_dims()):
             return self.cos_weights
 
         cos_weights = np.zeros(self.get_spatial_dims())
@@ -991,6 +990,91 @@ class DataField:
         
         else:
             raise Exception('No sub-daily values, you can average to daily only values with finer time sampling.')
+
+
+
+    @staticmethod
+    def _interp_temporal(a):
+        """
+        Helper function for temporal interpolation
+        """
+
+        import scipy.interpolate as si
+
+        i, j, old_time, data, new_time, kind = a
+        f = si.interp1d(old_time, data, kind = kind)
+        new_data = f(new_time)
+
+        return i, j, new_data
+
+
+
+    def interpolate_to_finer_temporal_resolution(self, to_resolution = 'm', kind = 'linear', use_to_data = False,
+                                                    pool = None):
+        """
+        Interpolates data to finer temporal resolution, e.g. yearly to monthly.
+        Uses scipy's interp1d, for 'kind' keyword see the scipy's documentation.
+        If use_to_data is True, rewrites data in the class, else returns data.
+        """
+
+
+        if self.data.ndim > 2:
+            num_lats = self.lats.shape[0]
+            num_lons = self.lons.shape[0]
+        elif self.data.ndim == 2: # lot of station data
+            num_lats = self.lats.shape[0]
+            num_lons = 1
+            self.data = self.data[:, :, np.newaxis]
+        else:
+            num_lats = 1
+            num_lons = 1
+            self.data = self.data[:, np.newaxis, np.newaxis]
+
+        if 'm' in to_resolution:
+            if 'm' != to_resolution:
+                n_months = int(to_resolution[:-1])
+                timedelta = relativedelta(months = +n_months)
+            elif 'm' == to_resolution:
+                timedelta = relativedelta(months = +1)
+        elif to_resolution == 'd':
+            timedelta = relativedelta(days = +1)
+        elif to_resolution in ['1h', '6h', '12h']:
+            hourly_data = int(to_resolution[:-1])
+            timedelta = relativedelta(hours = +hourly_data)
+        elif to_resolution == 'y':
+            timedelta = relativedelta(years = +1)
+        else:
+            raise Exception("Unknown to_resolution.")
+        
+        new_time = []
+        first_date = self.get_date_from_ndx(0)
+        last_day = self.get_date_from_ndx(-1)
+        current_date = first_date
+        while current_date <= last_day:
+            new_time.append(current_date.toordinal())
+            current_date += timedelta
+        new_time = np.array(new_time)
+
+        job_args = [ (i, j, self.time, self.data[:, i, j], new_time, kind) for i in range(num_lats) for j in range(num_lons) ]
+
+        interp_data = np.zeros([new_time.shape[0]] + list(self.get_spatial_dims()))
+        
+        if pool is None:
+            job_result = map(self._interp_temporal, job_args)
+        elif pool is not None:
+            job_result = pool.map(self._interp_temporal, job_args)
+        del job_args
+        
+        for i, j, res in job_result:
+            interp_data[:, i, j] = res
+
+        interp_data = np.squeeze(interp_data)
+        self.data = np.squeeze(self.data)
+        if use_to_data:
+            self.time = new_time.copy()
+            self.data = interp_data.copy()
+        else:
+            return interp_data, new_time
 
 
 
@@ -2061,7 +2145,7 @@ class DataField:
 
 
     def quick_render(self, t = 0, lvl = 0, mean = False, field_to_plot = None, station_data = False, tit = None, 
-                        symm = True, whole_world = True, log = None, fname = None, plot_station_points = False, 
+                        symm = False, whole_world = True, log = None, fname = None, plot_station_points = False, 
                         colormesh = False, cmap = None, vminmax = None, levels = 40, cbar_label = None, 
                         subplot = False):
         """
@@ -2083,7 +2167,7 @@ class DataField:
         from matplotlib import colors
 
         # set up field to plot
-        if field_to_plot is None and self.var_name is None:
+        if self.var_name is None:
             self.var_name = 'unknown'
         if self.data.ndim == 3:
             field = self.data[t, ...]
@@ -2153,9 +2237,11 @@ class DataField:
                 llons = lons_stations.tolist()
             llons.append(360)
             lons = np.array(llons)
-            m = Basemap(projection = 'robin', lon_0 = 0, resolution='c')
+            m = Basemap(projection = 'robin', lon_0 = 0, resolution = 'c')
             
-            data, lons = shiftgrid(180., data, lons, start = False)
+            end_lon_shift = np.sort(lons - 180.)
+            end_lon_shift = end_lon_shift[end_lon_shift >= 0.]
+            data, lons = shiftgrid(end_lon_shift[0] + 180., data, lons, start = False)
 
             m.drawparallels(np.arange(-90, 90, 30), linewidth = 1.2, labels = [1,0,0,0], color = "#222222", size = size_parallels)
             m.drawmeridians(np.arange(-180, 180, 60), linewidth = 1.2, labels = [0,0,0,1], color = "#222222", size = size_parallels)

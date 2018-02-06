@@ -81,7 +81,6 @@
 import numpy as np
 from src.data_class import DataField
 import src.wavelet_analysis as wvlt
-from datetime import date
 from scale_network import ScaleSpecificNetwork
 from datetime import date
 from multiprocessing import Pool

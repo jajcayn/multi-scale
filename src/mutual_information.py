@@ -176,7 +176,7 @@ def mutual_information(x, y, algorithm = 'EQQ', bins = 8, log2 = True):
 
 
 
-def knn_mutual_information(x, y, k, standardize = True, symm_algorithm = True, dualtree = False):
+def knn_mutual_information(x, y, k, standardize = True, symm_algorithm = True, dualtree = True):
     """
     Computes mutual information between two time series x and y as
         I(x; y) = sum( p(x,y) * log( p(x,y) / p(x)p(y) ),
@@ -494,7 +494,7 @@ def _neg_harmonic(n):
 
 
 
-def knn_cond_mutual_information(x, y, z, k, standardize = True, dualtree = False):
+def knn_cond_mutual_information(x, y, z, k, standardize = True, dualtree = True):
     """
     Computes conditional mutual information between two time series x and y 
     conditioned on a third z (which can be multi-dimensional) as
