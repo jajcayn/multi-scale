@@ -139,6 +139,7 @@ class ScaleSpecificNetwork(DataField):
             self.load(fname, varname, dataset = dataset, print_prog = False)
         else:
             self.load_field(fname)
+            self.data_mask = None
             self.var_name = varname
         self.select_date(start_date, end_date)
         self.select_lat_lon(lats, lons)

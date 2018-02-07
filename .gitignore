@@ -24,3 +24,4 @@ mfdfa.py
 *.zip
 *.ipynb
 notebooks/*
+*.h5

@@ -84,7 +84,7 @@ def load_pdo_phase(start_date, end_date, period, anom = False):
 
 
 WORKERS = 20
-to_do_periods = [4, 6, 11, 15]
+to_do_periods = [4, 6, 8, 11, 15]
 
 for period in to_do_periods:
     print("computing phase conditioned on NAO")
