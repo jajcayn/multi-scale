@@ -11,9 +11,13 @@ plt.style.use('ipython')
 
 def load_nino34_wavelet_phase(start_date, end_date, period, anom = False):
     g = clt.data_loaders.load_enso_index('/Users/nikola/work-ui/data/nino34raw.txt', '3.4', start_date, end_date, anom=anom)
+    a = g.get_seasonality()
+    sg = clt.surrogates.SurrogateField()
+    sg.copy_field(g)
+    g.return_seasonality(a[0], a[1], a[2])
     g.wavelet(period, period_unit="y", cut=2)
 
-    return g, g.phase.copy()
+    return g, g.phase.copy(), sg, a
 
 def load_NAOindex_wavelet_phase(start_date, end_date, period, anom = False):
     raw = np.loadtxt('/Users/nikola/work-ui/data/NAO.station.monthly.1865-2016.txt')
@@ -25,10 +29,13 @@ def load_NAOindex_wavelet_phase(start_date, end_date, period, anom = False):
 
     if anom:
         g.anomalise()
+    a = g.get_seasonality()
+    sg = clt.surrogates.SurrogateField()
+    sg.copy_field(g)
+    g.return_seasonality(a[0], a[1], a[2])
+    g.wavelet(period, period_unit="y", cut=2)
 
-    g.wavelet(period, period_unit="y", cut=2, cut_data=True, cut_time=True)
-
-    return g, g.phase.copy()
+    return g, g.phase.copy(), sg, a
 
 def load_sunspot_number_phase(start_date, end_date, period, anom = False):
     raw = np.loadtxt('/Users/nikola/work-ui/data/sunspot.monthly.1749-2017.txt')
@@ -45,10 +52,13 @@ def load_sunspot_number_phase(start_date, end_date, period, anom = False):
 
     if anom:
         g.anomalise()
-
+    a = g.get_seasonality()
+    sg = clt.surrogates.SurrogateField()
+    sg.copy_field(g)
+    g.return_seasonality(a[0], a[1], a[2])
     g.wavelet(period, period_unit="y", cut=2)
 
-    return g, g.phase.copy()
+    return g, g.phase.copy(), sg, a
 
 def load_pdo_phase(start_date, end_date, period, anom = False):
     raw = np.loadtxt('/Users/nikola/work-ui/data/PDO.monthly.1900-2015.txt')
@@ -61,14 +71,17 @@ def load_pdo_phase(start_date, end_date, period, anom = False):
 
     if anom:
         g.anomalise()
-
+    a = g.get_seasonality()
+    sg = clt.surrogates.SurrogateField()
+    sg.copy_field(g)
+    g.return_seasonality(a[0], a[1], a[2])
     g.wavelet(period, period_unit="y", cut=2)
 
-    return g, g.phase.copy()
+    return g, g.phase.copy(), sg, a
 
 
 def _compute_MI_synch(a):
-    ph, i, j = a
+    ph, i, j, nao, nino, sunspots, pdo = a
     # nao_s = clt.knn_mutual_information(ph, nao, k=128)
     # nino_s = clt.knn_mutual_information(ph, nino, k=128)
     # sunspot_s = clt.knn_mutual_information(ph, sunspots, k=128)
@@ -81,43 +94,63 @@ def _compute_MI_synch(a):
     return (i, j, nao_s, nino_s, sunspot_s, pdo_s)
 
 
-net = ScaleSpecificNetwork('../data/ERA/ERAconcat.t2m.mon.means.1958-2014.bin', 
-                                    't2m', date(1958,1,1), date(2014,1,1), None, None, 
-                                    level=None, dataset="NCEP", sampling='monthly', anom=False,
-                                    pickled=True)
-print(net.shape())
-print(net.get_date_from_ndx(0), net.get_date_from_ndx(-1))
-# WORKERS = 5
-# to_do_periods = [8]
-# net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/NCEP/air.mon.mean.levels.nc', 
-#                                     'air', date(1958,1,1), date(2014,1,1), None, None, 
-#                                     level = 0, dataset="NCEP", sampling='monthly', anom=False)
+WORKERS = 5
+NUM_SURRS = 100
+to_do_periods = np.arange(2,15.5,0.5)
+net = ScaleSpecificNetwork('/Users/nikola/work-ui/data/NCEP/air.mon.mean.levels.nc', 
+                                    'air', date(1950,1,1), date(2014,1,1), None, None, 
+                                    level = 0, dataset="NCEP", sampling='monthly', anom=False)
 
-# synchronization = {}
-# for period in to_do_periods:
-#     print("running for %d period..." % (period))
-#     _, nao = load_NAOindex_wavelet_phase(date(1958,1,1), date(2014,1,1), period, anom=False)
-#     _, nino = load_nino34_wavelet_phase(date(1958,1,1), date(2014,1,1), period, anom=False)
-#     _, sunspots = load_sunspot_number_phase(date(1958,1,1), date(2014,1,1), period, anom=False)
-#     _, pdo = load_pdo_phase(date(1958,1,1), date(2014,1,1), period, anom=False)
-#     pool = Pool(WORKERS)
-#     net.wavelet(period, period_unit='y', cut=2, pool=pool)
-#     args = [(net.phase[:, i, j], i, j) for i in range(net.lats.shape[0]) for j in range(net.lons.shape[0])]
-#     result = pool.map(_compute_MI_synch, args)
-#     synchs = np.zeros((4, net.lats.shape[0], net.lons.shape[0]))
-#     for i, j, naos, ninos, suns, pdos in result:
-#         synchs[0, i, j] = naos
-#         synchs[1, i, j] = ninos
-#         synchs[2, i, j] = suns
-#         synchs[3, i, j] = pdos
-#     pool.close()
-#     pool.join()
-#     synchronization[period] = synchs
+synchronization = {}
+for period in to_do_periods:
+    print("running for %.1f period..." % (period))
+    _, nao_ph, sg_nao, a_nao = load_NAOindex_wavelet_phase(date(1950,1,1), date(2014,1,1), period, anom=False)
+    _, nino_ph, sg_nino, a_nino = load_nino34_wavelet_phase(date(1950,1,1), date(2014,1,1), period, anom=False)
+    _, sunspots_ph, sg_sunspots, a_sunspots = load_sunspot_number_phase(date(1950,1,1), date(2014,1,1), period, anom=False)
+    _, pdo_ph, sg_pdo, a_pdo = load_pdo_phase(date(1950,1,1), date(2014,1,1), period, anom=False)
+    pool = Pool(WORKERS)
+    net.wavelet(period, period_unit='y', cut=2, pool=pool)
+    args = [(net.phase[:, i, j], i, j, nao_ph, nino_ph, sunspots_ph, pdo_ph) for i in range(net.lats.shape[0]) for j in range(net.lons.shape[0])]
+    result = pool.map(_compute_MI_synch, args)
+    synchs = np.zeros((4, net.lats.shape[0], net.lons.shape[0]))
+    synchs_surrs = np.zeros((NUM_SURRS, 4, net.lats.shape[0], net.lons.shape[0]))
+    for i, j, naos, ninos, suns, pdos in result:
+        synchs[0, i, j] = naos
+        synchs[1, i, j] = ninos
+        synchs[2, i, j] = suns
+        synchs[3, i, j] = pdos
+    for surr in range(NUM_SURRS):
+        sg_nao.construct_fourier_surrogates(algorithm='FT')
+        sg_nao.add_seasonality(a_nao[0], a_nao[1], a_nao[2])
+        sg_nao.wavelet(period, period_unit="y", cut=2)
+        sg_nino.construct_fourier_surrogates(algorithm='FT')
+        sg_nino.add_seasonality(a_nino[0], a_nino[1], a_nino[2])
+        sg_nino.wavelet(period, period_unit="y", cut=2)
+        sg_sunspots.construct_fourier_surrogates(algorithm='FT')
+        sg_sunspots.add_seasonality(a_sunspots[0], a_sunspots[1], a_sunspots[2])
+        sg_sunspots.wavelet(period, period_unit="y", cut=2)
+        sg_pdo.construct_fourier_surrogates(algorithm='FT')
+        sg_pdo.add_seasonality(a_pdo[0], a_pdo[1], a_pdo[2])
+        sg_pdo.wavelet(period, period_unit="y", cut=2)
+        args = [(net.phase[:, i, j], i, j, sg_nao.phase, sg_nino.phase, sg_sunspots.phase, sg_pdo.phase) for i in range(net.lats.shape[0]) for j in range(net.lons.shape[0])]
+        result = pool.map(_compute_MI_synch, args)
+        for i, j, naos, ninos, suns, pdos in result:
+            synchs_surrs[surr, 0, i, j] = naos
+            synchs_surrs[surr, 1, i, j] = ninos
+            synchs_surrs[surr, 2, i, j] = suns
+            synchs_surrs[surr, 3, i, j] = pdos
+        if (surr%20 == 0):
+            print("...%d/%d surrs done..." % (surr, NUM_SURRS))
 
-# hf = h5py.File('networks/phase_synch_eqq_bins=8_1958-2014.h5')
-# for k in synchronization:
-#     hf.create_dataset('period_%dy' % (k), data=synchronization[k])
-# hf.close()
+    pool.close()
+    pool.join()
+    synchronization[period] = synchs
+    synchronization["%.1f_surrs" % (period)] = synchs_surrs
+
+hf = h5py.File('networks/phase_synch_eqq_bins=8_all_periods_%dFTsurrs.h5' % (NUM_SURRS))
+for k in synchronization:
+    hf.create_dataset(str(k), data=synchronization[k])
+hf.close()
 
 
 ## spectra

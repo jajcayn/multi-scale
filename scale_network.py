@@ -444,7 +444,7 @@ class ScaleSpecificNetwork(DataField):
             for i in range(self.adjacency_matrix.shape[0]):
                 self.adjacency_matrix[i, i] = 0.
 
-        print datetime.now()-start
+        print(datetime.now()-start)
         
         field = self.reshape_flat_field(field)
 
@@ -491,11 +491,9 @@ class ScaleSpecificNetwork(DataField):
         for i in range(self.adjacency_matrix.shape[0]):
             self.adjacency_matrix[i, i] = 0.
 
-        print datetime.now()-start
+        print(datetime.now()-start)
         
         self.phase = self.reshape_flat_field(self.phase)
-
-
 
 
     def save_net(self, fname, only_matrix = True):

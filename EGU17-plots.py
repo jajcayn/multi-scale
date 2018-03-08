@@ -1,45 +1,58 @@
 import numpy as np
-from src.data_class import load_station_data
+# from src.data_class import load_station_data
+from pyclits.data_loaders import load_station_data
 from datetime import date
 import matplotlib.pyplot as plt
 import scipy.stats as sts
-from src.surrogates import SurrogateField
+# from src.surrogates import SurrogateField
+from pyclits.surrogates import SurrogateField
 
+
+font = {'fontname' : 'Courier New'}
 WINDOW_LENGTH = 36 # years
+def get_equidistant_bins(bins = 8):
+    return np.array(np.linspace(-np.pi, np.pi, bins+1))
 
-prg = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1775, 1, 1), date(2016, 5, 1), 
-    anom = False, offset = 1)
+files = np.loadtxt("/Users/nikola/Dropbox/phd-thesis/phd-thesis-code/long_stations.csv", dtype=np.str, delimiter=',')[:, 0]
+print files
+fnames = ['STHLM', 'PRG', 'ZGRB', 'QBK', 'HAMB', 'ORNB', 'STPTR', 'CET', 'BAMBERG', 'PTSDM']
 
-print prg.data.shape, prg.get_date_from_ndx(0), prg.get_date_from_ndx(-1)
-print prg.data.max(), prg.data.min()
+for f, fname in zip(files, fnames):
+    prg = load_station_data('../data/ECAstation-TG/%s' % f, date(1775, 1, 1), date(2016, 5, 1), 
+        anom=False, offset=1)
 
-prg.get_monthly_data()
+    print prg.data.shape, prg.get_date_from_ndx(0), prg.get_date_from_ndx(-1)
+    if np.sum(np.isnan(prg.data)) > 0:
+        prg.select_date(prg.get_date_from_ndx(0), date(2014,1,1))
 
-import csv
-f = open("PRG-Klementinum-monthly.txt", "w")
-writer = csv.writer(f, delimiter = ' ')
-for i in range(prg.data.shape[0]):
-    row = []
-    date = prg.get_date_from_ndx(i)
-    row = [date.year, date.month, "%.2f" % prg.data[i]]
-    writer.writerow(row)
+# prg.get_monthly_data()
 
-f.close()
+# import csv
+# f = open("PRG-Klementinum-monthly.txt", "w")
+# writer = csv.writer(f, delimiter = ' ')
+# for i in range(prg.data.shape[0]):
+#     row = []
+#     date = prg.get_date_from_ndx(i)
+#     row = [date.year, date.month, "%.2f" % prg.data[i]]
+#     writer.writerow(row)
+
+# f.close()
 
 # ndxs, dates = prg.get_sliding_window_indexes(window_length = WINDOW_LENGTH, window_shift = 1, unit = 'y', return_half_dates = True)
 # n_windows = len(ndxs)
 
-# ndx = prg.select_date(date(1989, 1, 1), date(2016, 4, 30), apply_to_data = False)
-
-# prg_temp = prg.copy(temporal_ndx = ndx)
-# print prg_temp.get_date_from_ndx(0), prg_temp.get_date_from_ndx(-1)
-# prg_temp.wavelet(1, 'y', cut = 4, cut_time = False, cut_data = False, regress_amp_to_data = True)
-# annual_amp = prg_temp.amplitude.copy()
+    # ndx = prg.select_date(date(1910, 1, 1), date(1966, 1, 1), apply_to_data = False)
+    # ndx = prg.select_date(date(1958, 1, 1), date(2014, 1, 1), apply_to_data = False)
+    ndx = None
+    prg_temp = prg.copy(temporal_ndx = ndx)
+    print prg_temp.get_date_from_ndx(0), prg_temp.get_date_from_ndx(-1)
+    prg_temp.wavelet(1, 'y', cut = 4, cut_time = False, cut_data = False, regress_amp_to_data = True)
+    annual_amp = prg_temp.amplitude.copy()
 # annual_phase = prg_temp.phase.copy()
 # sat_data = prg_temp.data[int(4*365.25):-int(4*365.25)].copy()
 
-# prg_temp.anomalise()
-# prg_temp.wavelet(8, 'y', cut = 4, cut_time = False, cut_data = False, regress_amp_to_data = True, continuous_phase = False)
+    prg_temp.anomalise()
+    prg_temp.wavelet(8, 'y', cut = 4, cut_time = True, cut_data = True, regress_amp_to_data = True, continuous_phase = False)
 # amplitude = prg_temp.amplitude.copy()
 # prg_temp.wavelet(8, 'y', cut = 4, cut_time = True, cut_data = True, regress_amp_to_data = False, continuous_phase = False)
 # # amplitudeAACreg = prg_temp.amplitude.copy()
@@ -72,10 +85,7 @@ f.close()
 # # plt.ylabel("$^{\circ}$C", size = 24)
 # # plt.yticks(size = 20)
 
-# def get_equidistant_bins(bins = 8):
-#     return np.array(np.linspace(-np.pi, np.pi, bins+1))
-
-# bins = get_equidistant_bins()
+    bins = get_equidistant_bins()
 
 # plt.twinx()
 # plt.gca().spines['top'].set_visible(False)
@@ -89,12 +99,12 @@ f.close()
 #     color = "#FFD699", alpha = 0.5)
 # plt.show()
 # plt.savefig("PRG-SATA-cond-means.eps", bbox_inches = 'tight')
-
-# cond_means_temp = np.zeros((8,2))
-# for j in range(cond_means_temp.shape[0]): # get conditional means for current phase range
-#     effect_ndx = ((prg_temp.phase >= bins[j]) & (prg_temp.phase <= bins[j+1]))
-#     cond_means_temp[j, 0] = np.mean(prg_temp.data[effect_ndx])
-#     cond_means_temp[j, 1] = np.mean(annual_amp[effect_ndx])
+    print annual_amp.shape, prg_temp.data.shape
+    cond_means_temp = np.zeros((8,2))
+    for j in range(cond_means_temp.shape[0]): # get conditional means for current phase range
+        effect_ndx = ((prg_temp.phase >= bins[j]) & (prg_temp.phase <= bins[j+1]))
+        cond_means_temp[j, 0] = np.std(prg_temp.data[effect_ndx])
+        cond_means_temp[j, 1] = np.mean(annual_amp[effect_ndx])
 
 
 # plt.figure(figsize = (15, 8))
@@ -121,30 +131,34 @@ f.close()
 # plt.yticks(size = 20)
 # plt.ylabel("$^{\circ}$C", size = 24)
 
-# plt.subplot(122)
-# plt.gca().spines['top'].set_visible(False)
-# plt.gca().spines['right'].set_visible(False)
-# plt.gca().spines['bottom'].set_visible(False)
-# plt.gca().spines['left'].set_visible(False)
-# diff = np.diff(bins)[0]
-# plt.bar(bins[:-1] + diff*0.1, cond_means_temp[:, 1], bottom = None, width = diff*0.8, fc = "#3299BB", align = 'edge')
-# where = bins[np.argmin(cond_means_temp[:, 1])] + diff*0.5
-# # where2 = bins[np.argmax(cond_means_temp[:, 1])] + diff*0.5
-# plt.vlines(where, np.min(cond_means_temp[:, 1]), np.max(cond_means_temp[:, 1]), linewidth = 0.9, color = "#0C262F")
-# plt.plot((where - diff*0.4, where+diff*0.4), (np.min(cond_means_temp[:, 1]), np.min(cond_means_temp[:, 1])), '-', 
-#     color = "#0C262F", linewidth = 0.9)
-# plt.plot((where - diff*0.4, where+diff*0.4), (np.max(cond_means_temp[:, 1]), np.max(cond_means_temp[:, 1])), '-', 
-#     color = "#0C262F", linewidth = 0.9)
-# effect = np.around(np.max(cond_means_temp[:, 1]) - np.min(cond_means_temp[:, 1]), decimals = 2)
-# plt.text(where + diff*0.3, np.max(cond_means_temp[:, 1]) - 0.1, "%.2f$^{\circ}$C" % effect, horizontalalignment = "left", 
-#     verticalalignment = "center", size = 24)
-# plt.xlim([-np.pi, np.pi])
-# plt.ylim([21, 22])
-# plt.xticks([-np.pi, 0, np.pi], ["$-\pi$", 0, "$\pi$"], size = 20)
-# plt.yticks(size = 20)
-# # plt.ylabel("$^{\circ}$C", size = 24)
-# # plt.show()
-# plt.savefig("PRG-bins.eps", bbox_inches = 'tight')
+    print cond_means_temp[:, 0]
+    # plt.subplot(122)
+    plt.figure(figsize=(7,9))
+    plt.gca().spines['top'].set_visible(False)
+    plt.gca().spines['right'].set_visible(False)
+    plt.gca().spines['bottom'].set_visible(False)
+    plt.gca().spines['left'].set_visible(False)
+    diff = np.diff(bins)[0]
+    plt.bar(bins[:-1] + diff*0.05, cond_means_temp[:, 0], bottom = None, width = diff*0.9, fc = "#777777", align = 'edge')
+    where = bins[np.argmin(cond_means_temp[:, 0])] + diff*0.5
+    # where2 = bins[np.argmax(cond_means_temp[:, 0])] + diff*0.5
+    plt.vlines(where, np.min(cond_means_temp[:, 0]), np.max(cond_means_temp[:, 0]), linewidth = 1.4, color = "#0C262F")
+    plt.plot((where - diff*0.4, where+diff*0.4), (np.min(cond_means_temp[:, 0]), np.min(cond_means_temp[:, 0])), '-', 
+        color = "#0C262F", linewidth = 1.4)
+    plt.plot((where - diff*0.4, where+diff*0.4), (np.max(cond_means_temp[:, 0]), np.max(cond_means_temp[:, 0])), '-', 
+        color = "#0C262F", linewidth = 1.4)
+    effect = np.around(np.max(cond_means_temp[:, 0]) - np.min(cond_means_temp[:, 0]), decimals = 2)
+    plt.text(where + diff*0.3, np.max(cond_means_temp[:, 0]) - 0.1, "%.2f$^{\circ}$C" % effect, horizontalalignment = "left", 
+        verticalalignment = "center", size = 28, **font)
+    plt.xlim([-np.pi, np.pi])
+    plt.ylim([3, 4])
+    plt.xticks([-np.pi, 0, np.pi], ["$-\pi$", 0, "$\pi$"], size = 18)
+    plt.yticks(size = 18)
+    plt.ylabel("SATA SD [$^{\circ}$C]", size = 28, **font)
+    # plt.show()
+    plt.title("%s -- %s" % (str(prg_temp.get_date_from_ndx(0).year), str(prg_temp.get_date_from_ndx(-1).year)), 
+        size=32, **font)
+    plt.savefig("%s-SATA-condSD_full.eps" % fname, bbox_inches = 'tight')
 
 # import cPickle
 

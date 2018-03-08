@@ -1,7 +1,7 @@
-from src import wavelet_analysis
-from src.data_class import load_station_data, DataField
+from pyclits.geofield import DataField
+from pyclits.data_loaders import load_station_data
 import numpy as np
-from surrogates.surrogates import SurrogateField
+from pyclits.surrogates import SurrogateField
 from datetime import date
 import matplotlib.pyplot as plt
 import matplotlib.gridspec as gridspec
@@ -15,26 +15,28 @@ def get_equidistant_bins(num):
     return np.array(np.linspace(-np.pi, np.pi, num+1))
 
 
-g = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), True)
-g_amp = load_station_data('TG_STAID000027.txt', date(1924,1,14), date(2013, 10, 1), False)
+g = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1924,1,14), date(2013,10,1), anom=True)
+g_amp = load_station_data('../data/ECAstation-TG/TG_STAID000027.txt', date(1924,1,14), date(2013, 10, 1), anom=False)
 g_data = DataField()
 
-k0 = 6. # wavenumber of Morlet wavelet used in analysis
-y = 365.25 # year in days
-fourier_factor = (4 * np.pi) / (k0 + np.sqrt(2 + np.power(k0,2)))
-period = PERIOD * y # frequency of interest
-s0 = period / fourier_factor # get scale 
+mean, var, trend = g.get_seasonality(True)
+mean2, var2, trend2 = g_amp.get_seasonality(True)
 
-wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
+sg_amp = SurrogateField()
+sg_amp.copy_field(g_amp)
+sg = SurrogateField()
+sg.copy_field(g)
 
-period = 1 * 365.25 # frequency of interest
-s0_amp = period / fourier_factor # get scale
-wave, _, _, _ = wavelet_analysis.continous_wavelet(g_amp.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
-amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
-amplitude = amplitude[0, :]
-phase_amp = np.arctan2(np.imag(wave), np.real(wave))
-phase_amp = phase_amp[0, :]
+g.return_seasonality(mean, var, trend)
+g_amp.return_seasonality(mean2, var2, trend2)
+
+g.wavelet(PERIOD, period_unit='y', cut=None)
+# wave, _, _, _ = wavelet_analysis.continous_wavelet(g.data, 1, False, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
+phase = g.phase.copy()
+
+g_amp.wavelet(1, period_unit='y', cut=None)
+phase_amp = g_amp.phase.copy()
+amplitude = g_amp.amplitude.copy()
 
 # fitting oscillatory phase / amplitude to actual SAT
 reconstruction = amplitude * np.cos(phase_amp)
@@ -45,7 +47,7 @@ print("Oscillatory series fitted to SAT data with coeff. %.3f and intercept %.3f
 
 start_cut = date(1958,1,1)
 g_data.data, g_data.time, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
-phase = phase[0, idx[0] : idx[1]]
+phase = phase[idx[0] : idx[1]]
 amplitude = amplitude[idx[0] : idx[1]]
 
 phase_bins = get_equidistant_bins(BINS)
@@ -58,19 +60,11 @@ for i in range(cond_means.shape[0]):
 
 cond_means_surr = np.zeros((NUM_SURR, BINS, 2))
 
-mean, var, trend = g.get_seasonality(True)
-mean2, var2, trend2 = g_amp.get_seasonality(True)
-
 for su in range(NUM_SURR):
-    sg_amp = SurrogateField()
-    sg_amp.copy_field(g_amp)
-    sg = SurrogateField()
-    sg.copy_field(g)
-
     # MF
-    sg_amp.construct_multifractal_surrogates()
+    sg_amp.construct_fourier_surrogates(algorithm='FT')
     sg_amp.add_seasonality(mean2, var2, trend2)
-    sg.construct_multifractal_surrogates()
+    sg.construct_fourier_surrogates(algorithm='FT')
     sg.add_seasonality(mean, var, trend)
 
     # AR
@@ -80,31 +74,30 @@ for su in range(NUM_SURR):
     # sg.prepare_AR_surrogates()
     # sg.construct_surrogates_with_residuals()
     # sg.add_seasonality(mean[:-1], var[:-1], trend[:-1])
+    # sg_time = sg.time.copy()
+    sg.wavelet(PERIOD, period_unit='y', cut=None)
+    phase = sg.phase.copy()
 
-    wave, _, _, _ = wavelet_analysis.continous_wavelet(sg.surr_data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0, j1 = 0, k0 = k0) # perform wavelet
-    phase = np.arctan2(np.imag(wave), np.real(wave)) # get phases from oscillatory modes
-
-    wave, _, _, _ = wavelet_analysis.continous_wavelet(sg_amp.surr_data, 1, True, wavelet_analysis.morlet, dj = 0, s0 = s0_amp, j1 = 0, k0 = k0) # perform wavelet
-    amplitude = np.sqrt(np.power(np.real(wave),2) + np.power(np.imag(wave),2))
-    amplitude = amplitude[0, :]
-    phase_amp = np.arctan2(np.imag(wave), np.real(wave))
-    phase_amp = phase_amp[0, :]
+    # sg_amp_time = sg_amp.time.copy()
+    sg_amp.wavelet(1, period_unit='y', cut=None)
+    amplitude = sg_amp.amplitude.copy()
+    phase_amp = sg_amp.phase.copy()
 
     # fitting oscillatory phase / amplitude to actual SAT
     reconstruction = amplitude * np.cos(phase_amp)
     fit_x = np.vstack([reconstruction, np.ones(reconstruction.shape[0])]).T
-    m, c = np.linalg.lstsq(fit_x, sg_amp.surr_data)[0]
+    m, c = np.linalg.lstsq(fit_x, sg_amp.data)[0]
     amplitude = m * amplitude + c
 
     _, _, idx = g.get_data_of_precise_length('16k', start_cut, None, False)
-    phase = phase[0, idx[0] : idx[1]]
+    phase = phase[idx[0] : idx[1]]
     amplitude = amplitude[idx[0] : idx[1]]
-    sg.surr_data = sg.surr_data[idx[0] : idx[1]]
+    sg.data = sg.data[idx[0] : idx[1]]
 
     for i in range(cond_means_surr.shape[1]):
         ndx = ((phase >= phase_bins[i]) & (phase <= phase_bins[i+1]))
         cond_means_surr[su, i, 1] = np.mean(amplitude[ndx])
-        cond_means_surr[su, i, 0] = np.mean(sg.surr_data[ndx])
+        cond_means_surr[su, i, 0] = np.mean(sg.data[ndx])
 
     if (su+1) % 10 == 0:
         print("%d. surrogate done..." % (su + 1))
@@ -145,5 +138,5 @@ ax.tick_params(axis = 'both', which = 'major', labelsize = 18)
 tit = "%s -- %s - %s" % (g.location, g.get_date_from_ndx(0), g.get_date_from_ndx(-1))
 # plt.suptitle(tit, size = 22)
 
-fname = "debug/PRGhistSATAvsSATamp1000MF"
-plt.savefig(fname + ".png")
+fname = "PRGhistSATAvsSATamp1000MF"
+plt.savefig(fname + ".eps")

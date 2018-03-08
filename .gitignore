@@ -9,6 +9,7 @@ result/
 results/
 *.pyc
 *.txt
+*.h5
 *.png
 *.eps
 *.pdf
