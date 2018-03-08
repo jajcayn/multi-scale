@@ -152,7 +152,7 @@ for location in cities:
         for _ in range(WORKERS):
             jobq.put(None)
         surrs_completed = 0
-        workers = [Process(target=_process_NAOsurrs, args=(jobq, resq, nao_sg, prg_tg.data, prg_pp.data, tau))]
+        workers = [Process(target=_process_NAOsurrs, args=(jobq, resq, nao_sg, prg_tg.data, prg_pp.data, tau)) for _ in range(WORKERS)]
         for w in workers:
             w.start()
 
@@ -174,7 +174,7 @@ for location in cities:
         for _ in range(WORKERS):
             jobq.put(None)
         surrs_completed = 0
-        workers = [Process(target=_process_TGsurrs, args=(jobq, resq, nao.data, prg_sg, prg_pp.data, tau, mean, var, trend))]
+        workers = [Process(target=_process_TGsurrs, args=(jobq, resq, nao.data, prg_sg, prg_pp.data, tau, mean, var, trend)) for _ in range(WORKERS)]
         for w in workers:
             w.start()
 
