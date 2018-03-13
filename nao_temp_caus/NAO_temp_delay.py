@@ -43,7 +43,8 @@ for location in cities:
 
             caus_surrs_temp = np.zeros((2,5))
             # no pressure = 3dim cond.
-            x, y, z = MI.get_time_series_condition([nao_sg.data, tg], tau=tau, dim_of_condition=3, eta=3)
+            x, y, z = MI.get_time_series_condition([nao_sg.data, tg], tau=tau, dim_of_condition=3, eta=3, 
+                close_condition=True)
             # MIGAU
             caus_surrs_temp[0, 0] = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
             # MIEQQ8
@@ -56,7 +57,7 @@ for location in cities:
             caus_surrs_temp[0, 4] = MI.knn_cond_mutual_information(x, y, z, k=64, standardize=True, dualtree=True)
             # with pressure = 4dim cond.
             x, y, z = MI.get_time_series_condition([nao_sg.data, tg], tau=tau, dim_of_condition=3, eta=3, 
-                add_cond = pp)
+                add_cond = pp, close_condition=True)
             # MIGAU
             caus_surrs_temp[1, 0] = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
             # MIEQQ8
@@ -78,7 +79,8 @@ for location in cities:
 
             caus_surrs_temp = np.zeros((2,5))
             # no pressure = 3dim cond.
-            x, y, z = MI.get_time_series_condition([nao, sg.data], tau=tau, dim_of_condition=3, eta=3)
+            x, y, z = MI.get_time_series_condition([nao, sg.data], tau=tau, dim_of_condition=3, eta=3, 
+                close_condition=True)
             # MIGAU
             caus_surrs_temp[0, 0] = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
             # MIEQQ8
@@ -91,7 +93,7 @@ for location in cities:
             caus_surrs_temp[0, 4] = MI.knn_cond_mutual_information(x, y, z, k=64, standardize=True, dualtree=True)
             # with pressure = 4dim cond.
             x, y, z = MI.get_time_series_condition([nao, sg.data], tau=tau, dim_of_condition=3, eta=3, 
-                add_cond = pp)
+                add_cond = pp, close_condition=True)
             # MIGAU
             caus_surrs_temp[1, 0] = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
             # MIEQQ8
@@ -117,7 +119,8 @@ for location in cities:
     for tau, ii in zip(TAUS, range(TAUS.shape[0])):
         print("computing for lag %d..." % (tau))
         # no pressure = 3dim cond.
-        x, y, z = MI.get_time_series_condition([nao.data, prg_tg.data], tau=tau, dim_of_condition=3, eta=3)
+        x, y, z = MI.get_time_series_condition([nao.data, prg_tg.data], tau=tau, dim_of_condition=3, eta=3,
+            close_condition=True)
         # MIGAU
         data_caus[0, ii, 0] = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
         # MIEQQ8
@@ -131,7 +134,7 @@ for location in cities:
 
         # with pressure = 4dim cond.
         x, y, z = MI.get_time_series_condition([nao.data, prg_tg.data], tau=tau, dim_of_condition=3, eta=3, 
-            add_cond = prg_pp.data)
+            add_cond = prg_pp.data, close_condition=True)
         # MIGAU
         data_caus[1, ii, 0] = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
         # MIEQQ8
@@ -190,6 +193,6 @@ for location in cities:
         print("  done.")
 
     print("all done. saving...")
-    with open("%s_NAO-temp_caus_100FT.bin" % (location), "wb") as f:
+    with open("%s_NAO-temp_caus_100FT-cc.bin" % (location), "wb") as f:
         cPickle.dump({'data' : data_caus, 'NAOsurrs' : surrs_NAOcaus, 
             'TGsurrs' : surrs_TGcaus, 'taus' : TAUS}, f, protocol=cPickle.HIGHEST_PROTOCOL)
