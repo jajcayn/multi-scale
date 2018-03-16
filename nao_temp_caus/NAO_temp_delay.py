@@ -5,6 +5,7 @@ import numpy as np
 import cPickle
 from datetime import date
 from multiprocessing import Queue, Process
+import scipy.signal as ss
 
 cities = ['PRG', 'FRANKFURT', 'WARSAW']
 
@@ -24,13 +25,15 @@ for location in cities:
     prg_raw = np.loadtxt("%s_from_ECAD_tg_pp.txt" % (location))
     prg_tg = clt.geofield.DataField()
     prg_tg.data = prg_raw[:, 3].copy()
+    # detrend
+    prg_tg.data = ss.detrend(prg_tg.data, type='linear')
     prg_tg.create_time_array(date_from=date(1950,1,1), sampling='d')
     prg_tg.select_date(date(1950,1,1), date(2017,1,1))
 
     prg_sg = SurrogateField()
-    mean, var, trend = prg_tg.get_seasonality(True)
+    mean, var, _ = prg_tg.get_seasonality(False)
     prg_sg.copy_field(prg_tg)
-    prg_tg.return_seasonality(mean, var, trend)
+    prg_tg.return_seasonality(mean, var, None)
 
     prg_pp = clt.geofield.DataField()
     prg_pp.data = prg_raw[:, 4].copy()
@@ -72,10 +75,10 @@ for location in cities:
             resq.put(caus_surrs_temp)
 
 
-    def _process_TGsurrs(jobq, resq, nao, sg, pp, tau, mean, var, trend):
+    def _process_TGsurrs(jobq, resq, nao, sg, pp, tau, mean, var):
         while jobq.get() is not None:
             sg.construct_fourier_surrogates(algorithm='FT')
-            sg.add_seasonality(mean, var, trend)
+            sg.add_seasonality(mean, var, None)
 
             caus_surrs_temp = np.zeros((2,5))
             # no pressure = 3dim cond.
@@ -134,7 +137,7 @@ for location in cities:
 
         # with pressure = 4dim cond.
         x, y, z = MI.get_time_series_condition([nao.data, prg_tg.data], tau=tau, dim_of_condition=3, eta=3, 
-            add_cond = prg_pp.data, close_condition=True)
+            add_cond=prg_pp.data, close_condition=True)
         # MIGAU
         data_caus[1, ii, 0] = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
         # MIEQQ8
@@ -177,7 +180,7 @@ for location in cities:
         for _ in range(WORKERS):
             jobq.put(None)
         surrs_completed = 0
-        workers = [Process(target=_process_TGsurrs, args=(jobq, resq, nao.data, prg_sg, prg_pp.data, tau, mean, var, trend)) for _ in range(WORKERS)]
+        workers = [Process(target=_process_TGsurrs, args=(jobq, resq, nao.data, prg_sg, prg_pp.data, tau, mean, var)) for _ in range(WORKERS)]
         for w in workers:
             w.start()
 
