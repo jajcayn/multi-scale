@@ -37,6 +37,8 @@ for location in cities:
 
     prg_pp = clt.geofield.DataField()
     prg_pp.data = prg_raw[:, 4].copy()
+    # detrend
+    prg_pp.data = ss.detrend(prg_pp.data, type='linear')
     prg_pp.create_time_array(date_from=date(1950,1,1), sampling='d')
     prg_pp.select_date(date(1950,1,1), date(2017,1,1))
 
@@ -113,7 +115,7 @@ for location in cities:
 
     # compute causality
     NUM_SURRS = 100
-    WORKERS = 20
+    WORKERS = 7
     TAUS = np.arange(1,41,1)
     data_caus = np.zeros((2, TAUS.shape[0], 5)) # pp yes or no x delays x (MIGAU, MIEQQ8, MIEQQ16, knn16, knn64)
     surrs_NAOcaus = np.zeros((2, NUM_SURRS, TAUS.shape[0], 5))
