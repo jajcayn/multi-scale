@@ -52,12 +52,12 @@ plt.grid()
 plt.xticks(np.arange(min(tau), max(tau)+1, 2))
 plt.show()
 
-# wh = 3
-# plt.figure(figsize=(12,9))
-# for j in range(5):
-#     plt.subplot(2,3,j+1)
-#     plt.hist(su[i, :, wh, j], bins=20)
-#     plt.axvline(data[i, wh, j], 0, 1, color='k', linewidth=4)
-#     plt.title(j_tit[j])
-# plt.suptitle("PRAGUE: %s -- delay %d" % (i_tit[i], tau[wh]))
-# plt.savefig("nao_temp_caus/PRG_delay%d.png" % (tau[wh]), bbox_inches='tight')
+wh = 4
+plt.figure(figsize=(12,9))
+for j in range(5):
+    plt.subplot(2,3,j+1)
+    plt.hist(su[i, :, wh, j], bins=20)
+    plt.axvline(data[i, wh, j], 0, 1, color='k', linewidth=4)
+    plt.title(j_tit[j])
+plt.suptitle("PRAGUE: %s -- delay %d" % (i_tit[i], tau[wh]))
+plt.savefig("nao_temp_caus/PRG_delay%d.png" % (tau[wh]), bbox_inches='tight')
