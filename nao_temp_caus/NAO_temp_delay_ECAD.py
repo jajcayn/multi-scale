@@ -60,8 +60,8 @@ def _process_CMI_surrs(jobq, resq):
 
 
 # load NAO
-path = "/Users/nikola/work-ui/data/"
-# path = "/home/nikola/Work/phd/thesis/"
+# path = "/Users/nikola/work-ui/data/"
+path = "/home/nikola/Work/phd/thesis/"
 print("Loading NAO...")
 nao_raw = np.loadtxt("NAO.daily.1950-2017.txt")
 nao = clt.geofield.DataField()
@@ -85,8 +85,8 @@ sg = SurrogateField()
 sg.copy_field(tg)
 tg.return_seasonality(mean, var, None)
 
-NUM_SURRS = 1
-WORKERS = 3
+NUM_SURRS = 100
+WORKERS = 20
 TAUS = np.arange(1,41,1)
 data_caus = np.zeros([2, TAUS.shape[0]] + tg.get_spatial_dims()) # pp yes or no x delays
 surrs_caus = np.zeros([NUM_SURRS, 2, TAUS.shape[0]] + tg.get_spatial_dims())
