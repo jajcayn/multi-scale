@@ -20,9 +20,12 @@ def _process_CMI_data(jobq, resq):
                 cmi_3d =  MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
                 
                 # with pressure = 4dim cond.
-                x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3, 
-                    add_cond=pp, close_condition=True)
-                cmi_4d = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
+                if not np.any(np.isnan(pp)):
+                    x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3, 
+                        add_cond=pp, close_condition=True)
+                    cmi_4d = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
+                else:
+                    cmi_4d = np.nan
 
                 resq.put([tau, la, lo, cmi_3d, cmi_4d])
             else:
@@ -43,9 +46,12 @@ def _process_CMI_surrs(jobq, resq):
                 cmi_3d =  MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
                 
                 # with pressure = 4dim cond.
-                x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3, 
-                    add_cond=pp, close_condition=True)
-                cmi_4d = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
+                if not np.any(np.isnan(pp)):
+                    x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3, 
+                        add_cond=pp, close_condition=True)
+                    cmi_4d = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
+                else:
+                    cmi_4d = np.nan
 
                 resq.put([ns, tau, la, lo, cmi_3d, cmi_4d])
             else:
@@ -54,8 +60,8 @@ def _process_CMI_surrs(jobq, resq):
 
 
 # load NAO
-# path = "/Users/nikola/work-ui/data/"
-path = "/home/nikola/Work/phd/thesis/"
+path = "/Users/nikola/work-ui/data/"
+# path = "/home/nikola/Work/phd/thesis/"
 print("Loading NAO...")
 nao_raw = np.loadtxt("NAO.daily.1950-2017.txt")
 nao = clt.geofield.DataField()
@@ -79,8 +85,8 @@ sg = SurrogateField()
 sg.copy_field(tg)
 tg.return_seasonality(mean, var, None)
 
-NUM_SURRS = 100
-WORKERS = 20
+NUM_SURRS = 1
+WORKERS = 3
 TAUS = np.arange(1,41,1)
 data_caus = np.zeros([2, TAUS.shape[0]] + tg.get_spatial_dims()) # pp yes or no x delays
 surrs_caus = np.zeros([NUM_SURRS, 2, TAUS.shape[0]] + tg.get_spatial_dims())
