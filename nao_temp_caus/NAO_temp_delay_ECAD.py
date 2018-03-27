@@ -5,6 +5,7 @@ import numpy as np
 import cPickle
 from datetime import date
 from multiprocessing import Queue, Process
+from time import sleep
 
 def _process_CMI_data(jobq, resq):
     while True:
@@ -140,6 +141,7 @@ for ns in range(NUM_SURRS):
             for lo in range(sg.lons.shape[0]):
                 jobq.put([ns, tau, la, lo, sg.data[:, la, lo], nao.data, pp.data[:, la, lo]])
                 to_compute += 1
+                sleep(20)
         print("...filling up the queue - %d / %d done..." % (to_compute, THEORY_to_compute)) 
 
 for _ in range(WORKERS):
