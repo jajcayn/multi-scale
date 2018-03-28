@@ -141,7 +141,7 @@ for ns in range(NUM_SURRS):
             for lo in range(sg.lons.shape[0]):
                 jobq.put([ns, tau, la, lo, sg.data[:, la, lo], nao.data, pp.data[:, la, lo]])
                 to_compute += 1
-                sleep(5)
+                sleep(0.5)
         print("...filling up the queue - %d / %d done..." % (to_compute, THEORY_to_compute)) 
 
 for _ in range(WORKERS):
