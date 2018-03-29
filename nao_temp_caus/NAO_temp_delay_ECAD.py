@@ -39,24 +39,24 @@ def _process_CMI_surrs(jobq, resq):
         if a is None:
             break
         else:
-            ns, tau, la, lo, stg = a
-            if not np.any(np.isnan(stg)):
+            tau, la, lo, sg.data[:, la, lo] = a
+            if not np.any(np.isnan(sg.data[:, la, lo])):
                 # 3d
-                x, y, z = MI.get_time_series_condition([nao.data, stg], tau=tau, dim_of_condition=3, eta=3,
+                x, y, z = MI.get_time_series_condition([nao.data, sg.data[:, la, lo]], tau=tau, dim_of_condition=3, eta=3,
                     close_condition=True)
                 cmi_3d =  MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
                 
                 # with pressure = 4dim cond.
                 if not np.any(np.isnan(pp.data[:, la, lo])):
-                    x, y, z = MI.get_time_series_condition([nao.data, stg], tau=tau, dim_of_condition=3, eta=3, 
+                    x, y, z = MI.get_time_series_condition([nao.data, sg.data[:, la, lo]], tau=tau, dim_of_condition=3, eta=3, 
                         add_cond=pp.data[:, la, lo], close_condition=True)
                     cmi_4d = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
                 else:
                     cmi_4d = np.nan
 
-                resq.put([ns, tau, la, lo, cmi_3d, cmi_4d])
+                resq.put([tau, la, lo, cmi_3d, cmi_4d])
             else:
-                resq.put([ns, tau, la, lo, np.nan, np.nan])
+                resq.put([tau, la, lo, np.nan, np.nan])
 
 
 
@@ -125,39 +125,36 @@ for w in workers:
 print("Data done!")
 
 print("Starting %d surrogates..." % (NUM_SURRS))
-jobq = Queue()
-resq = Queue()
-to_compute = 0
-THEORY_to_compute = TAUS.shape[0] * tg.lats.shape[0] * tg.lons.shape[0] * NUM_SURRS
-workers = [Process(target=_process_CMI_surrs, args=(jobq, resq)) for _ in range(WORKERS)]
-for w in workers:
-    w.start()
 
 for ns in range(NUM_SURRS):
     sg.construct_fourier_surrogates(algorithm='FT', pool=None)
     sg.add_seasonality(mean, var, None)
+    jobq = Queue()
+    resq = Queue()
+    to_compute = 0
+    THEORY_to_compute = TAUS.shape[0] * tg.lats.shape[0] * tg.lons.shape[0]
+    workers = [Process(target=_process_CMI_surrs, args=(jobq, resq)) for _ in range(WORKERS)]
+    for w in workers:
+        w.start()
     for tau in TAUS:
         for la in range(sg.lats.shape[0]):
             for lo in range(sg.lons.shape[0]):
-                jobq.put([ns, tau, la, lo, sg.data[:, la, lo]])
+                jobq.put([tau, la, lo])
                 to_compute += 1
-                # sleep(0.5)
-        print("...filling up the queue - %d / %d done..." % (to_compute, THEORY_to_compute)) 
+        print("%d/%d SURR  ...filling up the queue - %d / %d done..." % (ns, NUM_SURRS, to_compute, THEORY_to_compute)) 
+    for _ in range(WORKERS):
+        jobq.put(None)
+    assert to_compute == THEORY_to_compute
+    cnt = 0
+    while cnt < to_compute:
+        tau, la, lo, cmi1, cmi2 = resq.get()
+        surrs_caus[ns, :, tau-1, la, lo] = [cmi1, cmi2]
+        cnt += 1
+        if cnt%500000==0:
+            print("%d/%d SURR  ...getting results - %d / %d done..." % (ns, NUM_SURRS, cnt, to_compute))
 
-for _ in range(WORKERS):
-    jobq.put(None)
-
-assert to_compute == THEORY_to_compute
-cnt = 0
-while cnt < to_compute:
-    ns, tau, la, lo, cmi1, cmi2 = resq.get()
-    surrs_caus[ns, :, tau-1, la, lo] = [cmi1, cmi2]
-    cnt += 1
-    if cnt%500000==0:
-        print("...getting results - %d / %d done..." % (cnt, to_compute))
-
-for w in workers:
-    w.join()
+    for w in workers:
+        w.join()
 print("surrogates done! Saving...")
 
 with open("NAO_temp_delay_ECAD.bin", "wb") as f:
