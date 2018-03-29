@@ -5,7 +5,7 @@ import numpy as np
 import cPickle
 from datetime import date
 from multiprocessing import Queue, Process
-from time import sleep
+# from time import sleep
 
 def _process_CMI_data(jobq, resq):
     while True:
@@ -39,7 +39,9 @@ def _process_CMI_surrs(jobq, resq):
         if a is None:
             break
         else:
-            ns, tau, la, lo, tg, nao, pp = a
+            ns, tau, la, lo, nao = a
+            tg = sg.data[:, la, lo].copy()
+            pp = pp.data[:, la, lo].copy()
             if not np.any(np.isnan(tg)):
                 # 3d
                 x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3,
@@ -139,9 +141,9 @@ for ns in range(NUM_SURRS):
     for tau in TAUS:
         for la in range(sg.lats.shape[0]):
             for lo in range(sg.lons.shape[0]):
-                jobq.put([ns, tau, la, lo, sg.data[:, la, lo], nao.data, pp.data[:, la, lo]])
+                jobq.put([ns, tau, la, lo, nao.data])
                 to_compute += 1
-                sleep(0.5)
+                # sleep(0.5)
         print("...filling up the queue - %d / %d done..." % (to_compute, THEORY_to_compute)) 
 
 for _ in range(WORKERS):
