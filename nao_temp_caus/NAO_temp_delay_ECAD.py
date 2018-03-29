@@ -5,6 +5,7 @@ import numpy as np
 import cPickle
 from datetime import date
 from multiprocessing import Queue, Process
+from pathos.multiprocessing import Pool
 # from time import sleep
 
 def _process_CMI_data(jobq, resq):
@@ -39,7 +40,7 @@ def _process_CMI_surrs(jobq, resq):
         if a is None:
             break
         else:
-            tau, la, lo, sg.data[:, la, lo] = a
+            tau, la, lo = a
             if not np.any(np.isnan(sg.data[:, la, lo])):
                 # 3d
                 x, y, z = MI.get_time_series_condition([nao.data, sg.data[:, la, lo]], tau=tau, dim_of_condition=3, eta=3,
@@ -127,7 +128,10 @@ print("Data done!")
 print("Starting %d surrogates..." % (NUM_SURRS))
 
 for ns in range(NUM_SURRS):
-    sg.construct_fourier_surrogates(algorithm='FT', pool=None)
+    pool = Pool(WORKERS)
+    sg.construct_fourier_surrogates(algorithm='FT', pool=pool)
+    pool.close()
+    pool.join()
     sg.add_seasonality(mean, var, None)
     jobq = Queue()
     resq = Queue()
