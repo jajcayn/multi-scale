@@ -13,17 +13,17 @@ def _process_CMI_data(jobq, resq):
         if a is None:
             break
         else:
-            tau, la, lo, tg, nao, pp = a
-            if not np.any(np.isnan(tg)):
+            tau, la, lo = a
+            if not np.any(np.isnan(tg.data[:, la, lo])):
                 # 3d
-                x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3,
+                x, y, z = MI.get_time_series_condition([nao.data, tg.data[:, la, lo]], tau=tau, dim_of_condition=3, eta=3,
                     close_condition=True)
                 cmi_3d =  MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
                 
                 # with pressure = 4dim cond.
-                if not np.any(np.isnan(pp)):
-                    x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3, 
-                        add_cond=pp, close_condition=True)
+                if not np.any(np.isnan(pp.data[:, la, lo])):
+                    x, y, z = MI.get_time_series_condition([nao.data, tg.data[:, la, lo]], tau=tau, dim_of_condition=3, eta=3, 
+                        add_cond=pp.data[:, la, lo], close_condition=True)
                     cmi_4d = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
                 else:
                     cmi_4d = np.nan
@@ -39,19 +39,17 @@ def _process_CMI_surrs(jobq, resq):
         if a is None:
             break
         else:
-            ns, tau, la, lo, ts, nao = a
-            # tg = sg.data[:, la, lo].copy()
-            pp = pp.data[:, la, lo].copy()
-            if not np.any(np.isnan(tg)):
+            ns, tau, la, lo = a
+            if not np.any(np.isnan(sg.data[:, la, lo])):
                 # 3d
-                x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3,
+                x, y, z = MI.get_time_series_condition([nao.data, sg.data[:, la, lo]], tau=tau, dim_of_condition=3, eta=3,
                     close_condition=True)
                 cmi_3d =  MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
                 
                 # with pressure = 4dim cond.
-                if not np.any(np.isnan(pp)):
-                    x, y, z = MI.get_time_series_condition([nao, tg], tau=tau, dim_of_condition=3, eta=3, 
-                        add_cond=pp, close_condition=True)
+                if not np.any(np.isnan(pp.data[:, la, lo])):
+                    x, y, z = MI.get_time_series_condition([nao.data, sg.data[:, la, lo]], tau=tau, dim_of_condition=3, eta=3, 
+                        add_cond=pp.data[:, la, lo], close_condition=True)
                     cmi_4d = MI.cond_mutual_information(x, y, z, algorithm='GCM', log2=False)
                 else:
                     cmi_4d = np.nan
@@ -106,7 +104,7 @@ for w in workers:
 for tau in TAUS:
     for la in range(tg.lats.shape[0]):
         for lo in range(tg.lons.shape[0]):
-            jobq.put([tau, la, lo, tg.data[:, la, lo], nao.data, pp.data[:, la, lo]])
+            jobq.put([tau, la, lo])
             to_compute += 1
     print("...filling up the queue - %d / %d done..." % (to_compute, THEORY_to_compute))        
 
@@ -141,7 +139,7 @@ for ns in range(NUM_SURRS):
     for tau in TAUS:
         for la in range(sg.lats.shape[0]):
             for lo in range(sg.lons.shape[0]):
-                jobq.put([ns, tau, la, lo, sg.data[:, la, lo], nao.data])
+                jobq.put([ns, tau, la, lo])
                 to_compute += 1
                 # sleep(0.5)
         print("...filling up the queue - %d / %d done..." % (to_compute, THEORY_to_compute)) 
