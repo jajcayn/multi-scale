@@ -39,8 +39,8 @@ def _process_CMI_surrs(jobq, resq):
         if a is None:
             break
         else:
-            ns, tau, la, lo, nao = a
-            tg = sg.data[:, la, lo].copy()
+            ns, tau, la, lo, ts, nao = a
+            # tg = sg.data[:, la, lo].copy()
             pp = pp.data[:, la, lo].copy()
             if not np.any(np.isnan(tg)):
                 # 3d
@@ -141,7 +141,7 @@ for ns in range(NUM_SURRS):
     for tau in TAUS:
         for la in range(sg.lats.shape[0]):
             for lo in range(sg.lons.shape[0]):
-                jobq.put([ns, tau, la, lo, nao.data])
+                jobq.put([ns, tau, la, lo, sg.data[:, la, lo], nao.data])
                 to_compute += 1
                 # sleep(0.5)
         print("...filling up the queue - %d / %d done..." % (to_compute, THEORY_to_compute)) 
